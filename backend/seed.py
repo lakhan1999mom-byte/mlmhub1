@@ -66,7 +66,7 @@ async def seed_all(db):
             "sponsor_id": None,
             "sponsor_user_id": None,
             "referral_code": "ADMIN001",
-            "current_stage": 8,
+            "current_stage": 1,
             "direct_referrals_count": 0,
             "team_size": 0,
             "wallet_balance": 0,

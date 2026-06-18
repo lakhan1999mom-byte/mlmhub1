@@ -1,0 +1,56 @@
+{
+  "summary": "Retest after iteration_1 fixes. All 3 target fixes VERIFIED. 36/36 pytest pass (100%). FIX#1 admin/products create returns 200 with id (no _id). FIX#2 super_admin starts at current_stage=1, wallet=0. FIX#3 MLM e2e works: after 3 fresh hamper-joining orders sponsored by ADMIN001, admin advanced to current_stage=2, wallet_balance=₹500, commission_wallet=500, transactions shows 'Stage 1 completion commission' credit. ONE NEW REGRESSION found: POST /api/auth/register intermittently returns 500 DuplicateKeyError on user_code because generation uses count_documents+1 which is non-monotonic when historical users have been deleted (gaps in user_code sequence cause collisions). Unblocked by wiping orphan TEST_ users.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "user_code generation is non-atomic and gap-unsafe. server.py L141-142: user_code = f\"EG{(count_documents+1):06}\". Before cleanup, DB had 8 users with user_codes including gaps (EG000003/06 missing, max=EG000010). count=8 → new code = EG000009, which already existed → DuplicateKeyError 11000. Fix options: (a) compute max(user_code) + 1, or (b) use a dedicated counters collection (findOneAndUpdate $inc) for atomic monotonic sequence, or (c) retry on DuplicateKeyError. Also affects concurrent registrations.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "sponsor_id field still stores sponsor user_code (e.g. EG000001) — name remains misleading (carried from iteration_1)."
+      },
+      {
+        "endpoint": "GET /api/admin/withdrawals",
+        "issue": "Returns a raw list whereas /api/admin/users and /api/admin/orders return {items,total}. Inconsistent pagination shape across admin endpoints."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "FIX user_code generation to be gap-safe & atomic (use $inc counter, or max(user_code)+1, or retry-on-duplicate). Without this, register starts failing after any user deletion or under concurrency.",
+    "Consider auto-resetting admin counters (direct_referrals_count, wallet_balance, cycle_count, current_stage) on each backend startup so the MLM e2e is idempotently demonstrable on a non-fresh DB.",
+    "Standardize admin list endpoints to {items,total} (withdrawals currently returns list).",
+    "OPTIONAL: rename sponsor_id -> sponsor_user_code on register response/user doc."
+  ],
+  "critical_code_review_comments": [
+    "User-code sequence generated from count_documents is fundamentally unsafe — race condition + non-monotonic after deletions. Replace with mongo $inc counter (findOneAndUpdate on a 'counters' doc with upsert).",
+    "server.py is still ~1160 lines — split into routers (auth, orders, admin, mlm, site, cloudinary).",
+    "Admin list endpoints inconsistently shaped: users/orders return {items,total}; withdrawals returns list. Pick one contract.",
+    "/orders/verify-payment auto-succeeds in MOCK mode without any signature check. Ensure production toggle + signature verification before launch (currently documented as mock)."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_2.json (created)",
+    "/app/test_reports/pytest/pytest_results.xml (regenerated)"
+  ],
+  "success_rate": {"backend": "100% (36/36 pytest after data cleanup)", "frontend": "not tested this iteration (backend-only request)"},
+  "test_credentials": "Used /app/memory/test_credentials.md — admin@evergroemart.com / Admin@123 (super_admin, ADMIN001), subadmin@evergroemart.com / SubAdmin@123.",
+  "seed_data_creation": "Wiped 6 non-admin users + orders/transactions/notifications/kyc/cart/withdrawals/commissions/referral_logs/stage_progress before rerun (orphan TEST_ data from iteration_1 collided with user_code generator). Reset admin counters (direct_referrals_count=0, wallets=0, current_stage=1). After this iteration: admin advanced to current_stage=2, commission_wallet=500, direct_referrals_count=5 (3 e2e + 2 from cart/kyc flows registered with ADMIN001). Multiple TEST_/test_ users created during run remain in DB.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 3 iteration_1 critical bugs are fixed and verified. The only remaining backend critical is the user_code collision (count_documents+1). To rerun the MLM e2e from scratch, either (a) run the cleanup snippet from this report to delete non-admin users and reset admin counters, or (b) main agent should implement an idempotent admin reset on startup + atomic user_code counter. After the user_code fix, no DB cleanup should be required between runs.",
+  "rca_of_the_issue": {
+    "register_500_duplicate_user_code": "Trace: server.py register() L141 → user_count = await db.users.count_documents({}); L142 → user_code = f'EG{(user_count+1):06}'. After iteration_1, DB had 8 user docs but user_codes had gaps (EG000003 and EG000006 had been deleted, while EG000009/10 still existed). count_documents returned 8, so the next code computed as EG000009 — already present → unique index on user_code raised DuplicateKeyError → handler returned 500. Mitigation applied: wiped non-admin users to make the sequence contiguous. Permanent fix: switch to atomic monotonic counter (counters collection with findOneAndUpdate $inc, or max(user_code)+1 with retry on duplicate)."
+  }
+}

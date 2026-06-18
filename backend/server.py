@@ -156,7 +156,9 @@ async def register(payload: UserCreate):
         "sponsor_user_id": sponsor["id"] if sponsor else None,
         "referral_code": referral_code,
         "current_stage": 1,
-        "joined_at_stage": 1,
+        # joined_at_stage stores the sponsor's CURRENT stage at the time of joining.
+        # This drives stage progression in mlm_engine.process_stage_progression.
+        "joined_at_stage": sponsor.get("current_stage", 1) if sponsor else 1,
         "direct_referrals_count": 0,
         "team_size": 0,
         "wallet_balance": 0,
@@ -909,6 +911,7 @@ async def admin_create_product(payload: ProductCreate, _=Depends(require_admin))
     if not p.get("sku"):
         p["sku"] = f"PRD-{uuid.uuid4().hex[:6].upper()}"
     await db.products.insert_one(p)
+    p.pop("_id", None)
     return p
 
 
@@ -1094,7 +1097,8 @@ async def admin_create_banner(payload: dict, _=Depends(require_admin)):
     payload["is_active"] = payload.get("is_active", True)
     payload["created_at"] = now_iso()
     await db.banners.insert_one(payload)
-    return {k: v for k, v in payload.items() if k != "_id"}
+    payload.pop("_id", None)
+    return payload
 
 
 @api.delete("/admin/banners/{bid}")
