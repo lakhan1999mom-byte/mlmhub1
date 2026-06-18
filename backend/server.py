@@ -139,7 +139,29 @@ async def register(payload: UserCreate):
             raise HTTPException(status_code=400, detail="Invalid referral code")
 
     user_count = await db.users.count_documents({})
-    user_code = f"EG{str(user_count + 1).zfill(6)}"
+    # Use atomic counter to avoid duplicate user_code under concurrency or after deletions
+    counter = await db.counters.find_one_and_update(
+        {"_id": "user_code"},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=True,
+    )
+    seq = counter.get("seq", user_count + 1)
+    # ensure at least 'user_count+1' to keep monotonic if counter is new
+    if seq < user_count + 1:
+        counter = await db.counters.find_one_and_update(
+            {"_id": "user_code"},
+            {"$set": {"seq": user_count + 1}},
+            return_document=True,
+        )
+        seq = counter["seq"]
+    user_code = f"EG{str(seq).zfill(6)}"
+    # Retry if collision (defensive)
+    while await db.users.find_one({"user_code": user_code}):
+        counter = await db.counters.find_one_and_update(
+            {"_id": "user_code"}, {"$inc": {"seq": 1}}, return_document=True,
+        )
+        user_code = f"EG{str(counter['seq']).zfill(6)}"
     referral_code = gen_referral_code(payload.name)
     while await db.users.find_one({"referral_code": referral_code}):
         referral_code = gen_referral_code(payload.name)
