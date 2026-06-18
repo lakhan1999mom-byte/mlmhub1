@@ -1,0 +1,72 @@
+{
+  "summary": "First test run for EverGro eMart. Backend: 34/36 pytest tests pass (94%). Frontend: landing, admin login (password+OTP), admin dashboard with 8 KPI cards & 2 Recharts, register form, /products (10 cards), /hampers (4 tiers) all load with data-testids. Two CRITICAL backend bugs found that block the MLM commission-engine end-to-end review step from being verifiable.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/admin/products",
+        "issue": "Returns 500 'ObjectId is not iterable'. Cause: motor's insert_one mutates payload dict by injecting _id (ObjectId); handler then returns that dict, which FastAPI cannot JSON-serialize. Fix: `p.pop('_id', None)` before return OR build response from fields explicitly. Same pattern likely also in /admin/banners create (not tested).",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "seed.py super_admin doc",
+        "issue": "Super Admin is seeded with current_stage=8 and wallet_balance=0. Spec/review step 'After 3rd joining-order verification, super_admin.current_stage should advance past 1 and wallet_balance should increase by ₹500 (Stage 1 commission)' is therefore impossible with a fresh DB. Admin should be seeded at current_stage=1 (or seed should be idempotently reset to 1 on each startup).",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/auth/register (mlm_engine integration)",
+        "issue": "New user's `joined_at_stage` is hardcoded to 1 (the new user's own stage). But process_stage_progression queries `joined_at_stage == sponsor.current_stage`. Result: sponsor stage progression only works while sponsor is at stage 1; once advanced to stage 2+, no new referrals are counted toward that stage. Fix: set joined_at_stage = sponsor['current_stage'] (sponsor's stage at time of join).",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/users, /api/admin/orders",
+        "issue": "Return paginated `{items, total}` shape (correct), but the frontend pages should be verified to read `data.items` (not `data` directly). Not tested in UI."
+      },
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "`sponsor_id` field stores sponsor's user_code (e.g., EG000001), not the referral_code. Naming is misleading; consider `sponsor_user_code` and a separate `sponsor_referral_code`."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Dashboard / Users by Stage chart", "issues": ["Bar chart shows tooltip 'users: 0' overlay even when bars have values; minor — verify chart data binding"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "FIX backend: POST /api/admin/products — exclude `_id` before returning (motor insert_one mutates dict). Same pattern check on POST /api/admin/banners.",
+    "FIX seed.py: super_admin should be seeded with current_stage=1 (NOT 8). Otherwise the MLM e2e review step ('admin advances past stage 1 and earns ₹500') is impossible to verify on a fresh DB.",
+    "FIX mlm_engine logic: in /auth/register, set `joined_at_stage = sponsor.current_stage` (sponsor's stage at registration time). Currently hardcoded to 1, making stage progression beyond Stage 1 impossible.",
+    "Verify frontend admin Users/Orders pages handle paginated `{items,total}` response shape (not raw list).",
+    "OPTIONAL: rename `sponsor_id` field — it actually stores sponsor's user_code, not an id."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~1155 lines — should be split into routers (auth, orders, admin, mlm, site, cloudinary).",
+    "Motor insert_one mutates the payload dict by adding ObjectId _id. Multiple handlers return this dict directly. Must standardize: either project _id out or use exclude_id helper before serialization.",
+    "Admin endpoints inconsistently return list vs paginated dict — standardize to `{items, total}` everywhere or vice versa.",
+    "PaymentVerify endpoint auto-succeeds without any signature verification (MOCK mode) — correctly documented but ensure prod toggle exists before launch.",
+    "joined_at_stage semantics inconsistent with how process_stage_progression uses it — see Action Items.",
+    "process_new_referral notifies sponsor before completing referral count update; minor — no real race condition with single-server."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (created)",
+    "/app/test_reports/iteration_1.json (created)"
+  ],
+  "success_rate": {"backend": "94% (34/36 pytest)", "frontend": "~95% (landing, login pw+OTP, admin dashboard, products, hampers, register all OK)"},
+  "test_credentials": "Loaded from /app/memory/test_credentials.md. Used admin@evergroemart.com/Admin@123 and subadmin@evergroemart.com/SubAdmin@123. Seeded data created multiple TEST_ users via referral ADMIN001.",
+  "seed_data_creation": "Multiple TEST_ users created via /auth/register with referral_code=ADMIN001 (kept in DB for downstream tests). One TEST product created and soft-deleted via admin endpoints (when create works).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Re-run /app/backend/tests/backend_test.py after main agent fixes (1) admin products create 500, (2) seed admin current_stage=1, (3) joined_at_stage=sponsor.current_stage. The mlm_commission_e2e test will only pass when admin starts at stage 1 — if seed isn't reset between test runs, manually reset admin via DB or recreate via wipe. Also extend frontend tests for: /dashboard, /network, /referral (QR), /wallet, /withdrawals, /kyc, /cart, /checkout, admin orders/withdrawals/kyc/users pages — these were not exercised in this run.",
+  "rca_of_the_issues": {
+    "admin_products_500": "motor.collection.insert_one(doc) injects ObjectId into the same dict. Handler returns this dict. FastAPI's jsonable_encoder tries to iterate ObjectId → TypeError. Fix: pop _id before return, or return public_product(p) projection.",
+    "mlm_e2e_blocked": "Two compounding bugs: (a) seed forces admin to stage 8 on first creation, so any 'first e2e' against a fresh DB starts past stage 1; (b) joined_at_stage is the NEW user's own stage (always 1) but progression query uses sponsor.current_stage — so progression for any sponsor at stage>1 is impossible. Both must be fixed for the spec's MLM e2e to be demonstrable."
+  }
+}

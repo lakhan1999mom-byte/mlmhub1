@@ -1,56 +1,139 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
-import { HOME } from "@/constants/testIds";
+import { Toaster } from "sonner";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { CartProvider } from "@/lib/cart";
+import api from "@/lib/api";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import WhatsAppFab from "@/components/WhatsAppFab";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// pages
+import Landing from "@/pages/Landing";
+import About from "@/pages/About";
+import BusinessPlan from "@/pages/BusinessPlan";
+import CompensationPlan from "@/pages/CompensationPlan";
+import Calculator from "@/pages/Calculator";
+import ProductsPage from "@/pages/ProductsPage";
+import HampersPage from "@/pages/HampersPage";
+import ProductDetail from "@/pages/ProductDetail";
+import Blog from "@/pages/Blog";
+import BlogDetail from "@/pages/BlogDetail";
+import FAQPage from "@/pages/FAQPage";
+import Contact from "@/pages/Contact";
+import Career from "@/pages/Career";
+import LegalPage from "@/pages/LegalPage";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
+import Cart from "@/pages/Cart";
+import Checkout from "@/pages/Checkout";
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
+import UserShell from "@/components/UserShell";
+import Dashboard from "@/pages/user/Dashboard";
+import Network from "@/pages/user/Network";
+import Wallet from "@/pages/user/Wallet";
+import Withdrawals from "@/pages/user/Withdrawals";
+import KycPage from "@/pages/user/KycPage";
+import Orders from "@/pages/user/Orders";
+import Profile from "@/pages/user/Profile";
+import NotificationsPage from "@/pages/user/NotificationsPage";
+import Referral from "@/pages/user/Referral";
+import Support from "@/pages/user/Support";
 
+import AdminShell from "@/components/AdminShell";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminProducts from "@/pages/admin/AdminProducts";
+import AdminOrders from "@/pages/admin/AdminOrders";
+import AdminWithdrawals from "@/pages/admin/AdminWithdrawals";
+import AdminKyc from "@/pages/admin/AdminKyc";
+import AdminTickets from "@/pages/admin/AdminTickets";
+import AdminSettings from "@/pages/admin/AdminSettings";
+import AdminBroadcast from "@/pages/admin/AdminBroadcast";
+
+function PublicLayout() {
+  const [site, setSite] = useState(null);
   useEffect(() => {
-    helloWorldApi();
+    api.get("/site/settings").then(({ data }) => setSite(data)).catch(() => {});
   }, []);
-
   return (
-    <div>
-      <header className="App-header">
-        <a
-          data-testid={HOME.emergentLink}
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <>
+      <Navbar siteSettings={site} />
+      <Outlet context={{ site }} />
+      <Footer site={site} />
+      <WhatsAppFab phone={site?.whatsapp} />
+    </>
   );
 }
 
-export default App;
+function RequireAuth({ role, children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <div className="p-10 text-center text-[#064E3B]">Loading…</div>;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (role && !role.includes(user.role)) return <Navigate to="/" replace />;
+  return children;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <CartProvider>
+          <Toaster position="top-right" richColors />
+          <Routes>
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<Landing />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/business-plan" element={<BusinessPlan />} />
+              <Route path="/compensation-plan" element={<CompensationPlan />} />
+              <Route path="/calculator" element={<Calculator />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/hampers" element={<HampersPage />} />
+              <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogDetail />} />
+              <Route path="/faq" element={<FAQPage />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/career" element={<Career />} />
+              <Route path="/legal/:type" element={<LegalPage />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<RequireAuth role={["user","sub_admin","super_admin"]}><Checkout /></RequireAuth>} />
+            </Route>
+
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+
+            <Route element={<RequireAuth role={["user","sub_admin","super_admin"]}><UserShell /></RequireAuth>}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/network" element={<Network />} />
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/withdrawals" element={<Withdrawals />} />
+              <Route path="/kyc" element={<KycPage />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/referral" element={<Referral />} />
+              <Route path="/support" element={<Support />} />
+            </Route>
+
+            <Route element={<RequireAuth role={["sub_admin","super_admin"]}><AdminShell /></RequireAuth>}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/products" element={<AdminProducts />} />
+              <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
+              <Route path="/admin/kyc" element={<AdminKyc />} />
+              <Route path="/admin/tickets" element={<AdminTickets />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/broadcast" element={<AdminBroadcast />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </CartProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
