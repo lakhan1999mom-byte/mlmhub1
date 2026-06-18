@@ -190,7 +190,7 @@ h1, h2, h3, h4, h5, h6 {
 /* WhatsApp floating button */
 .fab-whatsapp {
     position: fixed;
-    bottom: 88px;
+    bottom: 24px;
     right: 24px;
     width: 56px;
     height: 56px;
@@ -207,21 +207,21 @@ h1, h2, h3, h4, h5, h6 {
 }
 .fab-whatsapp:hover { transform: scale(1.08); }
 
-/* Restyle the Emergent badge to match EverGro theme */
+/* Restyle the Emergent badge to be transparent/white per user request */
 a#emergent-badge {
-    background: linear-gradient(135deg, #84CC16 0%, #65A30D 100%) !important;
-    color: #064E3B !important;
-    box-shadow: 0 8px 20px -6px rgba(132, 204, 22, 0.55) !important;
-    border: 1.5px solid #064E3B !important;
-    font-weight: 600 !important;
+    background: rgba(255, 255, 255, 0) !important;
+    color: rgba(255, 255, 255, 0) !important;
+    box-shadow: none !important;
+    border: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
-a#emergent-badge * { color: #064E3B !important; fill: #064E3B !important; }
-a#emergent-badge img, a#emergent-badge svg { filter: brightness(0) saturate(100%) invert(13%) sepia(48%) saturate(2107%) hue-rotate(124deg) brightness(94%) contrast(97%) !important; }
+a#emergent-badge * { color: rgba(255, 255, 255, 0) !important; fill: rgba(255, 255, 255, 0) !important; opacity: 0 !important; }
+a#emergent-badge img, a#emergent-badge svg { opacity: 0 !important; visibility: hidden !important; }
 
 /* Mobile tweaks */
 @media (max-width: 640px) {
-    .fab-whatsapp { bottom: 80px; right: 16px; width: 50px; height: 50px; }
-    a#emergent-badge { transform: scale(0.85); transform-origin: bottom right; }
+    .fab-whatsapp { bottom: 24px; right: 16px; width: 50px; height: 50px; }
     h1, h2 { letter-spacing: -0.01em; }
     .card-soft { border-radius: 1rem; }
     .input-soft { font-size: 0.95rem; padding: 0.65rem 0.875rem; }
