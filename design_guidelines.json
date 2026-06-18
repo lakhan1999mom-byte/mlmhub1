@@ -1,0 +1,75 @@
+{
+  "theme": "light",
+  "archetype": "Organic & Earthy modified for Vibrant Bright",
+  "design_philosophy": "A highly optimistic, high-trust, and energetic e-commerce & MLM interface. Relies heavily on generous whitespace, vibrant lime green and sunshine yellow accents, grounded by deep forest green typography to maintain a premium feel. Avoids standard 'fintech dark' to emphasize growth, community, and fresh groceries.",
+  "colors": {
+    "primary": "#84CC16", 
+    "secondary": "#FBBF24", 
+    "accent_silver": "#94A3B8", 
+    "background_app": "#FAFAF9", 
+    "surface_card": "#FFFFFF",
+    "text_primary": "#064E3B", 
+    "text_secondary": "#334155", 
+    "border_subtle": "#E2E8F0",
+    "status_success": "#22C55E",
+    "status_warning": "#EAB308",
+    "status_error": "#EF4444"
+  },
+  "typography": {
+    "headings": "Outfit",
+    "body": "Plus Jakarta Sans",
+    "data_numbers": "Space Grotesk",
+    "scale": {
+      "h1": "text-5xl lg:text-6xl tracking-tight font-bold text-[#064E3B]",
+      "h2": "text-3xl lg:text-4xl tracking-tight font-semibold text-[#064E3B]",
+      "h3": "text-xl lg:text-2xl font-semibold text-[#064E3B]",
+      "body": "text-base leading-relaxed text-[#334155]",
+      "small_label": "text-sm tracking-[0.05em] uppercase font-medium text-[#94A3B8]"
+    }
+  },
+  "spacing_and_layout": {
+    "container_padding": "p-6 md:p-10 lg:p-16",
+    "card_padding": "p-6 lg:p-8",
+    "gap_standard": "gap-6 md:gap-8",
+    "radius_card": "rounded-2xl",
+    "radius_button": "rounded-full",
+    "grid_dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+    "grid_landing_bento": "grid-cols-1 md:grid-cols-12 gap-8"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#84CC16] text-[#064E3B] font-semibold rounded-full px-6 py-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all",
+      "secondary": "bg-[#FBBF24] text-[#064E3B] font-semibold rounded-full px-6 py-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all",
+      "outline": "border-2 border-[#E2E8F0] text-[#064E3B] font-semibold rounded-full px-6 py-3 hover:border-[#94A3B8] transition-colors"
+    },
+    "cards": {
+      "default": "bg-white rounded-2xl border border-[#E2E8F0] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]",
+      "interactive": "bg-white rounded-2xl border border-[#E2E8F0] shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer",
+      "glass": "bg-white/80 backdrop-blur-xl border border-white/20 shadow-sm"
+    },
+    "inputs": "rounded-xl border border-[#E2E8F0] bg-[#FAFAF9] px-4 py-3 text-base text-[#334155] focus:bg-white focus:ring-2 focus:ring-[#84CC16] focus:border-transparent transition-all outline-none",
+    "nav_bar": "sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-[#E2E8F0]"
+  },
+  "motion": {
+    "hover": "transition-all duration-300 ease-out",
+    "page_entrance": "framer-motion staggered fade-in-up sequence",
+    "mlm_tree": "framer-motion layout transitions for nodes, smooth zooming and panning functionality"
+  },
+  "images": {
+    "hero_family_shopping": "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwyfHxmYW1pbHklMjBzaG9wcGluZyUyMGhhcHB5JTIwYnJpZ2h0fGVufDB8fHx8MTc4MTc4ODc5Nnww&ixlib=rb-4.1.0&q=85",
+    "hamper_product_gift": "https://images.unsplash.com/photo-1508899203029-1c9eb493c9bd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwZ2lmdCUyMGJhc2tldCUyMGhhbXBlcnxlbnwwfHx8fDE3ODE3ODg3OTZ8MA&ixlib=rb-4.1.0&q=85",
+    "team_success_wealth": "https://images.pexels.com/photos/8171179/pexels-photo-8171179.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+  },
+  "iconography": "lucide-react (stroke-width 1.5, rounded caps). Use green/yellow duotone where supported.",
+  "instructions_to_main_agent": [
+    "CRITICAL: Generate pure .js and .jsx files (not .ts or .tsx).",
+    "Ensure all interactive elements (buttons, links, inputs) have role-based data-testid attributes in kebab-case.",
+    "Use pure HTML+Tailwind for Landing Page sections. Do not constrain landing layouts with standard Shadcn card components; make them asymmetric and organic.",
+    "Use Shadcn UI components for User/Sub-Admin/Super-Admin Panels (tables, select, dialog, tabs). Customize radii to match rounded-2xl.",
+    "Implement an 8-Stage MLM Genealogy Tree using framer-motion and standard div nodes, connected visually.",
+    "Build the Income Calculator with interactive input[type='range'] sliders.",
+    "Maintain strict color hierarchy: Deep Forest Green for primary text over light backgrounds for maximum APCA contrast.",
+    "Never use pure white (#FFFFFF) for the main application background; use #FAFAF9.",
+    "Do NOT use Inter, Roboto, or standard system fonts. Stick to Outfit (Headings), Plus Jakarta Sans (Body), and Space Grotesk (Numbers/Data)."
+  ]
+}
