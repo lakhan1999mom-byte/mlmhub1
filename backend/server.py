@@ -1166,6 +1166,9 @@ async def admin_update_withdrawal(wid: str, payload: dict, admin=Depends(require
     await log_audit("withdrawal_decision", actor=admin, target_id=wid, target_label=w["withdrawal_code"],
                     metadata={"new_status": new_status, "note": note, "amount": w["amount"]})
     return out
+
+
+@api.get("/admin/kyc")
 async def admin_list_kyc(_=Depends(require_admin), status: Optional[str] = None):
     query = {}
     if status:
@@ -1175,7 +1178,7 @@ async def admin_list_kyc(_=Depends(require_admin), status: Optional[str] = None)
 
 
 @api.put("/admin/kyc/{kyc_id}")
-async def admin_update_kyc(kyc_id: str, payload: dict, _=Depends(require_admin)):
+async def admin_update_kyc(kyc_id: str, payload: dict, admin=Depends(require_admin)):
     k = await db.kyc.find_one({"id": kyc_id}, {"_id": 0})
     if not k:
         raise HTTPException(status_code=404, detail="KYC not found")
