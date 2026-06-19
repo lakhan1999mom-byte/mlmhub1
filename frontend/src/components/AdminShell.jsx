@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText } from "lucide-react";
 
 const LOGO = "https://customer-assets.emergentagent.com/job_9e593e72-d371-4332-879b-9b25914b11c9/artifacts/xiy5qq2i_ChatGPT_Image_Jun_18__2026__06_43_19_PM-removebg-preview.png";
 
@@ -13,6 +13,9 @@ const items = [
   { to: "/admin/kyc", icon: FileCheck, label: "KYC", perm: "kyc" },
   { to: "/admin/tickets", icon: MessageSquare, label: "Tickets", perm: "tickets" },
   { to: "/admin/broadcast", icon: Megaphone, label: "Broadcast", perm: "notifications" },
+  { to: "/admin/sliders", icon: Images, label: "Sliders", perm: "*" },
+  { to: "/admin/reels", icon: Film, label: "Reels", perm: "*" },
+  { to: "/admin/audit-logs", icon: ScrollText, label: "Audit Logs", perm: "*" },
   { to: "/admin/settings", icon: Settings, label: "Settings", perm: "*" },
 ];
 

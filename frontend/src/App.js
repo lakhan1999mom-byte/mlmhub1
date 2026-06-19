@@ -51,6 +51,9 @@ import AdminKyc from "@/pages/admin/AdminKyc";
 import AdminTickets from "@/pages/admin/AdminTickets";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminBroadcast from "@/pages/admin/AdminBroadcast";
+import AdminSliders from "@/pages/admin/AdminSliders";
+import AdminReels from "@/pages/admin/AdminReels";
+import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
 
 function PublicLayout() {
   const [site, setSite] = useState(null);
@@ -128,6 +131,9 @@ export default function App() {
               <Route path="/admin/tickets" element={<AdminTickets />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/broadcast" element={<AdminBroadcast />} />
+              <Route path="/admin/sliders" element={<AdminSliders />} />
+              <Route path="/admin/reels" element={<AdminReels />} />
+              <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" />} />

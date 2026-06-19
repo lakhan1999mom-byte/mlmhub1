@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import api from "@/lib/api";
 import { ArrowRight, Star, Users, Wallet, Sparkles, ShieldCheck, Truck, Award, ChevronRight, Play, Quote, CheckCircle2, TrendingUp, Gift } from "lucide-react";
+import HeroSlider from "@/components/HeroSlider";
+import ReelsRow from "@/components/ReelsRow";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?crop=entropy&cs=srgb&fm=jpg&q=85&w=900";
 const HAMPER_IMG = "https://images.unsplash.com/photo-1508899203029-1c9eb493c9bd?w=800";
@@ -14,6 +16,9 @@ export default function Landing() {
   const [testimonials, setTestimonials] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [openFaq, setOpenFaq] = useState(0);
+  const [sliderTop, setSliderTop] = useState([]);
+  const [sliderMid, setSliderMid] = useState([]);
+  const [reels, setReels] = useState([]);
 
   useEffect(() => {
     Promise.all([
@@ -22,6 +27,9 @@ export default function Landing() {
       api.get("/site/testimonials").then(r => setTestimonials(r.data)),
       api.get("/site/faqs").then(r => setFaqs(r.data)),
       api.get("/site/banners").then(r => setBanners(r.data)),
+      api.get("/sliders?location=landing_top").then(r => setSliderTop(r.data)),
+      api.get("/sliders?location=landing_mid").then(r => setSliderMid(r.data)),
+      api.get("/reels?location=landing").then(r => setReels(r.data)),
     ]).catch(() => {});
   }, []);
 
@@ -85,6 +93,16 @@ export default function Landing() {
           <Trust icon={Sparkles} title="Daily Payouts" sub="Auto wallet credit"/>
         </div>
       </section>
+
+      {/* PROMO SLIDER #1 (admin controlled) */}
+      {sliderTop.length > 0 && (
+        <section className="pt-12 max-w-7xl mx-auto px-6">
+          <HeroSlider slides={sliderTop} testid="landing-slider-top"/>
+        </section>
+      )}
+
+      {/* REELS — Vertical Videos for engagement */}
+      {reels.length > 0 && <ReelsRow reels={reels} title="Watch Member Stories & Demos" testid="landing-reels"/>}
 
       {/* HAMPERS */}
       <section className="py-20 max-w-7xl mx-auto px-6">
@@ -177,6 +195,13 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+      {/* PROMO SLIDER #2 (admin controlled) */}
+      {sliderMid.length > 0 && (
+        <section className="max-w-7xl mx-auto px-6 pb-12">
+          <HeroSlider slides={sliderMid} testid="landing-slider-mid"/>
+        </section>
+      )}
 
       {/* TESTIMONIALS */}
       <section className="bg-[#ECFCCB] py-20">

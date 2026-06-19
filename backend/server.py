@@ -127,16 +127,49 @@ async def require_super_admin(user=Depends(get_user)) -> dict:
 
 
 # ==================== AUTH ====================
+MAX_REFERRALS_PER_LAYER = 6
+INACTIVITY_DAYS = 180
+MIN_REFERRALS_FOR_WITHDRAWAL = 3
+
+
+async def log_audit(event: str, actor: Optional[dict] = None, target_id: Optional[str] = None,
+                    target_label: Optional[str] = None, metadata: Optional[dict] = None,
+                    ip: Optional[str] = None):
+    """Insert audit log entry."""
+    try:
+        await db.audit_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "actor_id": actor.get("id") if actor else None,
+            "actor_code": actor.get("user_code") if actor else None,
+            "actor_role": actor.get("role") if actor else None,
+            "event": event,
+            "target_id": target_id,
+            "target_label": target_label,
+            "metadata": metadata or {},
+            "ip": ip,
+            "created_at": now_iso(),
+        })
+    except Exception as e:
+        logger.warning(f"audit log failed: {e}")
+
+
 @api.post("/auth/register")
 async def register(payload: UserCreate):
-    if await db.users.find_one({"$or": [{"email": payload.email}, {"phone": payload.phone}]}):
-        raise HTTPException(status_code=400, detail="Email or phone already registered")
+    # Email must remain unique. Phone can repeat (user can have multiple accounts).
+    if await db.users.find_one({"email": payload.email}):
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     sponsor = None
     if payload.referral_code:
         sponsor = await db.users.find_one({"referral_code": payload.referral_code}, {"_id": 0})
         if not sponsor:
             raise HTTPException(status_code=400, detail="Invalid referral code")
+        # 6-per-layer rule: block if sponsor already has 6 direct referrals
+        if sponsor.get("direct_referrals_count", 0) >= MAX_REFERRALS_PER_LAYER:
+            raise HTTPException(
+                status_code=400,
+                detail=f"This sponsor is full ({MAX_REFERRALS_PER_LAYER} direct referrals max). Try a different referral code.",
+            )
 
     user_count = await db.users.count_documents({})
     # Use atomic counter to avoid duplicate user_code under concurrency or after deletions
@@ -195,10 +228,13 @@ async def register(payload: UserCreate):
         "is_joining_paid": False,
         "permissions": [],
         "cycle_count": 0,
+        "last_activity_at": now_iso(),
         "created_at": now_iso(),
         "updated_at": now_iso(),
     }
     await db.users.insert_one(user_doc)
+    await log_audit("register", actor=user_doc, target_id=user_doc["id"], target_label=user_doc["user_code"],
+                    metadata={"sponsor_code": sponsor["user_code"] if sponsor else None})
 
     # process referral
     if sponsor:
@@ -222,15 +258,61 @@ async def register(payload: UserCreate):
 
 @api.post("/auth/login")
 async def login(payload: UserLogin):
-    user = await db.users.find_one(
-        {"$or": [{"email": payload.identifier}, {"phone": payload.identifier}]},
-        {"_id": 0}
-    )
+    # Email: still unique → direct lookup. Phone: may have multiple accounts.
+    if "@" in payload.identifier:
+        user = await db.users.find_one({"email": payload.identifier}, {"_id": 0})
+    else:
+        # phone-based login — find an account whose password matches
+        candidates = await db.users.find({"phone": payload.identifier}, {"_id": 0}).to_list(20)
+        user = None
+        for c in candidates:
+            if verify_password(payload.password, c.get("password_hash", "")):
+                user = c
+                break
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account disabled")
+    # 180-day inactivity check
+    last = user.get("last_activity_at") or user.get("created_at")
+    if last:
+        try:
+            from datetime import timedelta
+            last_dt = datetime.fromisoformat(last.replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) - last_dt > timedelta(days=INACTIVITY_DAYS):
+                await db.users.update_one({"id": user["id"]}, {"$set": {"is_active": False}})
+                raise HTTPException(status_code=403, detail=f"Account inactive for {INACTIVITY_DAYS}+ days. Contact support.")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
     token = create_token(user["id"], user["role"])
+    await log_audit("login", actor=user, metadata={"method": "password"})
+    return {"token": token, "user": public_user(user)}
+
+
+@api.get("/auth/accounts-by-phone")
+async def accounts_by_phone(phone: str):
+    """Return list of accounts for a phone — used by multi-account picker."""
+    items = await db.users.find({"phone": phone}, {"_id": 0, "password_hash": 0}).to_list(20)
+    return [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "role": u.get("role", "user")} for u in items]
+
+
+@api.post("/auth/login-with-code")
+async def login_with_code(payload: dict):
+    user_code = payload.get("user_code")
+    password = payload.get("password")
+    if not user_code or not password:
+        raise HTTPException(status_code=400, detail="user_code and password required")
+    user = await db.users.find_one({"user_code": user_code}, {"_id": 0})
+    if not user or not verify_password(password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Account disabled")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
+    token = create_token(user["id"], user["role"])
+    await log_audit("login", actor=user, metadata={"method": "user_code"})
     return {"token": token, "user": public_user(user)}
 
 
@@ -257,11 +339,40 @@ async def verify_otp(payload: OTPVerifyReq):
         raise HTTPException(status_code=400, detail="OTP expired")
     await db.otps.update_one({"phone": payload.phone}, {"$set": {"verified": True}})
 
-    user = await db.users.find_one({"phone": payload.phone}, {"_id": 0})
-    if user:
+    # Phone can have multiple accounts. Return list if >1.
+    users = await db.users.find({"phone": payload.phone}, {"_id": 0}).to_list(20)
+    if len(users) == 0:
+        return {"verified": True, "new_user": True}
+    if len(users) == 1:
+        user = users[0]
+        if not user.get("is_active", True):
+            raise HTTPException(status_code=403, detail="Account disabled")
+        await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
         token = create_token(user["id"], user["role"])
-        return {"verified": True, "token": token, "user": public_user(user), "new_user": False}
-    return {"verified": True, "new_user": True}
+        await log_audit("login", actor=user, metadata={"method": "otp"})
+        return {"verified": True, "token": token, "user": public_user(user), "new_user": False, "multiple": False}
+    # Multiple accounts — return list for picker
+    accounts = [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "id": u["id"], "role": u.get("role", "user")} for u in users]
+    return {"verified": True, "new_user": False, "multiple": True, "accounts": accounts}
+
+
+@api.post("/auth/otp/pick-account")
+async def otp_pick_account(payload: dict):
+    """After OTP verify with multiple accounts, user picks one to log into."""
+    phone = payload.get("phone")
+    user_code = payload.get("user_code")
+    rec = await db.otps.find_one({"phone": phone})
+    if not rec or not rec.get("verified"):
+        raise HTTPException(status_code=400, detail="OTP not verified")
+    user = await db.users.find_one({"phone": phone, "user_code": user_code}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Account disabled")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
+    token = create_token(user["id"], user["role"])
+    await log_audit("login", actor=user, metadata={"method": "otp_picker"})
+    return {"token": token, "user": public_user(user)}
 
 
 @api.post("/auth/forgot-password")
@@ -278,6 +389,8 @@ async def forgot_password(payload: ForgotPwReq):
 
 @api.get("/auth/me")
 async def me(user=Depends(get_user)):
+    # Track activity on every dashboard load
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
     return public_user(user)
 
 
@@ -576,6 +689,8 @@ async def verify_payment(payload: PaymentVerify, user=Depends(get_user)):
     # clear cart
     await db.carts.update_one({"user_id": user["id"]}, {"$set": {"items": []}})
 
+    await log_audit("payment", actor=user, target_id=order["id"], target_label=order["order_code"],
+                    metadata={"amount": order["total"], "is_joining": order.get("is_joining_order", False)})
     return {"ok": True, "cashback": cashback}
 
 
@@ -617,6 +732,12 @@ async def list_transactions(user=Depends(get_user), limit: int = 100):
 async def request_withdrawal(payload: WithdrawalReq, user=Depends(get_user)):
     if user.get("kyc_status") != "approved":
         raise HTTPException(status_code=400, detail="KYC not approved. Please complete KYC first.")
+    # Min-referral rule for withdrawals
+    if user.get("direct_referrals_count", 0) < MIN_REFERRALS_FOR_WITHDRAWAL:
+        raise HTTPException(
+            status_code=400,
+            detail=f"You need at least {MIN_REFERRALS_FOR_WITHDRAWAL} direct referrals to start earning withdrawals. Share your referral link!",
+        )
     if payload.amount < 100:
         raise HTTPException(status_code=400, detail="Minimum withdrawal is ₹100")
     if user.get("wallet_balance", 0) < payload.amount:
@@ -639,6 +760,7 @@ async def request_withdrawal(payload: WithdrawalReq, user=Depends(get_user)):
         "processed_at": None,
     }
     await db.withdrawals.insert_one(w)
+    await log_audit("withdrawal_request", actor=user, target_id=w["id"], target_label=w["withdrawal_code"], metadata={"amount": payload.amount, "method": payload.method})
     # Hold the amount
     await db.users.update_one(
         {"id": user["id"]},
@@ -691,6 +813,7 @@ async def submit_kyc(payload: KYCSubmit, user=Depends(get_user)):
     }
     await db.kyc.update_one({"user_id": user["id"]}, {"$set": doc}, upsert=True)
     await db.users.update_one({"id": user["id"]}, {"$set": {"kyc_status": "pending", "updated_at": now_iso()}})
+    await log_audit("kyc_submit", actor=user, target_id=user["id"], target_label=user["user_code"])
     return {"ok": True, "status": "pending"}
 
 
@@ -914,12 +1037,18 @@ async def admin_list_users(_=Depends(require_admin), q: Optional[str] = None, pa
 
 
 @api.put("/admin/users/{user_id}")
-async def admin_update_user(user_id: str, payload: dict, _=Depends(require_admin)):
+async def admin_update_user(user_id: str, payload: dict, admin=Depends(require_admin)):
     allowed = {"is_active", "current_stage", "wallet_balance", "permissions", "role", "kyc_status"}
     update = {k: v for k, v in payload.items() if k in allowed}
     update["updated_at"] = now_iso()
     await db.users.update_one({"id": user_id}, {"$set": update})
     u = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if "is_active" in update:
+        await log_audit("status_change", actor=admin, target_id=user_id, target_label=u.get("user_code"),
+                        metadata={"new_status": update["is_active"]})
+    if "role" in update:
+        await log_audit("role_change", actor=admin, target_id=user_id, target_label=u.get("user_code"),
+                        metadata={"new_role": update["role"]})
     return public_user(u)
 
 
@@ -1034,10 +1163,9 @@ async def admin_update_withdrawal(wid: str, payload: dict, admin=Depends(require
         "created_at": now_iso(),
     })
     out = await db.withdrawals.find_one({"id": wid}, {"_id": 0})
+    await log_audit("withdrawal_decision", actor=admin, target_id=wid, target_label=w["withdrawal_code"],
+                    metadata={"new_status": new_status, "note": note, "amount": w["amount"]})
     return out
-
-
-@api.get("/admin/kyc")
 async def admin_list_kyc(_=Depends(require_admin), status: Optional[str] = None):
     query = {}
     if status:
@@ -1066,6 +1194,8 @@ async def admin_update_kyc(kyc_id: str, payload: dict, _=Depends(require_admin))
         "created_at": now_iso(),
     })
     out = await db.kyc.find_one({"id": kyc_id}, {"_id": 0})
+    await log_audit("kyc_decision", actor=admin, target_id=kyc_id, target_label=k.get("user_code"),
+                    metadata={"new_status": new_status, "note": note})
     return out
 
 
@@ -1098,18 +1228,20 @@ async def admin_get_settings(_=Depends(require_admin)):
 
 
 @api.put("/admin/settings/site")
-async def admin_update_site(payload: dict, _=Depends(require_super_admin)):
+async def admin_update_site(payload: dict, admin=Depends(require_super_admin)):
     payload.pop("_key", None)
     payload.pop("_id", None)
     await db.settings.update_one({"_key": "site"}, {"$set": payload}, upsert=True)
+    await log_audit("settings_update", actor=admin, target_label="site")
     return {"ok": True}
 
 
 @api.put("/admin/settings/mlm")
-async def admin_update_mlm(payload: dict, _=Depends(require_super_admin)):
+async def admin_update_mlm(payload: dict, admin=Depends(require_super_admin)):
     payload.pop("_key", None)
     payload.pop("_id", None)
     await db.settings.update_one({"_key": "mlm"}, {"$set": payload}, upsert=True)
+    await log_audit("settings_update", actor=admin, target_label="mlm")
     return {"ok": True}
 
 
@@ -1145,6 +1277,97 @@ async def admin_broadcast(payload: dict, _=Depends(require_admin)):
     return {k: v for k, v in n.items() if k != "_id"}
 
 
+# ==================== SLIDERS (PUBLIC + ADMIN) ====================
+@api.get("/sliders")
+async def list_sliders(location: Optional[str] = None):
+    query = {"is_active": True}
+    if location:
+        query["location"] = location
+    items = await db.sliders.find(query, {"_id": 0}).sort("sort_order", 1).to_list(50)
+    return items
+
+
+@api.post("/admin/sliders")
+async def admin_create_slider(payload: dict, admin=Depends(require_admin)):
+    payload["id"] = str(uuid.uuid4())
+    payload["is_active"] = payload.get("is_active", True)
+    payload["created_at"] = now_iso()
+    await db.sliders.insert_one(payload)
+    payload.pop("_id", None)
+    await log_audit("slider_create", actor=admin, target_id=payload["id"], target_label=payload.get("title", ""))
+    return payload
+
+
+@api.put("/admin/sliders/{sid}")
+async def admin_update_slider(sid: str, payload: dict, admin=Depends(require_admin)):
+    payload.pop("_id", None)
+    payload.pop("id", None)
+    await db.sliders.update_one({"id": sid}, {"$set": payload})
+    await log_audit("slider_update", actor=admin, target_id=sid)
+    s = await db.sliders.find_one({"id": sid}, {"_id": 0})
+    return s
+
+
+@api.delete("/admin/sliders/{sid}")
+async def admin_delete_slider(sid: str, admin=Depends(require_admin)):
+    await db.sliders.delete_one({"id": sid})
+    await log_audit("slider_delete", actor=admin, target_id=sid)
+    return {"ok": True}
+
+
+# ==================== REELS / VERTICAL VIDEOS ====================
+@api.get("/reels")
+async def list_reels(location: Optional[str] = None):
+    query = {"is_active": True}
+    if location:
+        query["location"] = {"$in": [location, "both"]}
+    items = await db.reels.find(query, {"_id": 0}).sort("sort_order", 1).to_list(50)
+    return items
+
+
+@api.post("/admin/reels")
+async def admin_create_reel(payload: dict, admin=Depends(require_admin)):
+    payload["id"] = str(uuid.uuid4())
+    payload["is_active"] = payload.get("is_active", True)
+    payload["created_at"] = now_iso()
+    await db.reels.insert_one(payload)
+    payload.pop("_id", None)
+    await log_audit("reel_create", actor=admin, target_id=payload["id"], target_label=payload.get("title", ""))
+    return payload
+
+
+@api.put("/admin/reels/{rid}")
+async def admin_update_reel(rid: str, payload: dict, admin=Depends(require_admin)):
+    payload.pop("_id", None)
+    payload.pop("id", None)
+    await db.reels.update_one({"id": rid}, {"$set": payload})
+    await log_audit("reel_update", actor=admin, target_id=rid)
+    r = await db.reels.find_one({"id": rid}, {"_id": 0})
+    return r
+
+
+@api.delete("/admin/reels/{rid}")
+async def admin_delete_reel(rid: str, admin=Depends(require_admin)):
+    await db.reels.delete_one({"id": rid})
+    await log_audit("reel_delete", actor=admin, target_id=rid)
+    return {"ok": True}
+
+
+# ==================== AUDIT LOGS (ADMIN) ====================
+@api.get("/admin/audit-logs")
+async def admin_list_audit_logs(_=Depends(require_admin), event: Optional[str] = None,
+                                 actor_code: Optional[str] = None, page: int = 1, limit: int = 50):
+    query = {}
+    if event:
+        query["event"] = event
+    if actor_code:
+        query["actor_code"] = actor_code
+    total = await db.audit_logs.count_documents(query)
+    skip = (page - 1) * limit
+    items = await db.audit_logs.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    return {"items": items, "total": total}
+
+
 # ==================== ROUTES MOUNT ====================
 @api.get("/")
 async def root():
@@ -1171,6 +1394,9 @@ async def on_startup():
         await db.users.create_index("referral_code", unique=True)
         await db.users.create_index("email")
         await db.users.create_index("phone")
+        await db.users.create_index("last_activity_at")
+        await db.audit_logs.create_index([("created_at", -1)])
+        await db.audit_logs.create_index("event")
     except Exception as e:
         logger.warning(f"index creation: {e}")
     logger.info("EverGro eMart API ready")

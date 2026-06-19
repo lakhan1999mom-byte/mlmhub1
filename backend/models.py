@@ -313,6 +313,44 @@ class Banner(Base):
     created_at: str = Field(default_factory=now_iso)
 
 
+class Slider(Base):
+    id: str = Field(default_factory=new_id)
+    title: str = ""
+    subtitle: str = ""
+    image_url: str
+    link: str = "#"
+    cta_label: str = ""
+    location: str = "landing_top"  # landing_top|landing_mid|user_dashboard
+    is_active: bool = True
+    sort_order: int = 0
+    created_at: str = Field(default_factory=now_iso)
+
+
+class ReelVideo(Base):
+    id: str = Field(default_factory=new_id)
+    title: str
+    video_url: str  # mp4 url, ideally 9:16
+    thumbnail_url: str = ""
+    description: str = ""
+    location: str = "both"  # landing|user|both
+    is_active: bool = True
+    sort_order: int = 0
+    created_at: str = Field(default_factory=now_iso)
+
+
+class AuditLog(Base):
+    id: str = Field(default_factory=new_id)
+    actor_id: Optional[str] = None
+    actor_code: Optional[str] = None
+    actor_role: Optional[str] = None
+    event: str  # login|register|payment|withdrawal_request|withdrawal_decision|kyc_submit|kyc_decision|role_change|status_change|broadcast|settings_update
+    target_id: Optional[str] = None
+    target_label: Optional[str] = None
+    metadata: dict = Field(default_factory=dict)
+    ip: Optional[str] = None
+    created_at: str = Field(default_factory=now_iso)
+
+
 class Coupon(Base):
     id: str = Field(default_factory=new_id)
     code: str

@@ -18,6 +18,7 @@ export default function Login() {
   const [otpSent, setOtpSent] = useState(false);
   const [devOtp, setDevOtp] = useState("");
   const [busy, setBusy] = useState(false);
+  const [multiAccounts, setMultiAccounts] = useState(null); // null | [accounts]
 
   const handlePwLogin = async (e) => {
     e.preventDefault();
@@ -52,12 +53,27 @@ export default function Login() {
       if (data.new_user) {
         toast.info("Phone verified. Please complete registration.");
         nav(`/register?phone=${phone}`);
+      } else if (data.multiple) {
+        // Multiple accounts — show picker
+        setMultiAccounts(data.accounts);
+        toast.info(`Found ${data.accounts.length} accounts on this number. Pick one.`);
       } else {
         localStorage.setItem("evergro_token", data.token);
         window.location.href = data.user.role === "user" ? "/dashboard" : "/admin";
       }
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Invalid OTP");
+    } finally { setBusy(false); }
+  };
+
+  const pickAccount = async (user_code) => {
+    setBusy(true);
+    try {
+      const { data } = await api.post("/auth/otp/pick-account", { phone, user_code });
+      localStorage.setItem("evergro_token", data.token);
+      window.location.href = data.user.role === "user" ? "/dashboard" : "/admin";
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed");
     } finally { setBusy(false); }
   };
 
@@ -104,7 +120,7 @@ export default function Login() {
             </form>
           )}
 
-          {tab === "otp" && (
+          {tab === "otp" && !multiAccounts && (
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-[#064E3B]">Mobile Number</label>
@@ -125,6 +141,23 @@ export default function Login() {
               <div className="text-center text-sm text-[#64748B]">
                 New to EverGro? <Link to="/register" className="text-[#84CC16] font-semibold">Join Free</Link>
               </div>
+            </div>
+          )}
+
+          {tab === "otp" && multiAccounts && (
+            <div className="space-y-3" data-testid="multi-account-picker">
+              <div className="text-sm font-semibold text-[#064E3B]">Multiple accounts found on {phone}:</div>
+              <div className="text-xs text-[#64748B] mb-2">Pick which account you want to login to.</div>
+              {multiAccounts.map((a) => (
+                <button key={a.user_code} onClick={() => pickAccount(a.user_code)} disabled={busy} className="w-full text-left card-soft p-4 hover:border-[#84CC16] transition-colors flex items-center justify-between" data-testid={`pick-account-${a.user_code}`}>
+                  <div>
+                    <div className="font-semibold text-[#064E3B]">{a.name}</div>
+                    <div className="text-xs text-[#64748B] font-numbers">{a.user_code} · {a.email}</div>
+                  </div>
+                  <span className="text-[#84CC16] font-bold">›</span>
+                </button>
+              ))}
+              <button onClick={() => { setMultiAccounts(null); setOtpSent(false); setOtp(""); }} className="btn-outline w-full justify-center text-sm">Cancel</button>
             </div>
           )}
 

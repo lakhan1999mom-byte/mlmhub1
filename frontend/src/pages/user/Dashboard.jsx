@@ -3,17 +3,23 @@ import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Wallet, Users, TrendingUp, ShoppingBag, Bell, Award, ArrowUpRight, Trophy } from "lucide-react";
+import HeroSlider from "@/components/HeroSlider";
+import ReelsRow from "@/components/ReelsRow";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [recentTxns, setRecentTxns] = useState([]);
+  const [sliderUser, setSliderUser] = useState([]);
+  const [reels, setReels] = useState([]);
 
   useEffect(() => {
     api.get("/users/dashboard").then(({ data }) => setStats(data.stats)).catch(() => {});
     api.get("/mlm/leaderboard").then(({ data }) => setLeaderboard(data)).catch(() => {});
     api.get("/wallet/transactions").then(({ data }) => setRecentTxns(data.slice(0, 5))).catch(() => {});
+    api.get("/sliders?location=user_dashboard").then(({ data }) => setSliderUser(data)).catch(() => {});
+    api.get("/reels?location=user").then(({ data }) => setReels(data)).catch(() => {});
   }, []);
 
   if (!user) return null;
@@ -28,6 +34,11 @@ export default function Dashboard() {
         <h1 className="font-display text-3xl lg:text-4xl font-bold text-[#064E3B]">Welcome, {user.name}!</h1>
         <p className="text-[#64748B]">User Code: <span className="font-numbers font-semibold text-[#064E3B]">{user.user_code}</span></p>
       </div>
+
+      {/* Admin-controlled slider */}
+      {sliderUser.length > 0 && (
+        <HeroSlider slides={sliderUser} height="h-[200px] md:h-[260px]" testid="user-dashboard-slider"/>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={Wallet} label="Wallet Balance" value={`₹${(user.wallet_balance || 0).toLocaleString()}`} color="bg-[#84CC16]" testid="stat-wallet"/>
@@ -127,6 +138,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Reels for member engagement */}
+      {reels.length > 0 && (
+        <div className="-mx-6 lg:-mx-10">
+          <ReelsRow reels={reels} title="Quick Demos & Member Stories" testid="user-dashboard-reels"/>
+        </div>
+      )}
     </div>
   );
 }

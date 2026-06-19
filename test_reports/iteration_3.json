@@ -1,0 +1,72 @@
+{
+  "summary": "Iteration 3 backend testing - all 7 new feature areas verified via new pytest file (21/21 PASS). Sliders public+admin CRUD, Reels public+admin CRUD, Audit logs (list+event+actor filters, slider/reel/login events), Multi-account-per-phone (register, accounts-by-phone, OTP picker, password login picks correct account by password, login-with-code), 6-per-layer block (saturated ADMIN001 then 7th blocked with 400 'sponsor is full'), Min 3-direct-referrals rule for withdrawals (400 'at least 3 direct referrals'), Audit metadata.method coverage for password/user_code/otp/otp_picker. Found 2 CRITICAL regressions introduced this iteration in the KYC admin flow: (a) missing route decorator on admin_list_kyc -> GET /api/admin/kyc returns 404, (b) NameError in admin_update_kyc -> PUT /api/admin/kyc/{id} returns 500. Existing backend_test.py (36 tests from iteration_2) is now blocked at TestRegistrationAndMLM because the 6-per-layer test has saturated ADMIN001 to 6/6 referrals (this was an explicitly accepted side-effect per the review request).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/admin/kyc",
+        "issue": "Route decorator is MISSING. /app/backend/server.py line 1169 declares `async def admin_list_kyc(...)` without the preceding `@api.get(\"/admin/kyc\")` decorator. Likely lost during an edit (sits immediately after a function body without separation). Endpoint returns 404 'Not Found', breaking the admin KYC review screen entirely.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "PUT /api/admin/kyc/{kyc_id}",
+        "issue": "Returns HTTP 500 due to NameError: name 'admin' is not defined. /app/backend/server.py line 1178 signature uses `_=Depends(require_admin)` but line 1197 calls `log_audit(\"kyc_decision\", actor=admin, ...)`. Fix: rename param to `admin=Depends(require_admin)`. Verified via curl - backend.err.log shows the traceback.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "sponsor_id field still stores sponsor user_code (carried from iteration_2)."
+      },
+      {
+        "endpoint": "GET /api/admin/withdrawals",
+        "issue": "Still returns raw list, inconsistent with /admin/users and /admin/orders ({items,total}). Same as iteration_2."
+      },
+      {
+        "endpoint": "GET /api/reels?location=landing",
+        "issue": "Backend filter uses {\"$in\": [location, \"both\"]} so any value (e.g. 'foo') still returns all 'both' rows. This is the design choice the request specifies, but the API has no validation/enum for `location` - any string is silently accepted."
+      },
+      {
+        "endpoint": "POST /api/withdrawals/request",
+        "issue": "Order of validation: KYC check runs BEFORE the new 3-referral check, so a user without KYC will see the KYC message even if they also lack referrals. Acceptable, but document precedence."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3_features.py",
+    "/app/test_reports/pytest/iteration3_results.xml"
+  ],
+  "action_items": [
+    "Add missing @api.get(\"/admin/kyc\") decorator on /app/backend/server.py line 1169 (admin_list_kyc).",
+    "Fix admin_update_kyc signature on line 1178: change `_=Depends(require_admin)` to `admin=Depends(require_admin)` so the log_audit() call on line 1197 works.",
+    "After the two KYC fixes, re-run /app/backend/tests/backend_test.py - it will STILL fail at TestRegistrationAndMLM because ADMIN001 is now saturated at 6/6 referrals. Either (a) reset ADMIN001's direct_referrals_count + clear test users on startup, or (b) update backend_test.py to register sub-admin (SUBADMIN1) as sponsor for fresh referrals.",
+    "Consider validating location enum in /api/admin/sliders (allowed: landing_top/landing_mid/user_dashboard) and /api/admin/reels (landing/user/both) with Pydantic.",
+    "Sub-admin role does not appear to have any /admin/audit-logs permission gate beyond require_admin - if audit logs should be super_admin only, add that check."
+  ],
+  "critical_code_review_comments": [
+    "server.py now 1408 lines - still needs router split. The kyc decorator regression is exactly the kind of bug a flat 1400-line file produces.",
+    "log_audit() helper relies on a dict-like actor with optional fields - good defensive design - but every endpoint must remember to pass `admin` not `_`. Consider standardizing: ALWAYS use `admin=Depends(require_admin)` (never `_=...`) to prevent this class of NameError.",
+    "register() user_code generator now uses an atomic counter with retry-on-collision fallback - excellent, iteration_2 critical bug is resolved.",
+    "GET /api/reels?location=foo silently matches \"both\" rows due to $in semantics; add input validation.",
+    "180-day inactivity check on /auth/login: errors during datetime parse are silently swallowed (`except Exception: pass`) - log them at warn level."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3_features.py (created)",
+    "/app/test_reports/pytest/iteration3_results.xml (created)"
+  ],
+  "success_rate": {"backend": "100% (21/21 new feature tests pass)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "From /app/memory/test_credentials.md - admin@evergroemart.com / Admin@123 (super_admin EG000001, ADMIN001). After this iteration, ADMIN001 is SATURATED at 6/6 direct referrals - no new users can use it as sponsor.",
+  "seed_data_creation": "Test created: (a) 2 multi-phone accounts (random phones starting with 78), (b) ~5 fresh sub-users sponsored by ADMIN001 to fill the 6-cap (admin started with 1 referral this run), (c) 1 KYC-approved user without referrals for the withdrawal-min-referral test, (d) 1 OTP test user, plus several short-lived test sliders/reels (all deleted in-test). ADMIN001 direct_referrals_count went from 1 to 6 - per request instructions, NOT cleaned up.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 3 added 7 features - all 21 new feature pytests pass. 2 critical KYC admin regressions found that are unrelated to the new features (decorator + NameError). The existing backend_test.py is BLOCKED at MLM e2e because ADMIN001 is now saturated. To re-run the full regression after main agent fixes: either reset admin.direct_referrals_count and delete TEST_ users, or switch backend_test.py to use SUBADMIN1 as the sponsor referral code. The new file /app/backend/tests/test_iteration3_features.py is idempotent on the new feature dimensions because it uses random phones/emails per run, but it WILL fail the 6-per-layer test on second run since admin is already saturated - it auto-detects current count so it just won't add new ones, but then the count is still >=6 and the 7th block still triggers correctly. Withdrawal-min-ref test uses /admin/users PUT to bypass the broken /admin/kyc PUT.",
+  "rca_of_the_issue": {
+    "admin_kyc_get_404": "server.py L1167 ends the previous function (admin_update_withdrawal) with `return out` followed IMMEDIATELY by `async def admin_list_kyc(...)` on L1169 — no @api.get decorator above it. The route was never registered, so FastAPI's catch-all returns 404. Probable cause: during the iteration 3 edits adding audit logs/audit_log() calls into admin_update_withdrawal, the decorator line for admin_list_kyc was accidentally deleted.",
+    "admin_kyc_put_500": "server.py L1178 signature: `async def admin_update_kyc(kyc_id: str, payload: dict, _=Depends(require_admin)):` — uses `_` for the admin object. L1197 then does `await log_audit(\"kyc_decision\", actor=admin, ...)` referencing an undefined `admin` → NameError at runtime → FastAPI 500. Fix: rename `_` to `admin`. Verified in /var/log/supervisor/backend.err.log."
+  }
+}

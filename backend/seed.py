@@ -226,20 +226,59 @@ async def seed_all(db):
             t["is_active"] = True
             await db.testimonials.insert_one(t)
 
-    # ============ FAQs ============
     if await db.faqs.count_documents({}) == 0:
         faqs = [
             {"question": "What is EverGro eMart?", "answer": "EverGro eMart is an MLM-based hamper-selling platform where you buy premium hampers, refer others, and earn commissions across 8 stages."},
             {"question": "How does the MLM plan work?", "answer": "There are 8 stages. You need 3 referrals to complete each stage. Stages 1, 3, 5, 7 and 8 pay commissions."},
-            {"question": "How do I withdraw earnings?", "answer": "Visit your Wallet, click Withdraw, choose UPI or Bank, and submit. Admin processes within 24-48 hours."},
+            {"question": "How do I withdraw earnings?", "answer": "You need at least 3 direct referrals AND approved KYC to request withdrawals. Visit your Wallet, click Withdraw, choose UPI or Bank."},
+            {"question": "Can one phone have multiple accounts?", "answer": "Yes! You can create unlimited accounts using the same mobile number — each gets a unique random username. When logging in via OTP, you can pick which account to access."},
+            {"question": "What's the maximum team size per layer?", "answer": "Each user can directly refer up to 6 members in their first layer. Beyond that, new referrals must be placed under different sponsors."},
             {"question": "Is KYC required?", "answer": "Yes, to withdraw earnings you must complete KYC with Aadhaar/PAN/Selfie."},
             {"question": "What is the joining amount?", "answer": "₹2,999 — purchase the Bronze Starter Hamper to activate your account."},
+            {"question": "What happens if I'm inactive?", "answer": "Accounts inactive for 180+ consecutive days will be auto-disabled. Contact support to re-activate."},
         ]
         for i, f in enumerate(faqs):
             f["id"] = str(uuid.uuid4())
             f["sort_order"] = i
             f["is_active"] = True
             await db.faqs.insert_one(f)
+
+    # ============ Sliders ============
+    if await db.sliders.count_documents({}) == 0:
+        sliders_top = [
+            {"title": "Festive Mega Sale", "subtitle": "Up to 50% off on all hampers — limited time!", "image_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&q=80", "link": "/hampers", "cta_label": "Shop Hampers", "location": "landing_top", "sort_order": 1},
+            {"title": "Refer 3 Friends — Earn ₹500 Instantly", "subtitle": "Start your MLM journey today", "image_url": "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?w=1600&q=80", "link": "/register", "cta_label": "Join Now", "location": "landing_top", "sort_order": 2},
+            {"title": "Premium Quality Guaranteed", "subtitle": "Hand-picked groceries delivered to your door", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600&q=80", "link": "/products", "cta_label": "Browse Products", "location": "landing_top", "sort_order": 3},
+        ]
+        sliders_mid = [
+            {"title": "Build Your Wealth Network", "subtitle": "8 stages of earnings, transparent rules, daily payouts", "image_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1600&q=80", "link": "/business-plan", "cta_label": "Learn the Plan", "location": "landing_mid", "sort_order": 1},
+            {"title": "Become a Top Earner", "subtitle": "Join our leaderboard of ₹1L+ monthly earners", "image_url": "https://images.unsplash.com/photo-1605792657660-596af9009e82?w=1600&q=80", "link": "/calculator", "cta_label": "Calculate Earnings", "location": "landing_mid", "sort_order": 2},
+        ]
+        sliders_user = [
+            {"title": "Share & Earn ₹500", "subtitle": "Every referral counts toward your next stage", "image_url": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1600&q=80", "link": "/referral", "cta_label": "Get Referral Link", "location": "user_dashboard", "sort_order": 1},
+            {"title": "Complete KYC Today", "subtitle": "Unlock withdrawals — takes just 2 minutes", "image_url": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1600&q=80", "link": "/kyc", "cta_label": "Verify KYC", "location": "user_dashboard", "sort_order": 2},
+            {"title": "New Hampers Just In", "subtitle": "Refresh your monthly purchase to advance stages", "image_url": "https://images.unsplash.com/photo-1513708927688-890fe41c2e99?w=1600&q=80", "link": "/hampers", "cta_label": "Shop Now", "location": "user_dashboard", "sort_order": 3},
+        ]
+        for s in sliders_top + sliders_mid + sliders_user:
+            s["id"] = str(uuid.uuid4())
+            s["is_active"] = True
+            s["created_at"] = now_iso()
+            await db.sliders.insert_one(s)
+
+    # ============ Reels (Vertical Videos) ============
+    if await db.reels.count_documents({}) == 0:
+        # Pixabay free CDN samples — vertical / portrait
+        reels = [
+            {"title": "Unboxing the Gold Hamper", "video_url": "https://cdn.pixabay.com/video/2024/05/02/210073-941264636_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80", "description": "See what's inside our premium Gold hamper", "location": "both", "sort_order": 1},
+            {"title": "How I Earned ₹50K in 30 Days", "video_url": "https://cdn.pixabay.com/video/2023/10/19/185393-877329524_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400&q=80", "description": "Real member success story", "location": "both", "sort_order": 2},
+            {"title": "Sharing Your Referral Link", "video_url": "https://cdn.pixabay.com/video/2024/04/05/207386_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&q=80", "description": "Quick demo: how to share & earn", "location": "both", "sort_order": 3},
+            {"title": "Inside Our Warehouse", "video_url": "https://cdn.pixabay.com/video/2020/02/28/32847-394089014_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80", "description": "Premium quality, hand-packed with love", "location": "both", "sort_order": 4},
+        ]
+        for r in reels:
+            r["id"] = str(uuid.uuid4())
+            r["is_active"] = True
+            r["created_at"] = now_iso()
+            await db.reels.insert_one(r)
 
     # ============ Coupons ============
     if await db.coupons.count_documents({}) == 0:

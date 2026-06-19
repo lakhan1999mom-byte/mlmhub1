@@ -41,6 +41,11 @@ export default function Withdrawals() {
             ⚠️ KYC must be approved to withdraw. <a href="/kyc" className="font-semibold underline">Complete KYC</a>
           </div>
         )}
+        {(user?.direct_referrals_count || 0) < 3 && (
+          <div className="bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] rounded-xl p-3 text-sm mb-4" data-testid="referral-rule-warning">
+            🚀 You need at least <b>3 direct referrals</b> to start earning withdrawals. You have <b>{user?.direct_referrals_count || 0}/3</b>. <a href="/referral" className="font-semibold underline">Share your link</a>
+          </div>
+        )}
         <div className="mb-4">
           <div className="text-sm font-semibold mb-2">Method</div>
           <div className="flex gap-2">
