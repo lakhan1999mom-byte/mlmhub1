@@ -171,6 +171,12 @@ async def seed_all(db):
             "created_at": now_iso(), "updated_at": now_iso(),
         })
 
+    # Ensure admin/sub_admin are always pre-activated (Phase 2 migration for older docs)
+    await db.users.update_many(
+        {"role": {"$in": ["super_admin", "sub_admin"]}},
+        {"$set": {"is_joining_paid": True, "income_active": True, "is_active": True}},
+    )
+
     # ============ SINGLE ACTIVE JOINING HAMPER (₹7,200) ============
     joining = await db.products.find_one({"sku": "HMP-JOINING-7200"})
     if not joining:

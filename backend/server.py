@@ -105,6 +105,9 @@ def public_user(u: dict) -> dict:
         "permissions": u.get("permissions", []),
         "cycle_count": u.get("cycle_count", 0),
         "is_joining_paid": u.get("is_joining_paid", False),
+        "income_active": u.get("income_active", False),
+        "joining_paid_at": u.get("joining_paid_at"),
+        "income_activated_at": u.get("income_activated_at"),
     }
 
 
@@ -574,12 +577,19 @@ async def update_cart_item(payload: dict, user=Depends(get_user)):
     else:
         # Enforce stock ceiling
         p = await db.products.find_one({"id": pid}, {"_id": 0})
-        if p and qty > p.get("stock", 0):
+        if not p:
+            raise HTTPException(status_code=404, detail="Product not found")
+        if qty > p.get("stock", 0):
             raise HTTPException(status_code=400, detail=f"Only {p.get('stock', 0)} left in stock")
+        found = False
         for it in items:
             if it["product_id"] == pid:
                 it["quantity"] = qty
+                found = True
                 break
+        if not found:
+            # upsert new item — behave like /cart/add
+            items.append({"product_id": pid, "quantity": qty})
     await db.carts.update_one({"user_id": user["id"]}, {"$set": {"items": items}}, upsert=True)
     return {"ok": True, "items": items}
 
