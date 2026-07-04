@@ -23,13 +23,32 @@ export default function ProductDetail() {
 
   const handleAdd = async () => {
     if (!user) { nav("/login"); return; }
-    await addItem(p.id, qty);
-    toast.success("Added to cart");
+    // Frontend guard: non-joined users can only add the joining hamper
+    if (!user.is_joining_paid && !p.is_hamper) {
+      toast.error("Buy the ₹7,200 Joining Kit first to unlock regular product shopping.");
+      nav("/hampers");
+      return;
+    }
+    if (user.is_joining_paid && p.is_hamper) {
+      toast.info("You've already activated your account.");
+      return;
+    }
+    const res = await addItem(p.id, qty);
+    if (res?.ok) toast.success("Added to cart");
   };
   const handleBuy = async () => {
     if (!user) { nav("/login"); return; }
-    await addItem(p.id, qty);
-    nav("/cart");
+    if (!user.is_joining_paid && !p.is_hamper) {
+      toast.error("Buy the ₹7,200 Joining Kit first.");
+      nav("/hampers");
+      return;
+    }
+    if (user.is_joining_paid && p.is_hamper) {
+      toast.info("You've already activated your account.");
+      return;
+    }
+    const res = await addItem(p.id, qty);
+    if (res?.ok) nav("/cart");
   };
 
   return (

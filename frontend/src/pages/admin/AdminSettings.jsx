@@ -53,6 +53,25 @@ export default function AdminSettings() {
       </div>
 
       <div className="card-soft p-6 space-y-3">
+        <h3 className="font-display font-bold text-lg">Delivery & GST</h3>
+        <div className="grid sm:grid-cols-3 gap-3">
+          <Input label="Delivery Charge (₹)" type="number" v={site.delivery_charge} on={(e) => setSite({...site, delivery_charge: +e.target.value})} testid="delivery-charge"/>
+          <Input label="Free Shipping Above (₹)" type="number" v={site.free_shipping_threshold} on={(e) => setSite({...site, free_shipping_threshold: +e.target.value})} testid="free-shipping-threshold"/>
+          <Input label="GST %" type="number" v={site.gst_percent} on={(e) => setSite({...site, gst_percent: +e.target.value})} testid="gst-percent"/>
+        </div>
+      </div>
+
+      <div className="card-soft p-6 space-y-3">
+        <h3 className="font-display font-bold text-lg">Terms & Conditions</h3>
+        <p className="text-xs text-[#64748B]">HTML supported. Current version: <b>{site.terms_version || "1.0"}</b></p>
+        <Input label="Version" v={site.terms_version || "1.0"} on={upd("terms_version")}/>
+        <div>
+          <label className="text-sm font-semibold">Content (HTML)</label>
+          <textarea className="input-soft mt-1 min-h-[300px] font-mono text-xs" value={site.terms_content || ""} onChange={upd("terms_content")} data-testid="terms-content-editor"/>
+        </div>
+      </div>
+
+      <div className="card-soft p-6 space-y-3">
         <h3 className="font-display font-bold text-lg">Razorpay (Currently MOCK)</h3>
         <Input label="Razorpay Key ID" v={site.razorpay_key_id || ""} on={upd("razorpay_key_id")} testid="razorpay-key-id"/>
         <Input label="Razorpay Key Secret" v={site.razorpay_key_secret || ""} on={upd("razorpay_key_secret")} testid="razorpay-key-secret"/>

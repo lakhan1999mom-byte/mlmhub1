@@ -54,6 +54,8 @@ import AdminBroadcast from "@/pages/admin/AdminBroadcast";
 import AdminSliders from "@/pages/admin/AdminSliders";
 import AdminReels from "@/pages/admin/AdminReels";
 import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
+import AdminInventory from "@/pages/admin/AdminInventory";
+import AdminAccounts from "@/pages/admin/AdminAccounts";
 
 function PublicLayout() {
   const [site, setSite] = useState(null);
@@ -134,6 +136,8 @@ export default function App() {
               <Route path="/admin/sliders" element={<AdminSliders />} />
               <Route path="/admin/reels" element={<AdminReels />} />
               <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
+              <Route path="/admin/inventory" element={<AdminInventory />} />
+              <Route path="/admin/accounts" element={<AdminAccounts />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" />} />

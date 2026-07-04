@@ -39,12 +39,10 @@ export default function Navbar({ siteSettings }) {
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-[#E2E8F0]" data-testid="navbar">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 flex items-center justify-between h-20">
           <Link to="/" className="flex items-center gap-2" data-testid="navbar-logo-link">
-            <div className="bg-[#064E3B] rounded-xl p-1.5">
-              <img src={LOGO} alt="EverGro" className="h-9 w-auto" />
-            </div>
+            <img src={LOGO} alt="EverGro" className="h-14 lg:h-16 w-auto"/>
             <div className="hidden sm:block">
               <div className="font-display text-lg font-bold leading-tight text-[#064E3B]">EverGro eMart</div>
-              <div className="text-[10px] tracking-widest text-[#65A30D] uppercase">Grow • Share • Earn</div>
+              <div className="text-[10px] tracking-widest text-[#65A30D] uppercase">Shop • Save • Share • Earn</div>
             </div>
           </Link>
 

@@ -10,12 +10,10 @@ export default function Footer({ site }) {
       <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-12">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="bg-black/30 rounded-xl p-2">
-              <img src={LOGO} alt="EverGro" className="h-10 w-auto" />
-            </div>
+            <img src={LOGO} alt="EverGro" className="h-16 w-auto"/>
             <div>
-              <div className="font-display text-xl font-bold">EverGro eMart</div>
-              <div className="text-[10px] tracking-widest text-[#84CC16] uppercase">Grow • Share • Earn</div>
+              <div className="font-display text-xl font-bold text-white">EverGro eMart</div>
+              <div className="text-[10px] tracking-widest text-[#84CC16] uppercase">Shop • Save • Share • Earn</div>
             </div>
           </div>
           <p className="text-sm text-white/70 leading-relaxed">

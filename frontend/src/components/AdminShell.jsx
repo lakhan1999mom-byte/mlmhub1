@@ -1,13 +1,15 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText, Warehouse, Calculator } from "lucide-react";
 
 const LOGO = "https://customer-assets.emergentagent.com/job_9e593e72-d371-4332-879b-9b25914b11c9/artifacts/xiy5qq2i_ChatGPT_Image_Jun_18__2026__06_43_19_PM-removebg-preview.png";
 
 const items = [
   { to: "/admin", icon: LayoutDashboard, label: "Overview", perm: "*" },
+  { to: "/admin/accounts", icon: Calculator, label: "Accounts", perm: "*" },
   { to: "/admin/users", icon: Users, label: "Users", perm: "users" },
   { to: "/admin/products", icon: Package, label: "Products", perm: "products" },
+  { to: "/admin/inventory", icon: Warehouse, label: "Inventory", perm: "products" },
   { to: "/admin/orders", icon: ShoppingBag, label: "Orders", perm: "orders" },
   { to: "/admin/withdrawals", icon: Send, label: "Withdrawals", perm: "withdrawals" },
   { to: "/admin/kyc", icon: FileCheck, label: "KYC", perm: "kyc" },
@@ -30,9 +32,7 @@ export default function AdminShell() {
     <div className="min-h-screen bg-[#FAFAF9]">
       <aside className="hidden lg:flex flex-col fixed left-0 top-0 w-64 h-screen bg-[#064E3B] text-white p-6" data-testid="admin-sidebar">
         <div className="flex items-center gap-2 mb-8">
-          <div className="bg-white/10 rounded-xl p-1.5">
-            <img src={LOGO} alt="EverGro" className="h-8 w-auto" />
-          </div>
+          <img src={LOGO} alt="EverGro" className="h-12 w-auto brightness-125"/>
           <div>
             <div className="font-display font-bold text-sm leading-tight">EverGro</div>
             <div className="text-[10px] uppercase tracking-widest text-[#84CC16]">{isSuper ? "Super Admin" : "Sub Admin"}</div>

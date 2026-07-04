@@ -24,9 +24,7 @@ export default function UserShell() {
     <div className="min-h-screen bg-[#FAFAF9]">
       <aside className="hidden lg:flex flex-col fixed left-0 top-0 w-64 h-screen bg-white border-r border-[#E2E8F0] p-6" data-testid="user-sidebar">
         <div className="flex items-center gap-2 mb-8">
-          <div className="bg-[#064E3B] rounded-xl p-1.5">
-            <img src={LOGO} alt="EverGro" className="h-8 w-auto" />
-          </div>
+          <img src={LOGO} alt="EverGro" className="h-12 w-auto"/>
           <div>
             <div className="font-display font-bold text-[#064E3B] text-sm leading-tight">EverGro</div>
             <div className="text-[10px] uppercase tracking-widest text-[#65A30D]">Member Panel</div>

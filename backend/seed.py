@@ -1,4 +1,4 @@
-"""Seed initial admin, products, hampers, settings."""
+"""Seed initial admin, single joining hamper, settings, T&C, delivery config."""
 import os
 import uuid
 from datetime import datetime, timezone
@@ -9,12 +9,57 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-def gen_user_code(n: int) -> str:
-    return f"EG{str(n).zfill(6)}"
+TERMS_CONTENT = """<h2>EverGro eMart — Terms & Conditions (v1.0)</h2>
+<p><em>Please read these Terms & Conditions carefully before registering. By checking "I agree" during registration, you accept these terms in full.</em></p>
+
+<h3>1. Application-Based Referral Policy</h3>
+<p>This business is completely application-based. A customer/member shall be linked under a sponsor only when the customer uses that sponsor's referral code during registration. If the customer does not use the referral code or uses another person's referral code, the customer shall be linked accordingly, and <b>Evergro LLP</b> shall bear no responsibility or liability for such disputes. Any dispute regarding the selection or use of a referral code shall be considered a personal matter between the concerned parties.</p>
+
+<h3>2. Joining & Activation</h3>
+<ul>
+<li>A one-time purchase of the EverGro Joining Kit at <b>₹7,200</b> is required to activate your MLM account.</li>
+<li>Until the joining amount is successfully paid: (a) your MLM account remains inactive, (b) your referral link does not generate commissions, (c) no cashback or income is credited.</li>
+<li>Registration alone does <b>NOT</b> create any earning entitlement. Payment is mandatory.</li>
+</ul>
+
+<h3>3. 8-Level Income Structure</h3>
+<p>Each active member can add a maximum of <b>6 direct referrals</b>. Income accrues across 8 levels according to the published plan (Level 1 ₹1,200 / member; Level 2 ₹400; Level 3 ₹50; Level 4 ₹300; Level 5 ₹50; Level 6 ₹200; Level 7 ₹50; Level 8 ₹100).</p>
+<p>Your income begins only when <b>3 of your direct referrals</b> have completed their ₹7,200 joining purchase.</p>
+
+<h3>4. Withdrawals</h3>
+<ul>
+<li>Minimum 3 paid direct referrals required.</li>
+<li>KYC (Aadhaar + PAN + selfie) must be approved.</li>
+<li>Minimum withdrawal ₹100. Processed within 24-48 business hours.</li>
+</ul>
+
+<h3>5. Product Quality & Delivery</h3>
+<p>All hampers and products are sourced and quality-checked by EverGro. Delivery charges are billed separately at checkout (not included in product price). Free shipping applies over the threshold set by admin.</p>
+
+<h3>6. Account Inactivity</h3>
+<p>Accounts inactive for <b>180 consecutive days</b> may be automatically disabled. Contact support to re-activate.</p>
+
+<h3>7. Refund Policy</h3>
+<p>Joining hamper purchases that have triggered MLM activation and commission distribution are non-refundable. Non-joining regular purchases may be returned within 7 days in original packaging.</p>
+
+<h3>8. Prohibited Conduct</h3>
+<ul>
+<li>Fake accounts, self-referrals, and multi-account abuse.</li>
+<li>Misrepresentation of the plan or product to prospective members.</li>
+<li>Illegal activity or violations of local law.</li>
+</ul>
+
+<h3>9. Modification</h3>
+<p>EverGro reserves the right to modify these Terms with prior notice. Continued use of the platform indicates acceptance of the modified terms.</p>
+
+<h3>10. Governing Law</h3>
+<p>These Terms are governed by the laws of India. Disputes shall be subject to the exclusive jurisdiction of courts at the registered office of Evergro LLP.</p>
+
+<p><b>By checking "I agree" during registration, you confirm that you have read, understood, and agree to be bound by these Terms & Conditions.</b></p>"""
 
 
 async def seed_all(db):
-    # ============ Settings ============
+    # ============ Site Settings ============
     existing = await db.settings.find_one({"_key": "site"})
     if not existing:
         await db.settings.insert_one({
@@ -22,16 +67,16 @@ async def seed_all(db):
             "logo_url": os.environ.get("APP_LOGO_URL", ""),
             "favicon_url": os.environ.get("APP_LOGO_URL", ""),
             "site_name": "EverGro eMart",
-            "tagline": "Grow your network, grow your wealth",
+            "tagline": "Shop • Save • Share • Earn — Smart Shopping, Limitless Earning",
             "phone": "+91-9876543210",
             "email": "support@evergroemart.com",
-            "address": "Mumbai, India",
+            "address": "Evergro LLP, India",
             "whatsapp": "+919876543210",
             "facebook": "https://facebook.com/evergroemart",
             "instagram": "https://instagram.com/evergroemart",
             "twitter": "https://twitter.com/evergroemart",
             "youtube": "https://youtube.com/@evergroemart",
-            "notification_bar_text": "🎉 Welcome to EverGro eMart — Free shipping on orders above ₹999!",
+            "notification_bar_text": "🎉 EverGro eMart — 8-Level Income Plan · Joining Kit ₹7,200",
             "notification_bar_enabled": True,
             "razorpay_key_id": "",
             "razorpay_key_secret": "",
@@ -39,18 +84,43 @@ async def seed_all(db):
             "cloudinary_cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
             "cloudinary_api_key": os.environ.get("CLOUDINARY_API_KEY", ""),
             "cloudinary_api_secret": os.environ.get("CLOUDINARY_API_SECRET", ""),
+            # Delivery config
+            "delivery_charge": 49,
+            "free_shipping_threshold": 999,
+            "gst_percent": 5,
+            # Terms
+            "terms_version": "1.0",
+            "terms_content": TERMS_CONTENT,
         })
+    else:
+        # Ensure new keys present
+        updates = {}
+        if "delivery_charge" not in existing:
+            updates["delivery_charge"] = 49
+        if "free_shipping_threshold" not in existing:
+            updates["free_shipping_threshold"] = 999
+        if "gst_percent" not in existing:
+            updates["gst_percent"] = 5
+        if "terms_content" not in existing:
+            updates["terms_content"] = TERMS_CONTENT
+            updates["terms_version"] = "1.0"
+        if "notification_bar_text" in existing and "8-Level" not in existing.get("notification_bar_text", ""):
+            updates["notification_bar_text"] = "🎉 EverGro eMart — 8-Level Income Plan · Joining Kit ₹7,200"
+        if updates:
+            await db.settings.update_one({"_key": "site"}, {"$set": updates})
 
-    existing_mlm = await db.settings.find_one({"_key": "mlm"})
-    if not existing_mlm:
-        await db.settings.insert_one({
-            "_key": "mlm",
-            "stages_total": 8,
-            "referrals_per_stage": 3,
-            "joining_amount": 2999.0,
-            "stage_commissions": [500, 0, 1500, 0, 5000, 0, 15000, 50000],
-            "commission_stages": [1, 3, 5, 7, 8],
-        })
+    # ============ MLM Settings (Phase 2) ============
+    await db.settings.update_one(
+        {"_key": "mlm"},
+        {"$set": {
+            "levels_total": 8,
+            "max_direct_referrals": 6,
+            "min_direct_paid_for_income": 3,
+            "joining_amount": 7200.0,
+            "level_commissions": [1200, 400, 50, 300, 50, 200, 50, 100],
+        }},
+        upsert=True,
+    )
 
     # ============ Super Admin ============
     admin = await db.users.find_one({"role": "super_admin"})
@@ -63,25 +133,17 @@ async def seed_all(db):
             "phone": "9999999999",
             "password_hash": hash_password("Admin@123"),
             "role": "super_admin",
-            "sponsor_id": None,
-            "sponsor_user_id": None,
+            "sponsor_id": None, "sponsor_user_id": None,
             "referral_code": "ADMIN001",
             "current_stage": 1,
             "direct_referrals_count": 0,
             "team_size": 0,
-            "wallet_balance": 0,
-            "income_wallet": 0,
-            "commission_wallet": 0,
-            "cashback_wallet": 0,
-            "reward_wallet": 0,
-            "total_earnings": 0,
-            "kyc_status": "approved",
-            "avatar_url": None,
-            "is_active": True,
-            "permissions": ["*"],
-            "cycle_count": 0,
-            "created_at": now_iso(),
-            "updated_at": now_iso(),
+            "wallet_balance": 0, "income_wallet": 0, "commission_wallet": 0,
+            "cashback_wallet": 0, "reward_wallet": 0, "total_earnings": 0,
+            "kyc_status": "approved", "is_active": True,
+            "is_joining_paid": True, "income_active": True,
+            "permissions": ["*"], "cycle_count": 0,
+            "created_at": now_iso(), "updated_at": now_iso(),
         }
         await db.users.insert_one(admin_doc)
 
@@ -96,74 +158,54 @@ async def seed_all(db):
             "phone": "9999999998",
             "password_hash": hash_password("SubAdmin@123"),
             "role": "sub_admin",
-            "sponsor_id": None,
-            "sponsor_user_id": None,
+            "sponsor_id": None, "sponsor_user_id": None,
             "referral_code": "SUBADMIN1",
             "current_stage": 1,
-            "direct_referrals_count": 0,
-            "team_size": 0,
+            "direct_referrals_count": 0, "team_size": 0,
             "wallet_balance": 0, "income_wallet": 0, "commission_wallet": 0,
             "cashback_wallet": 0, "reward_wallet": 0, "total_earnings": 0,
             "kyc_status": "approved", "is_active": True,
+            "is_joining_paid": True, "income_active": True,
             "permissions": ["orders", "users", "products", "kyc", "withdrawals", "tickets", "notifications"],
             "cycle_count": 0,
             "created_at": now_iso(), "updated_at": now_iso(),
         })
 
-    # ============ Hamper Products ============
-    if await db.products.count_documents({"is_hamper": True}) == 0:
-        hampers = [
-            {
-                "name": "Bronze Starter Hamper",
-                "description": "Perfect starter pack with daily essentials — rice, pulses, spices, oil and more. Includes joining benefits.",
-                "price": 2999, "mrp": 3999, "sku": "HMP-BRZ", "category": "hamper",
-                "is_hamper": True, "hamper_tier": "Bronze",
-                "stock": 500, "gst_percent": 5,
-                "images": ["https://images.unsplash.com/photo-1508899203029-1c9eb493c9bd?w=800"],
-                "badges": ["bestseller", "new"],
-                "contents": ["Basmati Rice 5kg", "Toor Dal 2kg", "Sunflower Oil 1L", "Spice Box", "Tea & Coffee Pack"],
-            },
-            {
-                "name": "Silver Family Hamper",
-                "description": "Mid-tier hamper for families — premium groceries, healthy snacks, and household essentials.",
-                "price": 5999, "mrp": 7999, "sku": "HMP-SLV", "category": "hamper",
-                "is_hamper": True, "hamper_tier": "Silver",
-                "stock": 300, "gst_percent": 5,
-                "images": ["https://images.unsplash.com/photo-1542838132-92c53300491e?w=800"],
-                "badges": ["featured", "trending"],
-                "contents": ["Premium Rice 10kg", "Mixed Dals 5kg", "Premium Oil 2L", "Dry Fruits Pack", "Tea & Coffee Premium", "Snacks Pack"],
-            },
-            {
-                "name": "Gold Premium Hamper",
-                "description": "Top-tier hamper with imported and organic products. Premium quality for premium families.",
-                "price": 9999, "mrp": 12999, "sku": "HMP-GLD", "category": "hamper",
-                "is_hamper": True, "hamper_tier": "Gold",
-                "stock": 150, "gst_percent": 5,
-                "images": ["https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800"],
-                "badges": ["featured", "limited"],
-                "contents": ["Organic Rice Variety", "Premium Spices Set", "Olive Oil & Ghee", "Imported Dry Fruits 2kg", "Premium Chocolates", "Wellness Pack"],
-            },
-            {
-                "name": "Platinum Royal Hamper",
-                "description": "The ultimate hamper — exclusive imported items, luxury packaging, and premium accessories.",
-                "price": 19999, "mrp": 24999, "sku": "HMP-PLT", "category": "hamper",
-                "is_hamper": True, "hamper_tier": "Platinum",
-                "stock": 50, "gst_percent": 5,
-                "images": ["https://images.unsplash.com/photo-1513708927688-890fe41c2e99?w=800"],
-                "badges": ["limited", "featured"],
-                "contents": ["Royal Basmati 15kg", "Saffron & Premium Spices", "Imported Olive Oil", "Dry Fruits Royal Box", "Luxury Hamper Basket", "Free Gift Items"],
-            },
-        ]
-        for h in hampers:
-            h["id"] = str(uuid.uuid4())
-            h["is_active"] = True
-            h["videos"] = []
-            h["pdfs"] = []
-            h["rating"] = 4.7
-            h["review_count"] = 120
-            h["brand"] = "EverGro"
-            h["created_at"] = now_iso()
-            await db.products.insert_one(h)
+    # ============ SINGLE ACTIVE JOINING HAMPER (₹7,200) ============
+    joining = await db.products.find_one({"sku": "HMP-JOINING-7200"})
+    if not joining:
+        # Lock all existing hampers
+        await db.products.update_many({"is_hamper": True}, {"$set": {"is_locked": True, "is_active": False}})
+        # Create the single active joining hamper
+        await db.products.insert_one({
+            "id": str(uuid.uuid4()),
+            "name": "EverGro Joining Kit",
+            "description": "The official EverGro joining hamper — includes premium groceries, wellness essentials, and unlocks your 8-level MLM income structure. One-time ₹7,200 purchase activates your account and referral link.",
+            "price": 7200.0, "mrp": 8999.0,
+            "sku": "HMP-JOINING-7200",
+            "category": "hamper", "brand": "EverGro",
+            "gst_percent": 5, "stock": 5000,
+            "images": [
+                "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&q=80",
+                "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&q=80",
+            ],
+            "videos": [], "pdfs": [],
+            "badges": ["featured", "bestseller"],
+            "is_hamper": True, "hamper_tier": "Joining",
+            "contents": [
+                "Premium Basmati Rice 5 kg",
+                "Mixed Dals & Pulses 3 kg",
+                "Cold-pressed Cooking Oil 2 L",
+                "Assorted Spice Box",
+                "Premium Tea & Coffee Pack",
+                "Wellness Products (Ayurvedic honey, Almonds, Saffron)",
+                "EverGro Reusable Shopping Basket",
+                "Free ₹500 Store Credit",
+            ],
+            "is_active": True, "is_locked": False,
+            "rating": 4.9, "review_count": 250,
+            "created_at": now_iso(),
+        })
 
     # ============ Regular Products ============
     if await db.products.count_documents({"is_hamper": False}) == 0:
@@ -196,119 +238,67 @@ async def seed_all(db):
                 "images": p["images"], "videos": [], "pdfs": [],
                 "badges": p["badges"],
                 "is_hamper": False, "hamper_tier": None, "contents": [],
-                "is_active": True, "rating": 4.5, "review_count": 50,
+                "is_active": True, "is_locked": False, "rating": 4.5, "review_count": 50,
                 "created_at": now_iso(),
             }
             await db.products.insert_one(doc)
 
-    # ============ Banners ============
+    # Banners, testimonials, faqs, sliders, reels — only seed if empty
     if await db.banners.count_documents({}) == 0:
-        banners = [
-            {"title": "Build Wealth, One Hamper at a Time", "subtitle": "Join 50,000+ members earning monthly", "image_url": "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?w=1600", "position": "hero", "sort_order": 1},
-            {"title": "Up to 50% Off Premium Hampers", "subtitle": "Limited time launch offer", "image_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600", "position": "promo", "sort_order": 2},
-        ]
-        for b in banners:
-            b["id"] = str(uuid.uuid4())
-            b["is_active"] = True
-            b["link"] = "/hampers"
-            b["created_at"] = now_iso()
-            await db.banners.insert_one(b)
+        await db.banners.insert_one({"id": str(uuid.uuid4()), "title": "Build Wealth, One Kit at a Time", "subtitle": "Join 50,000+ members", "image_url": "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?w=1600", "position": "hero", "sort_order": 1, "is_active": True, "link": "/hampers", "created_at": now_iso()})
 
-    # ============ Testimonials ============
     if await db.testimonials.count_documents({}) == 0:
         ts = [
-            {"name": "Rajesh Kumar", "role": "Gold Member", "rating": 5, "message": "EverGro changed my life. I earned ₹2L in 6 months while my family enjoys premium hampers!", "avatar": "https://i.pravatar.cc/100?img=12"},
-            {"name": "Priya Sharma", "role": "Silver Member", "rating": 5, "message": "The hampers are amazing quality. The MLM plan is transparent and pays on time.", "avatar": "https://i.pravatar.cc/100?img=47"},
-            {"name": "Amit Patel", "role": "Platinum Member", "rating": 5, "message": "Best decision ever. Within 8 months I crossed Stage 7 and earning consistently.", "avatar": "https://i.pravatar.cc/100?img=33"},
+            {"name": "Rajesh Kumar", "role": "Level 5 Member", "rating": 5, "message": "EverGro's 8-level plan is genuine. I got my ₹1,200 first commission within 10 days!", "avatar": "https://i.pravatar.cc/100?img=12"},
+            {"name": "Priya Sharma", "role": "Level 3 Member", "rating": 5, "message": "The joining kit is amazing quality. My family loves it and the income is a bonus.", "avatar": "https://i.pravatar.cc/100?img=47"},
+            {"name": "Amit Patel", "role": "Level 6 Member", "rating": 5, "message": "8 months in, crossed Level 6. The math actually works — transparent and legal.", "avatar": "https://i.pravatar.cc/100?img=33"},
         ]
         for t in ts:
-            t["id"] = str(uuid.uuid4())
-            t["is_active"] = True
+            t["id"] = str(uuid.uuid4()); t["is_active"] = True
             await db.testimonials.insert_one(t)
 
     if await db.faqs.count_documents({}) == 0:
         faqs = [
-            {"question": "What is EverGro eMart?", "answer": "EverGro eMart is an MLM-based hamper-selling platform where you buy premium hampers, refer others, and earn commissions across 8 stages."},
-            {"question": "How does the MLM plan work?", "answer": "There are 8 stages. You need 3 referrals to complete each stage. Stages 1, 3, 5, 7 and 8 pay commissions."},
-            {"question": "How do I withdraw earnings?", "answer": "You need at least 3 direct referrals AND approved KYC to request withdrawals. Visit your Wallet, click Withdraw, choose UPI or Bank."},
-            {"question": "Can one phone have multiple accounts?", "answer": "Yes! You can create unlimited accounts using the same mobile number — each gets a unique random username. When logging in via OTP, you can pick which account to access."},
-            {"question": "What's the maximum team size per layer?", "answer": "Each user can directly refer up to 6 members in their first layer. Beyond that, new referrals must be placed under different sponsors."},
-            {"question": "Is KYC required?", "answer": "Yes, to withdraw earnings you must complete KYC with Aadhaar/PAN/Selfie."},
-            {"question": "What is the joining amount?", "answer": "₹2,999 — purchase the Bronze Starter Hamper to activate your account."},
-            {"question": "What happens if I'm inactive?", "answer": "Accounts inactive for 180+ consecutive days will be auto-disabled. Contact support to re-activate."},
+            {"question": "What is EverGro eMart?", "answer": "An 8-level MLM platform where you buy a ₹7,200 joining kit, refer up to 6 friends, and earn continuous commissions from 8 downline levels."},
+            {"question": "How does the plan work?", "answer": "Level 1: ₹1,200/member × 6 = ₹7,200 · Level 2: ₹400 × 36 = ₹14,400 · Level 3: ₹50 × 216 = ₹10,800 · Level 4: ₹300 × 1,296 = ₹3,88,800 · Level 5: ₹50 × 7,776 = ₹3,88,800 · Level 6: ₹200 × 46,656 = ₹93,31,200 · Level 7: ₹50 × 2,79,936 = ₹1,39,96,800 · Level 8: ₹100 × 16,79,616 = ₹16,79,61,600. Total potential ₹20,36,99,600."},
+            {"question": "When does income start?", "answer": "As soon as 3 of your direct referrals complete their ₹7,200 joining purchase."},
+            {"question": "How do I withdraw?", "answer": "You need 3 paid direct referrals AND approved KYC. Min ₹100. Processed within 48h."},
+            {"question": "What's the max team per layer?", "answer": "6 direct referrals per member. Beyond that, new refs must be under a different sponsor."},
+            {"question": "Can one phone have multiple accounts?", "answer": "Yes. Each account gets a unique random user code. On OTP login, pick which account to open."},
+            {"question": "What if I'm inactive?", "answer": "Accounts inactive for 180+ days are auto-disabled. Contact support to reactivate."},
         ]
         for i, f in enumerate(faqs):
-            f["id"] = str(uuid.uuid4())
-            f["sort_order"] = i
-            f["is_active"] = True
+            f["id"] = str(uuid.uuid4()); f["sort_order"] = i; f["is_active"] = True
             await db.faqs.insert_one(f)
 
-    # ============ Sliders ============
-    if await db.sliders.count_documents({}) == 0:
-        sliders_top = [
-            {"title": "Festive Mega Sale", "subtitle": "Up to 50% off on all hampers — limited time!", "image_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&q=80", "link": "/hampers", "cta_label": "Shop Hampers", "location": "landing_top", "sort_order": 1},
-            {"title": "Refer 3 Friends — Earn ₹500 Instantly", "subtitle": "Start your MLM journey today", "image_url": "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?w=1600&q=80", "link": "/register", "cta_label": "Join Now", "location": "landing_top", "sort_order": 2},
-            {"title": "Premium Quality Guaranteed", "subtitle": "Hand-picked groceries delivered to your door", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600&q=80", "link": "/products", "cta_label": "Browse Products", "location": "landing_top", "sort_order": 3},
-        ]
-        sliders_mid = [
-            {"title": "Build Your Wealth Network", "subtitle": "8 stages of earnings, transparent rules, daily payouts", "image_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1600&q=80", "link": "/business-plan", "cta_label": "Learn the Plan", "location": "landing_mid", "sort_order": 1},
-            {"title": "Become a Top Earner", "subtitle": "Join our leaderboard of ₹1L+ monthly earners", "image_url": "https://images.unsplash.com/photo-1605792657660-596af9009e82?w=1600&q=80", "link": "/calculator", "cta_label": "Calculate Earnings", "location": "landing_mid", "sort_order": 2},
-        ]
-        sliders_user = [
-            {"title": "Share & Earn ₹500", "subtitle": "Every referral counts toward your next stage", "image_url": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1600&q=80", "link": "/referral", "cta_label": "Get Referral Link", "location": "user_dashboard", "sort_order": 1},
-            {"title": "Complete KYC Today", "subtitle": "Unlock withdrawals — takes just 2 minutes", "image_url": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1600&q=80", "link": "/kyc", "cta_label": "Verify KYC", "location": "user_dashboard", "sort_order": 2},
-            {"title": "New Hampers Just In", "subtitle": "Refresh your monthly purchase to advance stages", "image_url": "https://images.unsplash.com/photo-1513708927688-890fe41c2e99?w=1600&q=80", "link": "/hampers", "cta_label": "Shop Now", "location": "user_dashboard", "sort_order": 3},
-        ]
-        for s in sliders_top + sliders_mid + sliders_user:
-            s["id"] = str(uuid.uuid4())
-            s["is_active"] = True
-            s["created_at"] = now_iso()
-            await db.sliders.insert_one(s)
-
-    # ============ Reels (Vertical Videos) ============
-    if await db.reels.count_documents({}) == 0:
-        # Pixabay free CDN samples — vertical / portrait
-        reels = [
-            {"title": "Unboxing the Gold Hamper", "video_url": "https://cdn.pixabay.com/video/2024/05/02/210073-941264636_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80", "description": "See what's inside our premium Gold hamper", "location": "both", "sort_order": 1},
-            {"title": "How I Earned ₹50K in 30 Days", "video_url": "https://cdn.pixabay.com/video/2023/10/19/185393-877329524_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400&q=80", "description": "Real member success story", "location": "both", "sort_order": 2},
-            {"title": "Sharing Your Referral Link", "video_url": "https://cdn.pixabay.com/video/2024/04/05/207386_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&q=80", "description": "Quick demo: how to share & earn", "location": "both", "sort_order": 3},
-            {"title": "Inside Our Warehouse", "video_url": "https://cdn.pixabay.com/video/2020/02/28/32847-394089014_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80", "description": "Premium quality, hand-packed with love", "location": "both", "sort_order": 4},
-        ]
-        for r in reels:
-            r["id"] = str(uuid.uuid4())
-            r["is_active"] = True
-            r["created_at"] = now_iso()
-            await db.reels.insert_one(r)
-
-    # ============ Coupons ============
     if await db.coupons.count_documents({}) == 0:
         await db.coupons.insert_one({
-            "id": str(uuid.uuid4()),
-            "code": "WELCOME10",
-            "discount_percent": 10,
-            "discount_amount": 0,
-            "min_order": 999,
-            "max_discount": 500,
-            "is_active": True,
-            "expires_at": None,
+            "id": str(uuid.uuid4()), "code": "WELCOME10",
+            "discount_percent": 10, "discount_amount": 0,
+            "min_order": 999, "max_discount": 500,
+            "is_active": True, "expires_at": None,
         })
 
-    # ============ Blogs ============
-    if await db.blogs.count_documents({}) == 0:
-        blogs = [
-            {"title": "5 Reasons EverGro is Different from Other MLMs", "excerpt": "We focus on quality products, transparent rules, and timely payouts.", "content": "<p>EverGro stands apart because of its premium hamper quality, 8-stage transparent structure, and on-time commission payouts...</p>"},
-            {"title": "How to Build Your First Team of 10 in 30 Days", "excerpt": "A practical guide for new members to grow their network.", "content": "<p>Start with friends and family. Share your referral link on WhatsApp. Host a small demo session...</p>"},
+    if await db.sliders.count_documents({}) == 0:
+        sliders = [
+            {"title": "8-Level Income Plan", "subtitle": "Earn up to ₹20.36 Cr from a single ₹7,200 kit", "image_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&q=80", "link": "/business-plan", "cta_label": "View Plan", "location": "landing_top", "sort_order": 1},
+            {"title": "Refer 3 — Start Earning", "subtitle": "Income activates on your 3rd direct paid referral", "image_url": "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?w=1600&q=80", "link": "/register", "cta_label": "Join Now", "location": "landing_top", "sort_order": 2},
+            {"title": "Premium Groceries, Genuine Income", "subtitle": "100% legal, transparent, no monthly fees", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600&q=80", "link": "/hampers", "cta_label": "Get the Kit", "location": "landing_top", "sort_order": 3},
+            {"title": "Build Wealth With Your Network", "subtitle": "8 levels, 6 refs per layer, lifetime income", "image_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1600&q=80", "link": "/business-plan", "cta_label": "Learn More", "location": "landing_mid", "sort_order": 1},
+            {"title": "Share & Earn ₹1,200 per Referral", "subtitle": "Level 1 pays instantly on each paid direct", "image_url": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1600&q=80", "link": "/referral", "cta_label": "Get Referral Link", "location": "user_dashboard", "sort_order": 1},
+            {"title": "Complete KYC to Unlock Withdrawals", "subtitle": "Aadhaar + PAN + Selfie — 2 minutes", "image_url": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1600&q=80", "link": "/kyc", "cta_label": "Verify Now", "location": "user_dashboard", "sort_order": 2},
         ]
-        for b in blogs:
-            doc = {
-                "id": str(uuid.uuid4()),
-                "title": b["title"],
-                "slug": b["title"].lower().replace(" ", "-").replace(",", "")[:60],
-                "excerpt": b["excerpt"],
-                "content": b["content"],
-                "cover_image": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800",
-                "author": "EverGro Team",
-                "is_published": True,
-                "created_at": now_iso(),
-            }
-            await db.blogs.insert_one(doc)
+        for s in sliders:
+            s["id"] = str(uuid.uuid4()); s["is_active"] = True; s["created_at"] = now_iso()
+            await db.sliders.insert_one(s)
+
+    if await db.reels.count_documents({}) == 0:
+        reels = [
+            {"title": "Unboxing the ₹7,200 Joining Kit", "video_url": "https://cdn.pixabay.com/video/2024/05/02/210073-941264636_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80", "description": "See what's inside", "location": "both", "sort_order": 1},
+            {"title": "How I Earned ₹50K in 30 Days", "video_url": "https://cdn.pixabay.com/video/2023/10/19/185393-877329524_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400&q=80", "description": "Real member story", "location": "both", "sort_order": 2},
+            {"title": "Sharing Your Referral Link", "video_url": "https://cdn.pixabay.com/video/2024/04/05/207386_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&q=80", "description": "60-second demo", "location": "both", "sort_order": 3},
+            {"title": "Inside Our Warehouse", "video_url": "https://cdn.pixabay.com/video/2020/02/28/32847-394089014_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80", "description": "Quality hand-packed", "location": "both", "sort_order": 4},
+        ]
+        for r in reels:
+            r["id"] = str(uuid.uuid4()); r["is_active"] = True; r["created_at"] = now_iso()
+            await db.reels.insert_one(r)

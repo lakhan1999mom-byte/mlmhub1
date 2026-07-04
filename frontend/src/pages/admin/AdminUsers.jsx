@@ -36,7 +36,11 @@ export default function AdminUsers() {
                   <div className="text-xs text-[#64748B]">{u.email}</div>
                 </td>
                 <td className="p-3">{u.phone}</td>
-                <td className="p-3 font-numbers">{u.current_stage}</td>
+                <td className="p-3 font-numbers">
+                  <input type="number" min="1" max="8" defaultValue={u.current_stage} onBlur={(e) => {
+                    const v = parseInt(e.target.value); if (v !== u.current_stage) toggle(u, 'current_stage', v);
+                  }} className="w-14 text-center border border-[#E2E8F0] rounded-lg px-1 py-1 text-xs" data-testid={`stage-${u.user_code}`}/>
+                </td>
                 <td className="p-3 font-numbers">{u.team_size}</td>
                 <td className="p-3 font-numbers">₹{u.total_earnings}</td>
                 <td className="p-3"><span className="badge-pill capitalize bg-[#ECFCCB] text-[#065F46]">{u.kyc_status}</span></td>

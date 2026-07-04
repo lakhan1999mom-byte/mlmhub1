@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 
 export default function Checkout() {
-  const { cart, fetchCart } = useCart();
+  const { cart, delivery, fetchCart } = useCart();
   const { user, refresh } = useAuth();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -23,8 +23,8 @@ export default function Checkout() {
 
   const items = cart?.items || [];
   const subtotal = cart?.subtotal || 0;
-  const shipping = subtotal >= 999 ? 0 : 49;
-  const gst = subtotal * 0.05;
+  const shipping = subtotal >= delivery.free_shipping_threshold ? 0 : delivery.delivery_charge;
+  const gst = subtotal * (delivery.gst_percent / 100);
   let discount = 0;
   if (appliedCoupon) {
     if (appliedCoupon.discount_percent) {

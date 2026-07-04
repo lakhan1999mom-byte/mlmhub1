@@ -24,6 +24,7 @@ class UserCreate(Base):
     phone: str
     password: str
     referral_code: Optional[str] = None  # sponsor's code
+    terms_accepted: bool = False
 
 
 class UserLogin(Base):
@@ -120,6 +121,7 @@ class ProductCreate(Base):
     hamper_tier: Optional[str] = None  # Bronze|Silver|Gold|Platinum
     contents: List[str] = []
     is_active: bool = True
+    is_locked: bool = False  # locked hampers can't be purchased
 
 
 class Product(ProductCreate):

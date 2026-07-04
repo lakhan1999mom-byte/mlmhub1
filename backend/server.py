@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query, UploadFile, File, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -25,8 +25,9 @@ from models import (
 )
 from auth_utils import hash_password, verify_password, create_token, get_current_user
 from mlm_engine import (
-    process_new_referral, process_stage_progression, get_downline_tree,
-    TOTAL_STAGES, REFERRALS_PER_STAGE, STAGE_COMMISSIONS, COMMISSION_STAGES,
+    process_paid_joining, get_downline_tree,
+    MAX_LEVELS, MAX_DIRECT_REFERRALS, MIN_DIRECT_PAID_FOR_INCOME,
+    LEVEL_COMMISSIONS, JOINING_AMOUNT,
 )
 from seed import seed_all
 
@@ -127,9 +128,9 @@ async def require_super_admin(user=Depends(get_user)) -> dict:
 
 
 # ==================== AUTH ====================
-MAX_REFERRALS_PER_LAYER = 6
+MAX_REFERRALS_PER_LAYER = MAX_DIRECT_REFERRALS
 INACTIVITY_DAYS = 180
-MIN_REFERRALS_FOR_WITHDRAWAL = 3
+MIN_REFERRALS_FOR_WITHDRAWAL = MIN_DIRECT_PAID_FOR_INCOME
 
 
 async def log_audit(event: str, actor: Optional[dict] = None, target_id: Optional[str] = None,
@@ -154,8 +155,18 @@ async def log_audit(event: str, actor: Optional[dict] = None, target_id: Optiona
 
 
 @api.post("/auth/register")
-async def register(payload: UserCreate):
-    # Email must remain unique. Phone can repeat (user can have multiple accounts).
+async def register(payload: UserCreate, request: Request = None):
+    """Phase 2: Register creates a PENDING user. Account is fully activated only after
+    the joining hamper payment (₹7,200) is verified. Until then:
+    - is_joining_paid = False
+    - referral counts on sponsor NOT incremented
+    - no commissions distributed
+    - user can login and see the "Pay to activate" screen only
+    """
+    # T&C mandatory
+    if not payload.terms_accepted:
+        raise HTTPException(status_code=400, detail="You must accept the Terms & Conditions")
+
     if await db.users.find_one({"email": payload.email}):
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -164,7 +175,6 @@ async def register(payload: UserCreate):
         sponsor = await db.users.find_one({"referral_code": payload.referral_code}, {"_id": 0})
         if not sponsor:
             raise HTTPException(status_code=400, detail="Invalid referral code")
-        # 6-per-layer rule: block if sponsor already has 6 direct referrals
         if sponsor.get("direct_referrals_count", 0) >= MAX_REFERRALS_PER_LAYER:
             raise HTTPException(
                 status_code=400,
@@ -226,27 +236,30 @@ async def register(payload: UserCreate):
         "avatar_url": None,
         "is_active": True,
         "is_joining_paid": False,
+        "income_active": False,
         "permissions": [],
         "cycle_count": 0,
         "last_activity_at": now_iso(),
+        "terms_accepted_at": now_iso(),
+        "terms_ip": request.client.host if request and request.client else None,
+        "terms_version": "1.0",
         "created_at": now_iso(),
         "updated_at": now_iso(),
     }
     await db.users.insert_one(user_doc)
     await log_audit("register", actor=user_doc, target_id=user_doc["id"], target_label=user_doc["user_code"],
-                    metadata={"sponsor_code": sponsor["user_code"] if sponsor else None})
+                    metadata={"sponsor_code": sponsor["user_code"] if sponsor else None, "paid": False})
 
-    # process referral
-    if sponsor:
-        await process_new_referral(db, user_doc)
+    # NOTE: Sponsor's direct_referrals_count is NOT incremented on registration.
+    # It is only incremented when the user's ₹7,200 joining payment is verified.
 
-    # welcome notification
+    # Welcome / activation notification
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()),
         "user_id": user_doc["id"],
-        "title": "👋 Welcome to EverGro eMart!",
-        "body": f"Your account {user_code} is ready. Purchase a hamper to activate your MLM journey.",
-        "type": "success",
+        "title": "👋 Welcome — one step left!",
+        "body": f"Your account {user_code} is created. Pay ₹{int(JOINING_AMOUNT)} for the EverGro Joining Kit to activate your MLM benefits.",
+        "type": "info",
         "event": "registration",
         "read": False,
         "created_at": now_iso(),
@@ -409,7 +422,7 @@ async def user_dashboard(user=Depends(get_user)):
             "pending_withdrawals": pending_withdrawals,
             "unread_notifications": unread_notifications,
             "stage_progress": direct_at_stage,
-            "stage_required": REFERRALS_PER_STAGE,
+            "stage_required": 3,
         },
     }
 
@@ -501,14 +514,43 @@ async def get_cart(user=Depends(get_user)):
 
 @api.post("/cart/add")
 async def add_to_cart(payload: CartAdd, user=Depends(get_user)):
+    # Validate product
+    p = await db.products.find_one({"id": payload.product_id}, {"_id": 0})
+    if not p or not p.get("is_active", True) or p.get("is_locked", False):
+        raise HTTPException(status_code=400, detail="Product is not available")
+    # Phase 2 join-gating rules
+    is_hamper = p.get("is_hamper", False)
+    if not user.get("is_joining_paid", False):
+        # Non-joined users can ONLY add the active joining hamper
+        if not is_hamper:
+            raise HTTPException(
+                status_code=403,
+                detail="You must purchase the ₹7,200 Joining Kit before shopping regular products.",
+            )
+    else:
+        # Already-joined users cannot re-purchase a joining hamper
+        if is_hamper:
+            raise HTTPException(
+                status_code=400,
+                detail="You have already purchased the joining kit.",
+            )
+    # Stock check (aggregate qty across existing cart + new addition)
     cart = await db.carts.find_one({"user_id": user["id"]}, {"_id": 0})
     if not cart:
         cart = {"user_id": user["id"], "items": []}
     items = cart.get("items", [])
+    existing_qty = 0
     found = False
     for it in items:
         if it["product_id"] == payload.product_id:
-            it["quantity"] += payload.quantity
+            existing_qty = it["quantity"]
+            break
+    new_total = existing_qty + payload.quantity
+    if new_total > p.get("stock", 0):
+        raise HTTPException(status_code=400, detail=f"Only {p.get('stock', 0)} left in stock")
+    for it in items:
+        if it["product_id"] == payload.product_id:
+            it["quantity"] = new_total
             found = True
             break
     if not found:
@@ -530,6 +572,10 @@ async def update_cart_item(payload: dict, user=Depends(get_user)):
     if qty <= 0:
         items = [i for i in items if i["product_id"] != pid]
     else:
+        # Enforce stock ceiling
+        p = await db.products.find_one({"id": pid}, {"_id": 0})
+        if p and qty > p.get("stock", 0):
+            raise HTTPException(status_code=400, detail=f"Only {p.get('stock', 0)} left in stock")
         for it in items:
             if it["product_id"] == pid:
                 it["quantity"] = qty
@@ -543,6 +589,12 @@ async def remove_from_cart(product_id: str, user=Depends(get_user)):
     cart = await db.carts.find_one({"user_id": user["id"]}, {"_id": 0})
     items = [i for i in cart.get("items", []) if i["product_id"] != product_id] if cart else []
     await db.carts.update_one({"user_id": user["id"]}, {"$set": {"items": items}}, upsert=True)
+    return {"ok": True}
+
+
+@api.delete("/cart")
+async def clear_cart(user=Depends(get_user)):
+    await db.carts.update_one({"user_id": user["id"]}, {"$set": {"items": []}}, upsert=True)
     return {"ok": True}
 
 
@@ -560,6 +612,12 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
     if not payload.items:
         raise HTTPException(status_code=400, detail="Cart empty")
 
+    # Fetch delivery config once
+    site = await db.settings.find_one({"_key": "site"}, {"_id": 0}) or {}
+    delivery_charge = site.get("delivery_charge", 49)
+    free_threshold = site.get("free_shipping_threshold", 999)
+    gst_percent_default = site.get("gst_percent", 5)
+
     order_items = []
     subtotal = 0
     gst = 0
@@ -568,8 +626,20 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         p = await db.products.find_one({"id": it.product_id}, {"_id": 0})
         if not p:
             raise HTTPException(status_code=400, detail=f"Product {it.product_id} not found")
+        if not p.get("is_active", True) or p.get("is_locked", False):
+            raise HTTPException(status_code=400, detail=f"{p.get('name','Product')} is not available")
+        if it.quantity > p.get("stock", 0):
+            raise HTTPException(status_code=400, detail=f"{p['name']} — only {p.get('stock',0)} in stock")
+        # Join-gating for order creation as well
+        if not user.get("is_joining_paid", False) and not p.get("is_hamper", False):
+            raise HTTPException(
+                status_code=403,
+                detail="Complete your ₹7,200 Joining Kit purchase before ordering other products.",
+            )
+        if user.get("is_joining_paid", False) and p.get("is_hamper", False):
+            raise HTTPException(status_code=400, detail="You have already purchased the joining kit.")
         line = p["price"] * it.quantity
-        item_gst = line * p.get("gst_percent", 5) / 100
+        item_gst = line * p.get("gst_percent", gst_percent_default) / 100
         subtotal += line
         gst += item_gst
         order_items.append({
@@ -595,7 +665,7 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
             elif c.get("discount_amount"):
                 discount = c["discount_amount"]
 
-    shipping = 0 if subtotal >= 999 else 49
+    shipping = 0 if subtotal >= free_threshold else delivery_charge
     total = subtotal + gst + shipping - discount
 
     order = {
@@ -644,35 +714,31 @@ async def verify_payment(payload: PaymentVerify, user=Depends(get_user)):
     for it in order["items"]:
         await db.products.update_one({"id": it["product_id"]}, {"$inc": {"stock": -it["quantity"]}})
 
-    # if joining order — activate user & start stage progression
+    # if joining order — activate user & distribute level commissions
     if order.get("is_joining_order") and not user.get("is_joining_paid"):
-        await db.users.update_one(
-            {"id": user["id"]},
-            {"$set": {"is_joining_paid": True, "updated_at": now_iso()}}
-        )
-        # for the SPONSOR: this user now counts toward stage completion
-        if user.get("sponsor_user_id"):
-            await process_stage_progression(db, user["sponsor_user_id"])
+        await process_paid_joining(db, user["id"], order["order_code"], order["id"])
 
-    # cashback 2%
-    cashback = round(order["total"] * 0.02, 2)
-    if cashback > 0:
-        await db.users.update_one(
-            {"id": user["id"]},
-            {"$inc": {"cashback_wallet": cashback, "wallet_balance": cashback}}
-        )
-        await db.transactions.insert_one({
-            "id": str(uuid.uuid4()),
-            "user_id": user["id"],
-            "user_code": user["user_code"],
-            "type": "credit",
-            "category": "cashback",
-            "amount": cashback,
-            "wallet": "cashback",
-            "description": f"Cashback for order {order['order_code']}",
-            "reference_id": order["id"],
-            "created_at": now_iso(),
-        })
+    # cashback 2% (only credited on paid orders, and only if joining is paid — regular purchases only)
+    cashback = 0
+    if user.get("is_joining_paid") or order.get("is_joining_order"):
+        cashback = round(order["total"] * 0.02, 2)
+        if cashback > 0:
+            await db.users.update_one(
+                {"id": user["id"]},
+                {"$inc": {"cashback_wallet": cashback, "wallet_balance": cashback}}
+            )
+            await db.transactions.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": user["id"],
+                "user_code": user["user_code"],
+                "type": "credit",
+                "category": "cashback",
+                "amount": cashback,
+                "wallet": "cashback",
+                "description": f"Cashback for order {order['order_code']}",
+                "reference_id": order["id"],
+                "created_at": now_iso(),
+            })
 
     # notify
     await db.notifications.insert_one({
@@ -888,11 +954,11 @@ async def mark_all_read(user=Depends(get_user)):
 async def mlm_config():
     cfg = await db.settings.find_one({"_key": "mlm"}, {"_id": 0, "_key": 0})
     return cfg or {
-        "stages_total": TOTAL_STAGES,
-        "referrals_per_stage": REFERRALS_PER_STAGE,
-        "stage_commissions": STAGE_COMMISSIONS,
-        "commission_stages": COMMISSION_STAGES,
-        "joining_amount": 2999,
+        "levels_total": MAX_LEVELS,
+        "max_direct_referrals": MAX_DIRECT_REFERRALS,
+        "min_direct_paid_for_income": MIN_DIRECT_PAID_FOR_INCOME,
+        "joining_amount": JOINING_AMOUNT,
+        "level_commissions": LEVEL_COMMISSIONS,
     }
 
 
@@ -992,7 +1058,6 @@ async def admin_dashboard(_=Depends(require_admin)):
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
         d_str = d.isoformat()
-        day_orders = [o for o in paid_orders if o.get("total") and True]
         # filter by date prefix
         all_orders = await db.orders.find({"payment_status": "paid", "created_at": {"$regex": f"^{d_str}"}}, {"_id": 0, "total": 1}).to_list(1000)
         days.append({"date": d_str, "revenue": sum(o.get("total", 0) for o in all_orders), "orders": len(all_orders)})
@@ -1369,6 +1434,92 @@ async def admin_list_audit_logs(_=Depends(require_admin), event: Optional[str] =
     skip = (page - 1) * limit
     items = await db.audit_logs.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     return {"items": items, "total": total}
+
+
+# ==================== ADMIN INVENTORY / ACCOUNTS / DELIVERY ====================
+@api.get("/admin/inventory")
+async def admin_inventory(_=Depends(require_admin)):
+    products = await db.products.find({}, {"_id": 0}).to_list(1000)
+    inv = []
+    for p in products:
+        sold = await db.orders.aggregate([
+            {"$match": {"payment_status": "paid"}},
+            {"$unwind": "$items"},
+            {"$match": {"items.product_id": p["id"]}},
+            {"$group": {"_id": None, "qty": {"$sum": "$items.quantity"}}},
+        ]).to_list(1)
+        sold_qty = sold[0]["qty"] if sold else 0
+        inv.append({
+            "id": p["id"], "name": p["name"], "sku": p.get("sku"),
+            "stock": p.get("stock", 0), "sold": sold_qty,
+            "remaining": max(0, p.get("stock", 0)),
+            "price": p.get("price", 0), "mrp": p.get("mrp", 0),
+            "is_hamper": p.get("is_hamper", False), "is_active": p.get("is_active", True),
+            "is_locked": p.get("is_locked", False),
+            "low_stock": p.get("stock", 0) < 20,
+        })
+    return {"items": inv, "total": len(inv), "low_stock_count": sum(1 for i in inv if i["low_stock"])}
+
+
+@api.get("/admin/accounts")
+async def admin_accounts(_=Depends(require_admin)):
+    from datetime import timedelta
+    today = datetime.now(timezone.utc).date().isoformat()
+    month_prefix = today[:7]
+
+    all_paid = await db.orders.find({"payment_status": "paid"}, {"_id": 0, "total": 1, "created_at": 1}).to_list(20000)
+    total_sales = sum(o.get("total", 0) for o in all_paid)
+    today_sales = sum(o.get("total", 0) for o in all_paid if o.get("created_at", "").startswith(today))
+    month_sales = sum(o.get("total", 0) for o in all_paid if o.get("created_at", "").startswith(month_prefix))
+
+    pending_payments = await db.orders.count_documents({"payment_status": "pending"})
+    completed_payments = await db.orders.count_documents({"payment_status": "paid"})
+
+    # total commissions paid out
+    users_pipe = await db.users.aggregate([
+        {"$group": {"_id": None, "commissions": {"$sum": "$total_earnings"}, "wallet_balance": {"$sum": "$wallet_balance"}}}
+    ]).to_list(1)
+    commissions = users_pipe[0]["commissions"] if users_pipe else 0
+    outstanding_wallet = users_pipe[0]["wallet_balance"] if users_pipe else 0
+
+    withdrawn = await db.withdrawals.aggregate([
+        {"$match": {"status": {"$in": ["paid", "approved"]}}},
+        {"$group": {"_id": None, "amt": {"$sum": "$amount"}}},
+    ]).to_list(1)
+    withdrawn_total = withdrawn[0]["amt"] if withdrawn else 0
+
+    orders_by_status = {}
+    for st in ("placed", "confirmed", "shipped", "delivered", "cancelled"):
+        orders_by_status[st] = await db.orders.count_documents({"status": st})
+
+    return {
+        "total_sales": round(total_sales, 2),
+        "today_sales": round(today_sales, 2),
+        "month_sales": round(month_sales, 2),
+        "pending_payments": pending_payments,
+        "completed_payments": completed_payments,
+        "total_commissions_credited": round(commissions, 2),
+        "outstanding_wallet_liability": round(outstanding_wallet, 2),
+        "withdrawn_total": round(withdrawn_total, 2),
+        "orders_by_status": orders_by_status,
+    }
+
+
+@api.get("/site/terms")
+async def get_terms():
+    s = await db.settings.find_one({"_key": "site"}, {"_id": 0})
+    return {"version": s.get("terms_version", "1.0") if s else "1.0",
+            "content": s.get("terms_content", "") if s else ""}
+
+
+@api.get("/site/delivery-config")
+async def get_delivery_config():
+    s = await db.settings.find_one({"_key": "site"}, {"_id": 0})
+    return {
+        "delivery_charge": s.get("delivery_charge", 49) if s else 49,
+        "free_shipping_threshold": s.get("free_shipping_threshold", 999) if s else 999,
+        "gst_percent": s.get("gst_percent", 5) if s else 5,
+    }
 
 
 # ==================== ROUTES MOUNT ====================
