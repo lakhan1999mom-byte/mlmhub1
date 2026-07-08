@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import { ArrowRight, Star, Users, Wallet, Sparkles, ShieldCheck, Award, ChevronRight, ChevronLeft, Quote, TrendingUp, Gift } from "lucide-react";
 import HeroSlider from "@/components/HeroSlider";
 import ReelsRow from "@/components/ReelsRow";
+import { INCOME_LEVELS, TOTAL_POTENTIAL_WORDS } from "@/lib/plan-theme";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?crop=entropy&cs=srgb&fm=jpg&q=85&w=900";
 
@@ -189,16 +190,7 @@ export default function Landing() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { l: 1, per: 1200,  members: 6,        total: 7200,       color: "#84CC16" },
-                    { l: 2, per: 400,   members: 36,       total: 14400,      color: "#22D3EE" },
-                    { l: 3, per: 50,    members: 216,      total: 10800,      color: "#60A5FA" },
-                    { l: 4, per: 300,   members: 1296,     total: 388800,     color: "#A78BFA" },
-                    { l: 5, per: 50,    members: 7776,     total: 388800,     color: "#F59E0B" },
-                    { l: 6, per: 200,   members: 46656,    total: 9331200,    color: "#EF4444" },
-                    { l: 7, per: 50,    members: 279936,   total: 13996800,   color: "#0EA5E9" },
-                    { l: 8, per: 100,   members: 1679616,  total: 167961600,  color: "#FBBF24" },
-                  ].map((r) => (
+                  {INCOME_LEVELS.map((r) => (
                     <tr key={r.l} className="border-b border-white/5 hover:bg-white/[0.04] transition-colors" data-testid={`plan-level-${r.l}`}>
                       <td className="px-3 md:px-6 py-3 md:py-4">
                         <div className="inline-flex items-center gap-2">
@@ -232,7 +224,7 @@ export default function Landing() {
               <div className="text-xs uppercase tracking-widest font-bold opacity-80">Total Earning Potential</div>
               <div className="text-xs opacity-70 mb-2">on complete 6-member chain across 8 levels</div>
               <div className="font-numbers text-3xl md:text-5xl font-black leading-tight">₹20,36,99,600</div>
-              <div className="text-xs md:text-sm mt-2 opacity-80">Twenty Crore Thirty Six Lakh Ninety Nine Thousand Six Hundred</div>
+              <div className="text-xs md:text-sm mt-2 opacity-80">{TOTAL_POTENTIAL_WORDS}</div>
             </div>
             <div className="bg-[#FBBF24] text-[#064E3B] rounded-2xl p-6 flex flex-col items-center justify-center text-center" data-testid="plan-lifetime-badge">
               <div className="text-4xl mb-2">🏆</div>
