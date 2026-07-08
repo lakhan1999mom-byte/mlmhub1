@@ -197,7 +197,7 @@ export default function Landing() {
                     { l: 5, per: 50,    members: 7776,     total: 388800,     color: "#F59E0B" },
                     { l: 6, per: 200,   members: 46656,    total: 9331200,    color: "#EF4444" },
                     { l: 7, per: 50,    members: 279936,   total: 13996800,   color: "#0EA5E9" },
-                    { l: 8, per: 100,   members: 1679616,  total: 167961600,  color: "#1E40AF" },
+                    { l: 8, per: 100,   members: 1679616,  total: 167961600,  color: "#FBBF24" },
                   ].map((r) => (
                     <tr key={r.l} className="border-b border-white/5 hover:bg-white/[0.04] transition-colors" data-testid={`plan-level-${r.l}`}>
                       <td className="px-3 md:px-6 py-3 md:py-4">
