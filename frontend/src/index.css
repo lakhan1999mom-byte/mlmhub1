@@ -170,6 +170,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 .pulse-ring { animation: pulse-ring 2s infinite; }
 
+@keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 30s linear infinite; }
+.animate-marquee:hover { animation-play-state: paused; }
+
 .input-soft {
     width: 100%;
     border: 1.5px solid #E2E8F0;

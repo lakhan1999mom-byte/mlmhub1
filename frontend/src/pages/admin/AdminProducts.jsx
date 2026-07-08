@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { Plus, Pencil, Trash2, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, X } from "lucide-react";
+import ImageSizeGuide from "@/components/ImageSizeGuide";
 
 const blank = {
   name: "", description: "", price: 0, mrp: 0, sku: "", category: "general", brand: "EverGro",
@@ -12,6 +13,7 @@ export default function AdminProducts() {
   const [items, setItems] = useState([]);
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [contentInput, setContentInput] = useState("");
 
   const load = () => api.get("/products").then(({ data }) => setItems(data));
   useEffect(() => { load(); }, []);
@@ -89,10 +91,62 @@ export default function AdminProducts() {
               <input type="checkbox" checked={edit.is_hamper} onChange={(e) => setEdit({...edit, is_hamper: e.target.checked})}/> This is a Hamper
             </label>
             {edit.is_hamper && (
-              <select className="input-soft" value={edit.hamper_tier || ""} onChange={(e) => setEdit({...edit, hamper_tier: e.target.value})}>
-                <option value="">Select tier</option>
-                <option>Bronze</option><option>Silver</option><option>Gold</option><option>Platinum</option>
-              </select>
+              <>
+                <select className="input-soft" value={edit.hamper_tier || ""} onChange={(e) => setEdit({...edit, hamper_tier: e.target.value})}>
+                  <option value="">Select tier</option>
+                  <option>Purchasing</option><option>Bronze</option><option>Silver</option><option>Gold</option><option>Platinum</option>
+                </select>
+                <div className="bg-[#ECFCCB] border border-[#D9F99D] rounded-xl p-3">
+                  <div className="text-sm font-semibold text-[#064E3B] mb-2">📦 Hamper Contents (shown to user)</div>
+                  <div className="text-xs text-[#334155] mb-3">Add every item that ships inside this hamper. User can see this list on product page.</div>
+                  <div className="flex flex-wrap gap-1.5 mb-2" data-testid="hamper-contents-list">
+                    {(edit.contents || []).map((c, i) => (
+                      <div key={i} className="inline-flex items-center gap-1 bg-white border border-[#D9F99D] rounded-full px-3 py-1 text-xs" data-testid={`hamper-content-${i}`}>
+                        <span>{c}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEdit({ ...edit, contents: edit.contents.filter((_, j) => j !== i) })}
+                          className="text-[#EF4444] hover:text-red-700"
+                          data-testid={`remove-content-${i}`}
+                        >
+                          <X className="w-3 h-3"/>
+                        </button>
+                      </div>
+                    ))}
+                    {(edit.contents || []).length === 0 && (
+                      <div className="text-xs text-[#64748B] italic">No items added yet</div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      className="input-soft flex-1"
+                      placeholder="Add item (e.g. Premium Basmati Rice 5kg)"
+                      value={contentInput}
+                      onChange={(e) => setContentInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && contentInput.trim()) {
+                          e.preventDefault();
+                          setEdit({ ...edit, contents: [...(edit.contents || []), contentInput.trim()] });
+                          setContentInput("");
+                        }
+                      }}
+                      data-testid="hamper-content-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!contentInput.trim()) return;
+                        setEdit({ ...edit, contents: [...(edit.contents || []), contentInput.trim()] });
+                        setContentInput("");
+                      }}
+                      className="btn-outline text-sm"
+                      data-testid="add-content-btn"
+                    >
+                      <Plus className="w-3 h-3"/> Add
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
             <div>
               <div className="text-sm font-semibold mb-2">Badges (comma-separated)</div>
@@ -100,7 +154,8 @@ export default function AdminProducts() {
             </div>
             <div>
               <div className="text-sm font-semibold mb-2">Images</div>
-              <div className="flex flex-wrap gap-2">
+              <ImageSizeGuide preset={edit.is_hamper ? "hamper" : "product"}/>
+              <div className="flex flex-wrap gap-2 mt-2">
                 {(edit.images || []).map((img, i) => (
                   <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden bg-[#FAFAF9]">
                     <img src={img} alt="" className="w-full h-full object-cover"/>

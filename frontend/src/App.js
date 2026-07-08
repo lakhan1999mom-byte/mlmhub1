@@ -56,6 +56,8 @@ import AdminReels from "@/pages/admin/AdminReels";
 import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
 import AdminInventory from "@/pages/admin/AdminInventory";
 import AdminAccounts from "@/pages/admin/AdminAccounts";
+import AdminBrands from "@/pages/admin/AdminBrands";
+import AdminTestimonials from "@/pages/admin/AdminTestimonials";
 
 function PublicLayout() {
   const [site, setSite] = useState(null);
@@ -138,6 +140,8 @@ export default function App() {
               <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
               <Route path="/admin/inventory" element={<AdminInventory />} />
               <Route path="/admin/accounts" element={<AdminAccounts />} />
+              <Route path="/admin/brands" element={<AdminBrands />} />
+              <Route path="/admin/testimonials" element={<AdminTestimonials />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" />} />

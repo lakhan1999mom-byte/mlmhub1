@@ -76,7 +76,7 @@ async def seed_all(db):
             "instagram": "https://instagram.com/evergroemart",
             "twitter": "https://twitter.com/evergroemart",
             "youtube": "https://youtube.com/@evergroemart",
-            "notification_bar_text": "🎉 EverGro eMart — 8-Level Income Plan · Joining Kit ₹7,200",
+            "notification_bar_text": "🎉 EverGro eMart — 8-Level Income Plan · Purchasing Kit ₹7,200",
             "notification_bar_enabled": True,
             "razorpay_key_id": "",
             "razorpay_key_secret": "",
@@ -104,8 +104,8 @@ async def seed_all(db):
         if "terms_content" not in existing:
             updates["terms_content"] = TERMS_CONTENT
             updates["terms_version"] = "1.0"
-        if "notification_bar_text" in existing and "8-Level" not in existing.get("notification_bar_text", ""):
-            updates["notification_bar_text"] = "🎉 EverGro eMart — 8-Level Income Plan · Joining Kit ₹7,200"
+        if "notification_bar_text" in existing and ("Joining Kit" in existing.get("notification_bar_text", "") or "8-Level" not in existing.get("notification_bar_text", "")):
+            updates["notification_bar_text"] = "🎉 EverGro eMart — 8-Level Income Plan · Purchasing Kit ₹7,200"
         if updates:
             await db.settings.update_one({"_key": "site"}, {"$set": updates})
 
@@ -177,16 +177,16 @@ async def seed_all(db):
         {"$set": {"is_joining_paid": True, "income_active": True, "is_active": True}},
     )
 
-    # ============ SINGLE ACTIVE JOINING HAMPER (₹7,200) ============
+    # ============ SINGLE ACTIVE PURCHASING KIT (₹7,200) ============
     joining = await db.products.find_one({"sku": "HMP-JOINING-7200"})
     if not joining:
         # Lock all existing hampers
         await db.products.update_many({"is_hamper": True}, {"$set": {"is_locked": True, "is_active": False}})
-        # Create the single active joining hamper
+        # Create the single active purchasing kit
         await db.products.insert_one({
             "id": str(uuid.uuid4()),
-            "name": "EverGro Joining Kit",
-            "description": "The official EverGro joining hamper — includes premium groceries, wellness essentials, and unlocks your 8-level MLM income structure. One-time ₹7,200 purchase activates your account and referral link.",
+            "name": "EverGro Purchasing Kit",
+            "description": "The official EverGro purchasing kit — includes premium groceries, wellness essentials, and unlocks your 8-level MLM income structure. One-time ₹7,200 purchase activates your account and referral link.",
             "price": 7200.0, "mrp": 8999.0,
             "sku": "HMP-JOINING-7200",
             "category": "hamper", "brand": "EverGro",
@@ -197,7 +197,7 @@ async def seed_all(db):
             ],
             "videos": [], "pdfs": [],
             "badges": ["featured", "bestseller"],
-            "is_hamper": True, "hamper_tier": "Joining",
+            "is_hamper": True, "hamper_tier": "Purchasing",
             "contents": [
                 "Premium Basmati Rice 5 kg",
                 "Mixed Dals & Pulses 3 kg",
@@ -212,6 +212,13 @@ async def seed_all(db):
             "rating": 4.9, "review_count": 250,
             "created_at": now_iso(),
         })
+    else:
+        # Rename old "EverGro Joining Kit" → "EverGro Purchasing Kit" (idempotent)
+        if joining.get("name") == "EverGro Joining Kit":
+            await db.products.update_one(
+                {"sku": "HMP-JOINING-7200"},
+                {"$set": {"name": "EverGro Purchasing Kit", "hamper_tier": "Purchasing"}},
+            )
 
     # ============ Regular Products ============
     if await db.products.count_documents({"is_hamper": False}) == 0:
@@ -253,19 +260,54 @@ async def seed_all(db):
     if await db.banners.count_documents({}) == 0:
         await db.banners.insert_one({"id": str(uuid.uuid4()), "title": "Build Wealth, One Kit at a Time", "subtitle": "Join 50,000+ members", "image_url": "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?w=1600", "position": "hero", "sort_order": 1, "is_active": True, "link": "/hampers", "created_at": now_iso()})
 
-    if await db.testimonials.count_documents({}) == 0:
+    if await db.testimonials.count_documents({}) < 15:
         ts = [
             {"name": "Rajesh Kumar", "role": "Level 5 Member", "rating": 5, "message": "EverGro's 8-level plan is genuine. I got my ₹1,200 first commission within 10 days!", "avatar": "https://i.pravatar.cc/100?img=12"},
-            {"name": "Priya Sharma", "role": "Level 3 Member", "rating": 5, "message": "The joining kit is amazing quality. My family loves it and the income is a bonus.", "avatar": "https://i.pravatar.cc/100?img=47"},
+            {"name": "Priya Sharma", "role": "Level 3 Member", "rating": 5, "message": "The purchasing kit is amazing quality. My family loves it and the income is a bonus.", "avatar": "https://i.pravatar.cc/100?img=47"},
             {"name": "Amit Patel", "role": "Level 6 Member", "rating": 5, "message": "8 months in, crossed Level 6. The math actually works — transparent and legal.", "avatar": "https://i.pravatar.cc/100?img=33"},
+            {"name": "Neha Gupta", "role": "Level 4 Member", "rating": 5, "message": "Finally an MLM that pays on time. My wallet is credited within seconds of a downline joining.", "avatar": "https://i.pravatar.cc/100?img=48"},
+            {"name": "Vikram Singh", "role": "Level 7 Member", "rating": 5, "message": "Made ₹3.2 lakh in 4 months. I've quit my day job. EverGro is my full-time income now.", "avatar": "https://i.pravatar.cc/100?img=15"},
+            {"name": "Kavita Rao", "role": "Level 2 Member", "rating": 4, "message": "Started small, first ₹1,200 commission gave me confidence. Building my team steadily.", "avatar": "https://i.pravatar.cc/100?img=44"},
+            {"name": "Sanjay Verma", "role": "Level 5 Member", "rating": 5, "message": "KYC took 2 hours, withdrawal took 24 hours. Fastest payout system I've used.", "avatar": "https://i.pravatar.cc/100?img=17"},
+            {"name": "Anjali Mehta", "role": "Level 3 Member", "rating": 5, "message": "Product quality is A+. My mother uses the wellness pack daily. Very happy.", "avatar": "https://i.pravatar.cc/100?img=45"},
+            {"name": "Rohit Choudhary", "role": "Level 6 Member", "rating": 5, "message": "Referral QR code is genius. I share it in WhatsApp groups and members join daily.", "avatar": "https://i.pravatar.cc/100?img=13"},
+            {"name": "Pooja Nair", "role": "Level 4 Member", "rating": 5, "message": "My husband was skeptical. After seeing ₹45,000 credited last month, he joined too!", "avatar": "https://i.pravatar.cc/100?img=49"},
+            {"name": "Arjun Reddy", "role": "Level 5 Member", "rating": 5, "message": "Cashback on regular products is a nice touch. Everyone in my team loves shopping here.", "avatar": "https://i.pravatar.cc/100?img=11"},
+            {"name": "Sunita Yadav", "role": "Level 2 Member", "rating": 4, "message": "Just crossed my 3rd direct referral. Income is officially LIVE. Excited!", "avatar": "https://i.pravatar.cc/100?img=46"},
+            {"name": "Deepak Iyer", "role": "Level 7 Member", "rating": 5, "message": "The genealogy tree view is beautiful. I can see my entire 8-level downline in real time.", "avatar": "https://i.pravatar.cc/100?img=14"},
+            {"name": "Meena Joshi", "role": "Level 4 Member", "rating": 5, "message": "Support team responded within 15 mins on WhatsApp. Great service.", "avatar": "https://i.pravatar.cc/100?img=41"},
+            {"name": "Karan Malhotra", "role": "Level 6 Member", "rating": 5, "message": "L2 to L8 commissions add up fast. Passive income is real with EverGro.", "avatar": "https://i.pravatar.cc/100?img=18"},
+            {"name": "Ritu Bansal", "role": "Level 3 Member", "rating": 5, "message": "Notification pings whenever I earn — feels rewarding. Motivates me to refer more.", "avatar": "https://i.pravatar.cc/100?img=42"},
+            {"name": "Naveen Krishna", "role": "Level 5 Member", "rating": 5, "message": "T&C is crystal clear. No hidden fees, no monthly deductions. Trust built.", "avatar": "https://i.pravatar.cc/100?img=19"},
+            {"name": "Divya Prasad", "role": "Level 4 Member", "rating": 5, "message": "The video reels showing member stories inspired me to join. Glad I did.", "avatar": "https://i.pravatar.cc/100?img=43"},
+            {"name": "Suresh Menon", "role": "Level 6 Member", "rating": 5, "message": "6 direct refs cap is fair. Encourages you to help each downline succeed instead of hoarding.", "avatar": "https://i.pravatar.cc/100?img=16"},
+            {"name": "Anita Desai", "role": "Level 5 Member", "rating": 5, "message": "Best decision of 2026. Retired my mom from her 9-5 last month with EverGro income.", "avatar": "https://i.pravatar.cc/100?img=40"},
         ]
         for t in ts:
             t["id"] = str(uuid.uuid4()); t["is_active"] = True
             await db.testimonials.insert_one(t)
 
+    # ============ Brand Logos (Partner brand slider) ============
+    if await db.brands.count_documents({}) == 0:
+        from urllib.parse import quote
+        _brand_names = ["Tata", "Amul", "ITC", "Britannia", "Parle", "Nestle", "Dabur", "Patanjali", "Fortune", "MDH"]
+        brands = [
+            {"name": n, "logo_url": f"https://dummyimage.com/400x200/ECFCCB/064E3B.png&text={quote(n)}"}
+            for n in _brand_names
+        ]
+        for i, b in enumerate(brands):
+            await db.brands.insert_one({
+                "id": str(uuid.uuid4()),
+                "name": b["name"],
+                "logo_url": b["logo_url"],
+                "link": None,
+                "sort_order": i,
+                "is_active": True,
+                "created_at": now_iso(),
+            })
+
     if await db.faqs.count_documents({}) == 0:
         faqs = [
-            {"question": "What is EverGro eMart?", "answer": "An 8-level MLM platform where you buy a ₹7,200 joining kit, refer up to 6 friends, and earn continuous commissions from 8 downline levels."},
             {"question": "How does the plan work?", "answer": "Level 1: ₹1,200/member × 6 = ₹7,200 · Level 2: ₹400 × 36 = ₹14,400 · Level 3: ₹50 × 216 = ₹10,800 · Level 4: ₹300 × 1,296 = ₹3,88,800 · Level 5: ₹50 × 7,776 = ₹3,88,800 · Level 6: ₹200 × 46,656 = ₹93,31,200 · Level 7: ₹50 × 2,79,936 = ₹1,39,96,800 · Level 8: ₹100 × 16,79,616 = ₹16,79,61,600. Total potential ₹20,36,99,600."},
             {"question": "When does income start?", "answer": "As soon as 3 of your direct referrals complete their ₹7,200 joining purchase."},
             {"question": "How do I withdraw?", "answer": "You need 3 paid direct referrals AND approved KYC. Min ₹100. Processed within 48h."},

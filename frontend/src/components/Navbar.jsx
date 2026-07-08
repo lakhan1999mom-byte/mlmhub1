@@ -5,8 +5,6 @@ import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import api from "@/lib/api";
 
-const LOGO = "https://customer-assets.emergentagent.com/job_9e593e72-d371-4332-879b-9b25914b11c9/artifacts/xiy5qq2i_ChatGPT_Image_Jun_18__2026__06_43_19_PM-removebg-preview.png";
-
 export default function Navbar({ siteSettings }) {
   const { user, logout } = useAuth();
   const { cart } = useCart() || {};
@@ -38,11 +36,14 @@ export default function Navbar({ siteSettings }) {
       )}
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-[#E2E8F0]" data-testid="navbar">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 flex items-center justify-between h-20">
-          <Link to="/" className="flex items-center gap-2" data-testid="navbar-logo-link">
-            <img src={LOGO} alt="EverGro" className="h-14 lg:h-16 w-auto"/>
-            <div className="hidden sm:block">
-              <div className="font-display text-lg font-bold leading-tight text-[#064E3B]">EverGro eMart</div>
-              <div className="text-[10px] tracking-widest text-[#65A30D] uppercase">Shop • Save • Share • Earn</div>
+          <Link to="/" className="flex items-center" data-testid="navbar-logo-link">
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-[#064E3B]" data-testid="navbar-brand-name">
+                EverGro <span className="text-[#84CC16]">eMart</span>
+              </span>
+              <span className="hidden sm:block text-[10px] tracking-[0.2em] text-[#65A30D] uppercase font-semibold mt-1">
+                Shop • Save • Share • Earn
+              </span>
             </div>
           </Link>
 

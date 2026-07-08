@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { AllSizesTable } from "@/components/ImageSizeGuide";
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -32,6 +33,8 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6" data-testid="admin-settings-page">
       <h1 className="font-display text-3xl font-bold">Settings</h1>
+
+      <AllSizesTable/>
 
       <div className="card-soft p-6 space-y-3">
         <h3 className="font-display font-bold text-lg">Site</h3>

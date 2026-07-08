@@ -4,8 +4,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 
-const LOGO = "https://customer-assets.emergentagent.com/job_9e593e72-d371-4332-879b-9b25914b11c9/artifacts/xiy5qq2i_ChatGPT_Image_Jun_18__2026__06_43_19_PM-removebg-preview.png";
-
 export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
@@ -84,16 +82,19 @@ export default function Login() {
         <div className="absolute -top-20 -right-20 w-96 h-96 bg-[#84CC16]/20 rounded-full blur-3xl"/>
         <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-[#FBBF24]/20 rounded-full blur-3xl"/>
         <div className="relative max-w-md">
-          <img src={LOGO} alt="EverGro" className="h-20 mb-8 bg-black/30 rounded-2xl p-3"/>
+          <div className="font-display text-5xl font-black tracking-tight mb-8 bg-black/20 rounded-2xl px-4 py-3 inline-block">
+            EverGro <span className="text-[#84CC16]">eMart</span>
+          </div>
           <h1 className="font-display text-5xl font-bold mb-4">Welcome Back to <span className="text-[#84CC16]">Wealth</span></h1>
           <p className="text-white/80 leading-relaxed">Login to access your dashboard, network tree, wallet, and earn through our 8-stage MLM plan.</p>
         </div>
       </div>
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          <Link to="/" className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="bg-[#064E3B] rounded-xl p-1.5"><img src={LOGO} alt="EverGro" className="h-8"/></div>
-            <div className="font-display font-bold text-[#064E3B]">EverGro eMart</div>
+          <Link to="/" className="lg:hidden flex items-center mb-8">
+            <div className="font-display font-black text-2xl tracking-tight text-[#064E3B]">
+              EverGro <span className="text-[#84CC16]">eMart</span>
+            </div>
           </Link>
           <h2 className="font-display text-3xl font-bold text-[#064E3B] mb-2">Login</h2>
           <p className="text-[#64748B] mb-6">Welcome back, member!</p>

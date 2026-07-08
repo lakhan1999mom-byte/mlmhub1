@@ -1,8 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText, Warehouse, Calculator } from "lucide-react";
-
-const LOGO = "https://customer-assets.emergentagent.com/job_9e593e72-d371-4332-879b-9b25914b11c9/artifacts/xiy5qq2i_ChatGPT_Image_Jun_18__2026__06_43_19_PM-removebg-preview.png";
+import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText, Warehouse, Calculator, Award, MessageCircle } from "lucide-react";
 
 const items = [
   { to: "/admin", icon: LayoutDashboard, label: "Overview", perm: "*" },
@@ -17,6 +15,8 @@ const items = [
   { to: "/admin/broadcast", icon: Megaphone, label: "Broadcast", perm: "notifications" },
   { to: "/admin/sliders", icon: Images, label: "Sliders", perm: "*" },
   { to: "/admin/reels", icon: Film, label: "Reels", perm: "*" },
+  { to: "/admin/brands", icon: Award, label: "Brand Logos", perm: "*" },
+  { to: "/admin/testimonials", icon: MessageCircle, label: "Testimonials", perm: "*" },
   { to: "/admin/audit-logs", icon: ScrollText, label: "Audit Logs", perm: "*" },
   { to: "/admin/settings", icon: Settings, label: "Settings", perm: "*" },
 ];
@@ -30,13 +30,12 @@ export default function AdminShell() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9]">
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 w-64 h-screen bg-[#064E3B] text-white p-6" data-testid="admin-sidebar">
-        <div className="flex items-center gap-2 mb-8">
-          <img src={LOGO} alt="EverGro" className="h-12 w-auto brightness-125"/>
-          <div>
-            <div className="font-display font-bold text-sm leading-tight">EverGro</div>
-            <div className="text-[10px] uppercase tracking-widest text-[#84CC16]">{isSuper ? "Super Admin" : "Sub Admin"}</div>
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 w-64 h-screen bg-[#064E3B] text-white p-6 overflow-y-auto" data-testid="admin-sidebar">
+        <div className="mb-8">
+          <div className="font-display font-black text-2xl leading-tight">
+            EverGro <span className="text-[#84CC16]">eMart</span>
           </div>
+          <div className="text-[10px] uppercase tracking-widest text-[#84CC16] mt-1">{isSuper ? "Super Admin" : "Sub Admin"}</div>
         </div>
         <nav className="space-y-1 flex-1">
           {visible.map((it) => (
@@ -68,9 +67,9 @@ export default function AdminShell() {
 
       <div className="lg:hidden bg-[#064E3B] text-white px-4 py-3 sticky top-0 z-30">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="bg-white/10 rounded-lg p-1"><img src={LOGO} alt="EverGro" className="h-6 w-auto" /></div>
-            <div className="font-display font-bold">{isSuper ? "Super Admin" : "Sub Admin"}</div>
+          <div className="font-display font-black text-lg">
+            EverGro <span className="text-[#84CC16]">eMart</span>
+            <span className="ml-2 text-[10px] uppercase tracking-widest text-[#84CC16]">{isSuper ? "Super" : "Sub"}</span>
           </div>
           <button onClick={() => { logout(); navigate("/"); }} className="text-[#FBBF24]"><LogOut className="w-5 h-5"/></button>
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { Plus, Trash2, Upload, Pencil, Play } from "lucide-react";
+import ImageSizeGuide from "@/components/ImageSizeGuide";
 
 const blank = { title: "", description: "", video_url: "", thumbnail_url: "", location: "both", is_active: true, sort_order: 1 };
 
@@ -92,8 +93,9 @@ export default function AdminReels() {
             <input type="number" className="input-soft" placeholder="Sort Order" value={edit.sort_order} onChange={(e) => setEdit({...edit, sort_order: +e.target.value})}/>
             <div>
               <div className="text-sm font-semibold mb-2">Video (mp4, ideally 9:16 vertical, max 50 MB)</div>
+              <ImageSizeGuide preset="reel"/>
               {edit.video_url ? (
-                <video src={edit.video_url} controls className="rounded-lg max-h-60 w-full bg-black"/>
+                <video src={edit.video_url} controls className="rounded-lg max-h-60 w-full bg-black mt-2"/>
               ) : (
                 <label className="block border-2 border-dashed border-[#E2E8F0] rounded-lg p-6 text-center cursor-pointer hover:border-[#84CC16]">
                   <Upload className="w-5 h-5 mx-auto text-[#65A30D] mb-2"/>

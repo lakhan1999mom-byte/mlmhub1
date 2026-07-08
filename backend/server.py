@@ -1393,6 +1393,81 @@ async def admin_delete_slider(sid: str, admin=Depends(require_admin)):
     return {"ok": True}
 
 
+# ==================== BRAND LOGOS (Partner Brand Slider) ====================
+@api.get("/site/brands")
+async def list_brands():
+    items = await db.brands.find({"is_active": True}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    return items
+
+
+@api.post("/admin/brands")
+async def admin_create_brand(payload: dict, admin=Depends(require_admin)):
+    payload["id"] = str(uuid.uuid4())
+    payload["is_active"] = payload.get("is_active", True)
+    payload["sort_order"] = payload.get("sort_order", 0)
+    payload["created_at"] = now_iso()
+    payload.pop("_id", None)
+    await db.brands.insert_one(payload)
+    payload.pop("_id", None)
+    await log_audit("brand_create", actor=admin, target_id=payload["id"], target_label=payload.get("name", ""))
+    return payload
+
+
+@api.put("/admin/brands/{bid}")
+async def admin_update_brand(bid: str, payload: dict, admin=Depends(require_admin)):
+    payload.pop("_id", None)
+    payload.pop("id", None)
+    await db.brands.update_one({"id": bid}, {"$set": payload})
+    await log_audit("brand_update", actor=admin, target_id=bid)
+    return await db.brands.find_one({"id": bid}, {"_id": 0})
+
+
+@api.delete("/admin/brands/{bid}")
+async def admin_delete_brand(bid: str, admin=Depends(require_admin)):
+    await db.brands.delete_one({"id": bid})
+    await log_audit("brand_delete", actor=admin, target_id=bid)
+    return {"ok": True}
+
+
+# ==================== TESTIMONIALS ADMIN ====================
+@api.post("/admin/testimonials")
+async def admin_create_testimonial(payload: dict, admin=Depends(require_admin)):
+    payload["id"] = str(uuid.uuid4())
+    payload["is_active"] = payload.get("is_active", True)
+    payload["created_at"] = now_iso()
+    payload.pop("_id", None)
+    await db.testimonials.insert_one(payload)
+    payload.pop("_id", None)
+    await log_audit("testimonial_create", actor=admin, target_id=payload["id"], target_label=payload.get("name", ""))
+    return payload
+
+
+@api.put("/admin/testimonials/{tid}")
+async def admin_update_testimonial(tid: str, payload: dict, admin=Depends(require_admin)):
+    payload.pop("_id", None)
+    payload.pop("id", None)
+    await db.testimonials.update_one({"id": tid}, {"$set": payload})
+    await log_audit("testimonial_update", actor=admin, target_id=tid)
+    return await db.testimonials.find_one({"id": tid}, {"_id": 0})
+
+
+@api.delete("/admin/testimonials/{tid}")
+async def admin_delete_testimonial(tid: str, admin=Depends(require_admin)):
+    await db.testimonials.delete_one({"id": tid})
+    await log_audit("testimonial_delete", actor=admin, target_id=tid)
+    return {"ok": True}
+
+
+@api.get("/admin/testimonials")
+async def admin_list_testimonials(_=Depends(require_admin)):
+    return await db.testimonials.find({}, {"_id": 0}).to_list(500)
+
+
+@api.get("/admin/brands")
+async def admin_list_brands(_=Depends(require_admin)):
+    return await db.brands.find({}, {"_id": 0}).sort("sort_order", 1).to_list(500)
+
+
 # ==================== REELS / VERTICAL VIDEOS ====================
 @api.get("/reels")
 async def list_reels(location: Optional[str] = None):

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { Plus, Trash2, Upload, Pencil } from "lucide-react";
+import ImageSizeGuide from "@/components/ImageSizeGuide";
 
 const blank = { title: "", subtitle: "", image_url: "", link: "/", cta_label: "Learn More", location: "landing_top", is_active: true, sort_order: 1 };
 
@@ -91,8 +92,9 @@ export default function AdminSliders() {
             <input type="number" className="input-soft" placeholder="Sort Order" value={edit.sort_order} onChange={(e) => setEdit({...edit, sort_order: +e.target.value})}/>
             <div>
               <div className="text-sm font-semibold mb-2">Image</div>
+              <ImageSizeGuide preset="slider"/>
               {edit.image_url ? (
-                <div className="relative">
+                <div className="relative mt-2">
                   <img src={edit.image_url} alt="" className="rounded-lg max-h-40 object-cover w-full"/>
                   <button onClick={() => setEdit({...edit, image_url: ""})} className="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6">×</button>
                 </div>

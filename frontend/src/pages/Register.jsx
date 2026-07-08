@@ -4,8 +4,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 
-const LOGO = "https://customer-assets.emergentagent.com/job_9e593e72-d371-4332-879b-9b25914b11c9/artifacts/xiy5qq2i_ChatGPT_Image_Jun_18__2026__06_43_19_PM-removebg-preview.png";
-
 export default function Register() {
   const { register } = useAuth();
   const nav = useNavigate();
@@ -48,12 +46,13 @@ export default function Register() {
     <div className="min-h-screen flex" data-testid="register-page">
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          <Link to="/" className="flex items-center gap-2 mb-8">
-            <img src={LOGO} alt="EverGro" className="h-14"/>
-            <div className="font-display font-bold text-[#064E3B]">EverGro eMart</div>
+          <Link to="/" className="flex items-center mb-8">
+            <div className="font-display text-3xl font-black tracking-tight text-[#064E3B]">
+              EverGro <span className="text-[#84CC16]">eMart</span>
+            </div>
           </Link>
           <h2 className="font-display text-3xl font-bold text-[#064E3B] mb-2">Create Account</h2>
-          <p className="text-[#64748B] mb-6">Step 1 of 2: Fill details · Step 2: Pay ₹7,200 Joining Kit to activate.</p>
+          <p className="text-[#64748B] mb-6">Step 1 of 2: Fill details · Step 2: Pay ₹7,200 Purchasing Kit to activate.</p>
           <form onSubmit={submit} className="space-y-4">
             <div>
               <label className="text-sm font-medium text-[#064E3B]">Full Name</label>
@@ -66,6 +65,7 @@ export default function Register() {
             <div>
               <label className="text-sm font-medium text-[#064E3B]">Mobile</label>
               <input data-testid="register-phone-input" className="input-soft mt-1" value={form.phone} onChange={upd("phone")} required/>
+              <p className="text-[10px] text-[#65A30D] mt-1 font-medium">✓ Same phone can be used for multiple accounts (unique email + password).</p>
             </div>
             <div>
               <label className="text-sm font-medium text-[#064E3B]">Password</label>
@@ -96,8 +96,10 @@ export default function Register() {
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-[#84CC16] via-[#65A30D] to-[#064E3B] text-white p-12 items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 dot-bg opacity-10"/>
         <div className="relative max-w-md">
-          <img src={LOGO} alt="EverGro" className="h-24 mb-8"/>
-          <h1 className="font-display text-5xl font-bold mb-4">Shop · Save · Share · Earn</h1>
+          <div className="font-display text-5xl font-black tracking-tight mb-8">
+            EverGro <span className="text-[#FBBF24]">eMart</span>
+          </div>
+          <h1 className="font-display text-4xl font-bold mb-4">Shop · Save · Share · Earn</h1>
           <p className="text-lg text-white/90 mb-6">Join ₹7,200 → earn from 8 downline levels → potential ₹20.36 Cr per cycle.</p>
           <ul className="space-y-3 text-white/90">
             <li className="flex items-start gap-2"><span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center text-sm">✓</span> Level 1 pays ₹1,200 per direct member</li>
