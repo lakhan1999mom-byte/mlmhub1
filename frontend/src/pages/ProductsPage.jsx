@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Lock, Search, Star } from "lucide-react";
@@ -18,8 +18,15 @@ export default function ProductsPage() {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
-  const [category, setCategory] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const category = searchParams.get("category") || "";
   const [featured, setFeatured] = useState([]);
+
+  const setCategory = (key) => {
+    const next = new URLSearchParams(searchParams);
+    if (key) next.set("category", key); else next.delete("category");
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     const params = new URLSearchParams();
