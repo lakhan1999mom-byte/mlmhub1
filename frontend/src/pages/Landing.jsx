@@ -59,7 +59,7 @@ export default function Landing() {
             <div className="flex flex-wrap items-center gap-8 pt-6">
               <Stat number="50,000+" label="Active Members"/>
               <Stat number="₹12 Cr+" label="Commissions Paid"/>
-              <Stat number="8" label="Earning Stages"/>
+              <Stat number="8" label="Income Levels"/>
             </div>
           </div>
           <div className="lg:col-span-5 relative">
@@ -138,39 +138,127 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 8-STAGE PLAN */}
-      <section className="bg-[#064E3B] text-white py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <div className="text-xs uppercase tracking-widest font-semibold text-[#84CC16] mb-2">8-Stage MLM Plan</div>
-            <h2 className="font-display text-4xl lg:text-5xl font-bold text-white">Earn at Every Stage You Complete</h2>
-            <p className="text-white/70 mt-4 max-w-2xl mx-auto">3 referrals per stage. Stages 1, 3, 5, 7 and 8 pay commissions. Auto-cycle on completion.</p>
+      {/* 8-LEVEL INCOME PLAN */}
+      <section className="bg-[#064E3B] text-white py-16 lg:py-20" data-testid="landing-plan-section">
+        <div className="max-w-7xl mx-auto px-4 lg:px-6">
+          <div className="text-center mb-10">
+            <div className="text-xs uppercase tracking-widest font-semibold text-[#84CC16] mb-2">8-Level Income Plan</div>
+            <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white">Earn Continuously From 8 Levels</h2>
+            <p className="text-white/70 mt-3 max-w-2xl mx-auto text-sm md:text-base">
+              One-time ₹7,200 purchase • Refer up to 6 direct members • Earn from every downline level.
+            </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+          {/* Plan Overview flow — 4 steps */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10" data-testid="plan-overview-flow">
             {[
-              {s: 1, c: 500, p: true},
-              {s: 2, c: 0, p: false},
-              {s: 3, c: 1500, p: true},
-              {s: 4, c: 0, p: false},
-              {s: 5, c: 5000, p: true},
-              {s: 6, c: 0, p: false},
-              {s: 7, c: 15000, p: true},
-              {s: 8, c: 50000, p: true, cycle: true},
-            ].map((st) => (
-              <div key={st.s} className={`rounded-2xl p-5 border ${st.p ? "bg-gradient-to-br from-[#84CC16] to-[#65A30D] border-[#84CC16] text-[#064E3B]" : "bg-white/5 border-white/10"}`} data-testid={`stage-card-${st.s}`}>
-                <div className={`text-xs uppercase tracking-widest font-semibold ${st.p ? "text-[#064E3B]/70" : "text-white/60"}`}>Stage {st.s}</div>
-                <div className={`font-numbers text-3xl font-bold mt-2 ${st.p ? "text-[#064E3B]" : "text-white"}`}>
-                  {st.c > 0 ? `₹${st.c.toLocaleString()}` : "—"}
+              { n: 1, title: "Purchase Kit", sub: "₹7,200 One-Time", icon: "🛒" },
+              { n: 2, title: "Get Referral Code", sub: "Your unique ID", icon: "🔗" },
+              { n: 3, title: "Refer 6 Direct", sub: "Max 6 per member", icon: "👥" },
+              { n: 4, title: "Team Refers Too", sub: "Earn continuously", icon: "🌱" },
+            ].map((s) => (
+              <div key={s.n} className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 text-center" data-testid={`plan-step-${s.n}`}>
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#84CC16] text-[#064E3B] font-bold flex items-center justify-center text-2xl mx-auto mb-3">
+                  {s.icon}
                 </div>
-                <div className={`text-xs mt-2 ${st.p ? "text-[#064E3B]/80" : "text-white/60"}`}>
-                  {st.cycle ? "Cycle Reward" : st.c > 0 ? "Commission" : "Build phase"}
-                </div>
+                <div className="font-display font-bold text-sm md:text-base text-white">{s.title}</div>
+                <div className="text-xs text-white/60 mt-1">{s.sub}</div>
               </div>
             ))}
           </div>
-          <div className="text-center mt-10">
-            <Link to="/compensation-plan" className="inline-flex items-center gap-2 text-[#84CC16] hover:text-[#FBBF24] font-semibold" data-testid="plan-learn-more">
-              Learn the full compensation plan <ArrowRight className="w-4 h-4"/>
+
+          {/* Highlight banner */}
+          <div className="bg-[#FBBF24] text-[#064E3B] rounded-xl p-3 md:p-4 text-center font-semibold text-sm md:text-base mb-8 max-w-3xl mx-auto" data-testid="plan-max-refs-banner">
+            ⚠ Maximum 6 direct referrals per member — each member can add up to 6 direct members
+          </div>
+
+          {/* 8-Level Income Structure Table */}
+          <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden" data-testid="plan-income-table">
+            <div className="bg-[#84CC16] text-[#064E3B] px-4 md:px-6 py-3 flex items-center justify-between flex-wrap gap-2">
+              <div className="font-display font-bold text-base md:text-lg">8-Level Income Structure</div>
+              <div className="text-xs md:text-sm font-semibold opacity-80">Income calculated on 6 members per level</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left font-numbers text-sm md:text-base">
+                <thead>
+                  <tr className="text-white/60 text-xs uppercase tracking-wider border-b border-white/10">
+                    <th className="px-3 md:px-6 py-3">Level</th>
+                    <th className="px-3 md:px-6 py-3 text-right">Per Member Income</th>
+                    <th className="px-3 md:px-6 py-3 text-right hidden sm:table-cell">Total Members</th>
+                    <th className="px-3 md:px-6 py-3 text-right">Total Income</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { l: 1, per: 1200,  members: 6,        total: 7200,       color: "#84CC16" },
+                    { l: 2, per: 400,   members: 36,       total: 14400,      color: "#22D3EE" },
+                    { l: 3, per: 50,    members: 216,      total: 10800,      color: "#60A5FA" },
+                    { l: 4, per: 300,   members: 1296,     total: 388800,     color: "#A78BFA" },
+                    { l: 5, per: 50,    members: 7776,     total: 388800,     color: "#F59E0B" },
+                    { l: 6, per: 200,   members: 46656,    total: 9331200,    color: "#EF4444" },
+                    { l: 7, per: 50,    members: 279936,   total: 13996800,   color: "#0EA5E9" },
+                    { l: 8, per: 100,   members: 1679616,  total: 167961600,  color: "#1E40AF" },
+                  ].map((r) => (
+                    <tr key={r.l} className="border-b border-white/5 hover:bg-white/[0.04] transition-colors" data-testid={`plan-level-${r.l}`}>
+                      <td className="px-3 md:px-6 py-3 md:py-4">
+                        <div className="inline-flex items-center gap-2">
+                          <span
+                            className="w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center font-bold text-white text-sm md:text-base"
+                            style={{ backgroundColor: r.color }}
+                          >
+                            {r.l}
+                          </span>
+                          <span className="text-white/70 text-xs uppercase hidden md:inline">Level</span>
+                        </div>
+                      </td>
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-right text-white font-semibold">₹{r.per.toLocaleString("en-IN")}</td>
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-right text-white/80 hidden sm:table-cell">{r.members.toLocaleString("en-IN")}</td>
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-right font-bold" style={{ color: r.color }}>
+                        ₹{r.total.toLocaleString("en-IN")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 md:px-6 py-3 text-xs text-white/50 border-t border-white/5">
+              Note: Team calculation is based on 6 members per level (theoretical maximum).
+            </div>
+          </div>
+
+          {/* Total Potential */}
+          <div className="mt-8 grid md:grid-cols-3 gap-4 items-stretch">
+            <div className="md:col-span-2 bg-gradient-to-br from-[#84CC16] to-[#65A30D] rounded-2xl p-6 md:p-8 text-[#064E3B]" data-testid="plan-total-potential">
+              <div className="text-xs uppercase tracking-widest font-bold opacity-80">Total Earning Potential</div>
+              <div className="text-xs opacity-70 mb-2">on complete 6-member chain across 8 levels</div>
+              <div className="font-numbers text-3xl md:text-5xl font-black leading-tight">₹20,36,99,600</div>
+              <div className="text-xs md:text-sm mt-2 opacity-80">Twenty Crore Thirty Six Lakh Ninety Nine Thousand Six Hundred</div>
+            </div>
+            <div className="bg-[#FBBF24] text-[#064E3B] rounded-2xl p-6 flex flex-col items-center justify-center text-center" data-testid="plan-lifetime-badge">
+              <div className="text-4xl mb-2">🏆</div>
+              <div className="font-display font-bold text-lg">Lifetime Income Opportunity</div>
+              <div className="text-xs mt-1 opacity-80">No monthly fees · 100% transparent</div>
+            </div>
+          </div>
+
+          {/* Terms & Rules footer */}
+          <div className="mt-8 bg-white/[0.03] border border-white/10 rounded-2xl p-5 md:p-6" data-testid="plan-terms">
+            <div className="text-xs uppercase tracking-widest font-semibold text-[#84CC16] mb-3">Terms & Conditions</div>
+            <ul className="space-y-2 text-sm text-white/80">
+              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> The above income is calculated on the basis of 6 members per level.</li>
+              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> Your income will start from the time <strong className="text-[#FBBF24]">3 of your direct members</strong> make the ₹7,200 purchase.</li>
+              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> No monthly fees, no hidden charges — 100% transparent plan.</li>
+              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> Unlimited income potential with lifetime opportunity.</li>
+            </ul>
+          </div>
+
+          <div className="text-center mt-8">
+            <Link
+              to="/compensation-plan"
+              className="inline-flex items-center gap-2 text-[#84CC16] hover:text-[#FBBF24] font-semibold"
+              data-testid="plan-learn-more"
+            >
+              View full compensation plan <ArrowRight className="w-4 h-4"/>
             </Link>
           </div>
         </div>
