@@ -79,7 +79,7 @@ export default function CompensationPlan() {
   const shareWhatsApp = () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
     const text = encodeURIComponent(
-      `🌱 EverGro eMart — 8-Level Income Plan\n\nOne-time ₹7,200 purchase → earn from 8 levels.\nTotal potential: ₹20,36,99,600\n\nView plan: ${url}`
+      `🌱 EverGro eMart — 8-Level Income Plan\n\nOne-time ₹7,200 purchase → earn from 8 levels.\nTotal potential: ₹19,20,99,600\n\nView plan: ${url}`
     );
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };

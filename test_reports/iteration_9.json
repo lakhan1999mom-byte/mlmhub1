@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 9 bugfix regression. ALL 8 bugfix assertions PASS: (1) TOTAL_POTENTIAL constant now 192,099,600 in plan-theme.js and reflected as ₹19,20,99,600 everywhere; (2) Calculator forward-total at slider=6 = ₹19,20,99,600 (not ₹20,36,99,600); (3) Calculator forward-total at slider=1 = ₹2,350; (4) Reverse@1cr → directs=5, no max-warning; (5) Reverse@20cr → calc-reverse-max-warning visible; (6) /business-plan bp-total-potential = '₹19,20,99,600' + 'Nineteen Crore Twenty Lakh Ninety Nine Thousand Six Hundred'; (7) /compensation-plan shows correct total + WhatsApp share button opens wa.me URL containing 'Total potential: ₹19,20,99,600'; (8) Landing plan-total-potential shows ₹19,20,99,600 + correct words. Old ₹20,36,99,600 / 'Twenty Crore' NOT found anywhere. Backend: /api/mlm/my-positions role='user' filter removed — admin's own primary (super_admin) IS now returned; subadmin primary also returned. All 7 pytest tests PASS (2 new + 5 iter-8 regression).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration9_bugfix.py",
+    "/app/test_reports/pytest/iter9_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "plan-theme.js now correctly sources TOTAL_POTENTIAL as a hardcoded constant. Suggest computing it from INCOME_LEVELS at export time (e.g. `INCOME_LEVELS.reduce((s,r)=>s+r.total,0)`) so a per-level rate change automatically updates the total — prevents future drift like the one this iteration fixed.",
+    "server.py /mlm/my-positions now correctly returns all phone-matched accounts. Consider adding `sort` by created_at so primary always appears first in UI list.",
+    "iteration 8 report referenced testids bp-pillar-*, bp-level-row-*, bp-max-6-refs-banner but actual testids are bp-pillars (single), bp-level-{n}, bp-max-refs-banner — minor naming inconsistency between iter-8 report and code; code is fine."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration9_bugfix.py (new — 7 tests, all pass)"
+  ],
+  "success_rate": {
+    "backend": "7/7 (100%)",
+    "frontend": "8/8 (100%) — calc forward@1 ₹2,350, calc forward@6 ₹19,20,99,600, reverse@1cr no warning, reverse@20cr warning shown, business-plan correct, compensation-plan correct + WhatsApp URL correct, landing correct, login demo-box absent + pw-toggle works"
+  },
+  "test_credentials": "admin@evergroemart.com / Admin@123 and subadmin@evergroemart.com / SubAdmin@123 from /app/memory/test_credentials.md — both used successfully.",
+  "seed_data_creation": "None. No new users created this iteration. Verified using existing admin + subadmin accounts.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 9 was a pure bugfix pass. Two changes: (a) TOTAL_POTENTIAL 203699600 → 192099600 in /app/frontend/src/lib/plan-theme.js with words updated to 'Nineteen Crore Twenty Lakh Ninety Nine Thousand Six Hundred'; (b) /api/mlm/my-positions removed the role='user' filter in /app/backend/server.py (~line 641). All previously-reported iter-8 tests still pass. Firebase Phone Auth still falls back to dev-OTP (auth/invalid-api-key on preview) — unchanged. Easebuzz backend contract paths unchanged. The share-whatsapp-btn is a <button> (not <a>), so href is null; it calls window.open() with the encoded text — verified by monkey-patching window.open in test. Regression items confirmed: login demo-credentials-box absent, toggle-password-visibility works, calculator mode toggle switches forward/reverse panels, business-plan bp-total-potential + bp-max-refs-banner exist. Landing.jsx line 226 was updated inline (not just the plan-theme constant) — verified. Dashboard-positions and MLM re-entry weren't re-tested this round; those were validated in iter-8. No further bugs found this iteration.",
+  "rca of the issue": "Prior bug (iter-8): TOTAL_POTENTIAL hardcoded to 203699600 while INCOME_LEVELS summed to 192099600 → data mismatch. Fix applied in iter-9: constant corrected to 192099600 and words to 'Nineteen Crore Twenty Lakh Ninety Nine Thousand Six Hundred'. Landing.jsx additionally had a hardcoded ₹20,36,99,600 (not using TOTAL_POTENTIAL_WORDS constant) — also fixed. Second bug: /mlm/my-positions filtered by role='user' which excluded admin's own primary account (role=super_admin). Fix applied: removed the role filter; now filters purely by phone-match which is the intended contract (all accounts sharing the phone = all positions for the user). Verified admin/subadmin primaries both returned."
+}

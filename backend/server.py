@@ -639,7 +639,7 @@ async def mlm_re_entry(payload: dict, user=Depends(get_user)):
 async def my_positions(user=Depends(get_user)):
     """Return all positions belonging to this phone number (primary + all re-entries)."""
     accts = await db.users.find(
-        {"phone": user["phone"], "role": "user"},
+        {"phone": user["phone"]},
         {"_id": 0, "password_hash": 0},
     ).to_list(50)
     return {"positions": [public_user(a) for a in accts]}

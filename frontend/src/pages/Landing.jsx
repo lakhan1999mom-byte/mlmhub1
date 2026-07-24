@@ -223,7 +223,7 @@ export default function Landing() {
             <div className="md:col-span-2 bg-gradient-to-br from-[#84CC16] to-[#65A30D] rounded-2xl p-6 md:p-8 text-[#064E3B]" data-testid="plan-total-potential">
               <div className="text-xs uppercase tracking-widest font-bold opacity-80">Total Earning Potential</div>
               <div className="text-xs opacity-70 mb-2">on complete 6-member chain across 8 levels</div>
-              <div className="font-numbers text-3xl md:text-5xl font-black leading-tight">₹20,36,99,600</div>
+              <div className="font-numbers text-3xl md:text-5xl font-black leading-tight">₹19,20,99,600</div>
               <div className="text-xs md:text-sm mt-2 opacity-80">{TOTAL_POTENTIAL_WORDS}</div>
             </div>
             <div className="bg-[#FBBF24] text-[#064E3B] rounded-2xl p-6 flex flex-col items-center justify-center text-center" data-testid="plan-lifetime-badge">

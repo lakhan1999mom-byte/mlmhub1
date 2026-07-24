@@ -308,7 +308,7 @@ async def seed_all(db):
 
     if await db.faqs.count_documents({}) == 0:
         faqs = [
-            {"question": "How does the plan work?", "answer": "Level 1: ₹1,200/member × 6 = ₹7,200 · Level 2: ₹400 × 36 = ₹14,400 · Level 3: ₹50 × 216 = ₹10,800 · Level 4: ₹300 × 1,296 = ₹3,88,800 · Level 5: ₹50 × 7,776 = ₹3,88,800 · Level 6: ₹200 × 46,656 = ₹93,31,200 · Level 7: ₹50 × 2,79,936 = ₹1,39,96,800 · Level 8: ₹100 × 16,79,616 = ₹16,79,61,600. Total potential ₹20,36,99,600."},
+            {"question": "How does the plan work?", "answer": "Level 1: ₹1,200/member × 6 = ₹7,200 · Level 2: ₹400 × 36 = ₹14,400 · Level 3: ₹50 × 216 = ₹10,800 · Level 4: ₹300 × 1,296 = ₹3,88,800 · Level 5: ₹50 × 7,776 = ₹3,88,800 · Level 6: ₹200 × 46,656 = ₹93,31,200 · Level 7: ₹50 × 2,79,936 = ₹1,39,96,800 · Level 8: ₹100 × 16,79,616 = ₹16,79,61,600. Total potential ₹19,20,99,600."},
             {"question": "When does income start?", "answer": "As soon as 3 of your direct referrals complete their ₹7,200 joining purchase."},
             {"question": "How do I withdraw?", "answer": "You need 3 paid direct referrals AND approved KYC. Min ₹100. Processed within 48h."},
             {"question": "What's the max team per layer?", "answer": "6 direct referrals per member. Beyond that, new refs must be under a different sponsor."},

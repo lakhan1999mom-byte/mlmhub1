@@ -27,8 +27,8 @@ export const INCOME_LEVELS = [
   { l: 8, per: 100,  members: 1679616, total: 167961600 },
 ].map((r) => ({ ...r, color: LEVEL_COLORS[r.l] }));
 
-export const TOTAL_POTENTIAL = 203699600; // ₹20,36,99,600
-export const TOTAL_POTENTIAL_WORDS = "Twenty Crore Thirty Six Lakh Ninety Nine Thousand Six Hundred";
+export const TOTAL_POTENTIAL = 192099600; // ₹19,20,99,600 (mathematical sum: Σ perᴸ · 6ᴸ for L=1..8)
+export const TOTAL_POTENTIAL_WORDS = "Nineteen Crore Twenty Lakh Ninety Nine Thousand Six Hundred";
 
 export const KIT_PRICE = 7200;
 export const MAX_DIRECT_REFS = 6;
