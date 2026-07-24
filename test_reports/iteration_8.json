@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 8 — big integration batch. Backend: Firebase-verify error paths, Easebuzz init/verify (400/404/auth/hash), MLM re-entry full E2E (register→DB-mark-paid→re-entry under different sponsor→my-positions returns 2), and /mlm/my-positions endpoint contract — 13/14 pytest tests PASS, 1 SKIPPED (subadmin is paid, unpaid-rejection branch untestable via current seed). Frontend: Login page (demo-credentials-box removed ✓, toggle-password-visibility works ✓, OTP tab shows Firebase→dev-OTP fallback ✓ with actual Firebase error 'auth/invalid-api-key'), Business-Plan page all 10 testids + 4 pillars + 8 level rows + total ₹20,36,99,600 ✓, Calculator page all testids present + slider=1 shows ₹2,350 ✓ + slider=6 shows ₹19,20,99,600 (MISMATCH with expected ₹20,36,99,600 — see bug below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/mlm/my-positions", "issue": "Filters by role='user'; if the current user's primary account has role 'super_admin' or 'sub_admin', primary is EXCLUDED from positions list. Only affects admin accounts using re-entry, not regular users. Recommend removing the role filter or including current user's role."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Calculator + plan-theme.js",
+        "issue": "TOTAL_POTENTIAL constant (203,699,600 = ₹20,36,99,600) shown on /business-plan and /compensation-plan does NOT match the sum of INCOME_LEVELS[].total which is 192,099,600 (₹19,20,99,600). Calculator computes 6^n × per_level correctly and yields ₹19,20,99,600 — proving the constant / per-level table is inconsistent. Either one of the per-level `per` values is wrong (compare against real infographic) OR TOTAL_POTENTIAL should be 192,099,600. Reverse-mode also affected: target=₹1,00,00,000 returns directs=5 (correct math for current rates) but review request expected 6.",
+        "selector": "[data-testid=\"calc-forward-total\"] vs [data-testid=\"bp-total-potential\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration8_features.py",
+    "/app/test_reports/pytest/iter8_results.xml"
+  ],
+  "action_items": [
+    "Reconcile TOTAL_POTENTIAL vs INCOME_LEVELS in /app/frontend/src/lib/plan-theme.js. Compute: sum(per*6^L for L=1..8 with per=[1200,400,50,300,50,200,50,100]) = 192,099,600 (₹19,20,99,600) — NOT 203,699,600. Confirm against source infographic and fix either the per-level rates OR the TOTAL_POTENTIAL constant so /business-plan, /compensation-plan, Landing, and Calculator all agree.",
+    "OPTIONAL: /api/mlm/my-positions currently filters by role='user'; consider removing role filter so admin accounts that create re-entry positions still see their primary in the list.",
+    "Firebase Web SDK config in /app/frontend/.env produced 'auth/invalid-api-key' at runtime (not the expected 'auth/unauthorized-domain'). The graceful fallback to /auth/otp/send + dev-OTP box works correctly, so functionally fine, but on the production domain the API key must be a valid Web-app key (not a random string). Re-check REACT_APP_FIREBASE_API_KEY against Firebase Console → Project Settings → Web app config."
+  ],
+  "critical_code_review_comments": [
+    "server.py at 1888 lines is very long — split into routers (auth/, payments/, mlm/, admin/, orders/) for maintainability.",
+    "_easebuzz_process_response fires MongoDB stock decrement without concurrency guards — two concurrent successful webhooks for the same order would race. Guard the paid-status transition with a conditional update: db.orders.update_one({id, payment_status: {$ne: 'paid'}}, ...) and use modified_count==1 as the mutex.",
+    "process_paid_joining trigger inside easebuzz webhook checks `any(i.get('is_hamper') for i in order.items)` — good — but the followup `.get('is_joining_paid')` on the user is called with only projection {'is_joining_paid':1} — the projection excludes _id by default in Motor? Actually _id is included; harmless.",
+    "mlm/re-entry: `new_ref_code = f\"{new_user_code[-6:]}{uuid[:2]}\"` gives 8-char code which collides with normal 8-char user_code prefixes over time. Consider a dedicated prefix (e.g. 'R' + user_code) to keep re-entry codes visually distinct in admin panels.",
+    "firebase_utils.get_firebase_app raises RuntimeError if creds file missing but there's no health check surfaces this at boot — a mis-mounted secret would only surface on first OTP verify call.",
+    "Front-end: pw toggle icon at Login uses inline SVG; would benefit from lucide-react Eye/EyeOff for consistency with rest of app.",
+    "Calculator computes sum from computeForward correctly but the label 'Total Reachable Income' should link back to plan-theme so a single-source-of-truth prevents drift (this is exactly the drift that produced today's bug)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration8_features.py (new)"
+  ],
+  "success_rate": {
+    "backend": "13/14 (92.9%) — 1 skipped (subadmin is already paid, cannot test unpaid-rejection branch)",
+    "frontend": "24/26 (~92%) — Login (5/5), BusinessPlan (11/11), Calculator (8/10; forward-total@6 mismatch + reverse-directs mismatch)"
+  },
+  "test_credentials": "Uses admin@evergroemart.com / Admin@123 + subadmin@evergroemart.com / SubAdmin@123 as documented in /app/memory/test_credentials.md. Test also creates a fresh user with unique phone 98NNNNNNNN and email reentry_<ts>@test.com; DB-marks is_joining_paid=True directly, then re-enters under ADMIN001.",
+  "seed_data_creation": "Created a fresh user each test run (email reentry_<ts>@test.com), marked is_joining_paid via direct MongoDB update, then created a Position-2 under ADMIN001. Since ADMIN001 has direct_referrals_count still tracked (max 6), this test will SKIP itself once ADMIN001 fills up; retest_needed will then require rotating to a fresh sponsor.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 8 verified: (a) Firebase-verify error paths at /api/auth/firebase-verify — empty body → 400 'id_token required', bad token → 401 'Firebase token verification failed'; (b) Easebuzz — /initiate needs auth, order_id, valid order; /verify rejects bad signature with 'Invalid payment signature'; build_reverse_hash produces 128-char lowercase sha512; (c) /mlm/re-entry full flow proved: register→DB mark paid→POST /mlm/re-entry with SUBADMIN1-not-same-sponsor→success with new_position.user_code!=orig, referral_code fresh, email contains '+re', is_joining_paid=False, and token returned; my-positions after re-entry returns >=2 entries containing both codes; (d) /mlm/my-positions endpoint contract OK but role='user' filter excludes admin primaries (minor).  KNOWN BUG: Calculator forward-total@6 = ₹19,20,99,600 (from summing INCOME_LEVELS) while BusinessPlan/CompensationPlan hardcode TOTAL_POTENTIAL = ₹20,36,99,600 — data mismatch in /app/frontend/src/lib/plan-theme.js. Firebase Web SDK fails with 'auth/invalid-api-key' on preview so dev-OTP fallback is what serves users right now. Frontend Login demo-credentials-box confirmed REMOVED; toggle-password-visibility confirmed working; OTP fallback shows dev-OTP box with numeric code. Checkout Easebuzz SDK loading was NOT tested in browser (requires logged-in user with items in cart + a fresh unpaid order); backend paths for /easebuzz/initiate are validated. For next iteration: (1) fix plan-theme totals inconsistency; (2) run E2E checkout smoke by logging in an unpaid user, adding hamper to cart, clicking Place Order, and asserting the network sequence /orders/create → /payments/easebuzz/initiate → <script src*='easebuzz-checkout.js'> injected. This wasn't done today due to needing a fresh unpaid user (all admin/subadmin already paid).",
+  "rca of the issue": "Calculator vs BusinessPlan total mismatch RCA: /app/frontend/src/lib/plan-theme.js defines INCOME_LEVELS with per=[1200,400,50,300,50,200,50,100]. Sum of per×6^L for L=1..8 = 7200+14400+10800+388800+388800+9331200+13996800+167961600 = 192,099,600 (₹19,20,99,600). But the same file exports TOTAL_POTENTIAL = 203699600 (₹20,36,99,600) — a hardcoded value that is 11,600,000 higher than the actual sum of the level table. Business-Plan.jsx renders TOTAL_POTENTIAL; Calculator.jsx recomputes from computeForward → gets the mathematically-correct 192,099,600. Fix: either correct TOTAL_POTENTIAL to 192099600 (and update TOTAL_POTENTIAL_WORDS to 'Nineteen Crore Twenty Lakh Ninety Nine Thousand Six Hundred'), OR correct one of the per-level rates so the sum equals 203,699,600 (needs +11,600,000; e.g. L2 at ₹722.22 or L6 at ₹448.68 — no clean integer solution suggests the constant is wrong, not the table). Recommended fix: change TOTAL_POTENTIAL to 192099600."
+}

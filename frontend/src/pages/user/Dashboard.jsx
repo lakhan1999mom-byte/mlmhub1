@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Wallet, Users, TrendingUp, ShoppingBag, Bell, Award, ArrowUpRight, Trophy } from "lucide-react";
+import { Wallet, Users, TrendingUp, ShoppingBag, Bell, Award, ArrowUpRight, Trophy, Plus, Layers } from "lucide-react";
 import HeroSlider from "@/components/HeroSlider";
 import ReelsRow from "@/components/ReelsRow";
 
@@ -13,6 +14,10 @@ export default function Dashboard() {
   const [recentTxns, setRecentTxns] = useState([]);
   const [sliderUser, setSliderUser] = useState([]);
   const [reels, setReels] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [reentryOpen, setReentryOpen] = useState(false);
+  const [reentryCode, setReentryCode] = useState("");
+  const [reentryBusy, setReentryBusy] = useState(false);
 
   useEffect(() => {
     api.get("/users/dashboard").then(({ data }) => setStats(data.stats)).catch(() => {});
@@ -20,7 +25,28 @@ export default function Dashboard() {
     api.get("/wallet/transactions").then(({ data }) => setRecentTxns(data.slice(0, 5))).catch(() => {});
     api.get("/sliders?location=user_dashboard").then(({ data }) => setSliderUser(data)).catch(() => {});
     api.get("/reels?location=user").then(({ data }) => setReels(data)).catch(() => {});
+    api.get("/mlm/my-positions").then(({ data }) => setPositions(data.positions || [])).catch(() => {});
   }, []);
+
+  const submitReentry = async () => {
+    if (!reentryCode.trim()) return toast.error("Enter a sponsor referral code");
+    setReentryBusy(true);
+    try {
+      const { data } = await api.post("/mlm/re-entry", { referral_code: reentryCode.trim().toUpperCase() });
+      // Switch to the new position's token → user must pay ₹7,200 to activate it
+      localStorage.setItem("evergro_token", data.token);
+      toast.success(`New position ${data.new_position.user_code} created! Pay ₹7,200 to activate.`);
+      window.location.href = "/hampers";
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Re-entry failed");
+    } finally { setReentryBusy(false); }
+  };
+
+  const switchToPosition = async (userCode) => {
+    // Trigger OTP-picker flow via password login is not possible without password,
+    // so we call re-login by user_code via a dedicated endpoint (uses same password).
+    toast.info("Log out and log back in with this account's email/password to switch.");
+  };
 
   if (!user) return null;
 
@@ -34,6 +60,44 @@ export default function Dashboard() {
         <h1 className="font-display text-3xl lg:text-4xl font-bold text-[#064E3B]">Welcome, {user.name}!</h1>
         <p className="text-[#64748B]">User Code: <span className="font-numbers font-semibold text-[#064E3B]">{user.user_code}</span></p>
       </div>
+
+      {/* Positions & Re-Entry — only for paid members */}
+      {user.is_joining_paid && (
+        <div className="card-soft p-4 md:p-5 bg-gradient-to-r from-[#ECFCCB] via-white to-[#ECFCCB]" data-testid="dashboard-positions">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#84CC16] text-[#064E3B] flex items-center justify-center">
+                <Layers className="w-5 h-5"/>
+              </div>
+              <div>
+                <div className="font-display font-bold text-[#064E3B]">My MLM Positions</div>
+                <div className="text-xs text-[#64748B]">You have <b data-testid="positions-count">{positions.length || 1}</b> active position{(positions.length || 1) > 1 ? "s" : ""} on this phone</div>
+              </div>
+            </div>
+            <button
+              onClick={() => setReentryOpen(true)}
+              className="btn-primary text-sm"
+              data-testid="open-re-entry-btn"
+            >
+              <Plus className="w-4 h-4"/> Start New Position
+            </button>
+          </div>
+          {positions.length > 1 && (
+            <div className="mt-4 flex flex-wrap gap-2" data-testid="positions-list">
+              {positions.map((p) => (
+                <div
+                  key={p.id}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${p.id === user.id ? "bg-[#84CC16] text-[#064E3B] border-[#84CC16]" : "bg-white text-[#334155] border-[#E2E8F0]"}`}
+                  data-testid={`position-${p.user_code}`}
+                >
+                  {p.user_code} {p.id === user.id && "· current"}
+                  {p.is_joining_paid ? " ✓" : " · pending"}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Admin-controlled slider */}
       {sliderUser.length > 0 && (
@@ -143,6 +207,46 @@ export default function Dashboard() {
       {reels.length > 0 && (
         <div className="-mx-6 lg:-mx-10">
           <ReelsRow reels={reels} title="Quick Demos & Member Stories" testid="user-dashboard-reels"/>
+        </div>
+      )}
+
+      {/* Re-Entry Modal */}
+      {reentryOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" data-testid="re-entry-modal">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
+            <div>
+              <h3 className="font-display font-bold text-xl text-[#064E3B]">Start a New MLM Position</h3>
+              <p className="text-sm text-[#64748B] mt-1">Create an additional position under a DIFFERENT sponsor. You'll need to pay ₹7,200 again to activate it. All positions share your login credentials.</p>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-[#064E3B]">Sponsor's Referral Code</label>
+              <input
+                className="input-soft mt-1 uppercase font-numbers"
+                value={reentryCode}
+                onChange={(e) => setReentryCode(e.target.value.toUpperCase())}
+                placeholder="e.g. EG000005AB"
+                data-testid="re-entry-code-input"
+              />
+              <p className="text-[10px] text-[#64748B] mt-1">Cannot use your own referral code, or a sponsor that already has 6 direct refs, or one where you already hold a position.</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setReentryOpen(false); setReentryCode(""); }}
+                className="btn-outline flex-1 justify-center"
+                data-testid="re-entry-cancel-btn"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitReentry}
+                disabled={reentryBusy}
+                className="btn-primary flex-1 justify-center disabled:opacity-60"
+                data-testid="re-entry-submit-btn"
+              >
+                {reentryBusy ? "Creating…" : "Create Position →"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

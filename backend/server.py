@@ -403,6 +403,248 @@ async def forgot_password(payload: ForgotPwReq):
     return {"ok": True}
 
 
+# ==================== FIREBASE PHONE AUTH ====================
+@api.post("/auth/firebase-verify")
+async def firebase_verify(payload: dict):
+    """Verify a Firebase ID token (from client-side signInWithPhoneNumber) and log the user in.
+    Body: {"id_token": "...", "user_code": "EG000123" (optional — if phone has multiple accounts)}
+    """
+    from firebase_utils import verify_id_token as _verify_fb
+
+    id_token = payload.get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=400, detail="id_token required")
+    try:
+        decoded = _verify_fb(id_token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Firebase token verification failed: {e}")
+
+    phone_number = decoded.get("phone_number")  # e.g. "+919999999999"
+    if not phone_number:
+        raise HTTPException(status_code=400, detail="Firebase token missing phone_number")
+    # Strip leading '+' + country code (assume India +91)
+    normalized = phone_number.lstrip("+")
+    if normalized.startswith("91") and len(normalized) == 12:
+        normalized = normalized[2:]
+    # Find matching accounts on that phone
+    accounts = await db.users.find({"phone": normalized}, {"_id": 0}).to_list(20)
+    if not accounts:
+        # No account — return "needs registration" flag with the verified phone
+        return {"verified": True, "phone": normalized, "accounts": [], "needs_registration": True}
+    if len(accounts) == 1 or payload.get("user_code"):
+        acc = None
+        if payload.get("user_code"):
+            acc = next((a for a in accounts if a["user_code"] == payload["user_code"]), None)
+            if not acc:
+                raise HTTPException(status_code=404, detail="Account not found")
+        else:
+            acc = accounts[0]
+        if not acc.get("is_active", True):
+            raise HTTPException(status_code=403, detail="Account disabled")
+        await db.users.update_one({"id": acc["id"]}, {"$set": {"last_activity_at": now_iso()}})
+        token = create_token(acc["id"], acc["role"])
+        await log_audit("login", actor=acc, metadata={"method": "firebase_otp"})
+        return {"verified": True, "phone": normalized, "token": token, "user": public_user(acc)}
+    # Multiple accounts — return picker
+    return {
+        "verified": True,
+        "phone": normalized,
+        "multiple": True,
+        "accounts": [
+            {"user_code": a["user_code"], "name": a["name"], "email": a["email"], "id": a["id"], "role": a["role"]}
+            for a in accounts
+        ],
+    }
+
+
+# ==================== EASEBUZZ PAYMENT GATEWAY ====================
+@api.post("/payments/easebuzz/initiate")
+async def easebuzz_initiate(payload: dict, user=Depends(get_user)):
+    """Create an Easebuzz payment for a specific order_id. Returns access_key for frontend checkout."""
+    import easebuzz_utils as ez
+    order_id = payload.get("order_id")
+    if not order_id:
+        raise HTTPException(status_code=400, detail="order_id required")
+    order = await db.orders.find_one({"id": order_id, "user_id": user["id"]}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.get("payment_status") == "paid":
+        raise HTTPException(status_code=400, detail="Order already paid")
+    txnid = f"EG{order_id[:8]}{int(datetime.now(timezone.utc).timestamp())}"
+    amount = float(order["total"])
+    productinfo = order.get("order_code", "EverGro Order")
+    firstname = user.get("name") or "Customer"
+    email = user.get("email") or f"user{user['id'][:6]}@evergroemart.com"
+    phone = user.get("phone") or "9999999999"
+    # Use backend URL as return URL — Easebuzz will POST back the form
+    backend_base = os.environ.get("PUBLIC_BACKEND_URL") or "https://hamper-mlm-hub.preview.emergentagent.com"
+    surl = f"{backend_base}/api/payments/easebuzz/return"
+    furl = f"{backend_base}/api/payments/easebuzz/return"
+    try:
+        resp = await ez.initiate_payment(txnid, amount, productinfo, firstname, email, phone, surl, furl, udf1=order_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Easebuzz init failed: {e}")
+    if resp.get("status") != 1:
+        raise HTTPException(status_code=400, detail=f"Easebuzz error: {resp.get('data')}")
+    access_key = resp.get("data")
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"payment_txnid": txnid, "payment_provider": "easebuzz", "payment_access_key": access_key}}
+    )
+    return {"txnid": txnid, "access_key": access_key, "env": ez.EASEBUZZ_ENV, "key": ez.EASEBUZZ_KEY}
+
+
+@api.post("/payments/easebuzz/verify")
+async def easebuzz_verify_client(payload: dict, user=Depends(get_user)):
+    """Verify Easebuzz payment response (called from browser onResponse callback).
+    Body: full Easebuzz response object.
+    """
+    return await _easebuzz_process_response(payload)
+
+
+@api.post("/payments/easebuzz/return")
+async def easebuzz_return_webhook(request: Request):
+    """Server-to-server webhook / return URL from Easebuzz. Accepts form-encoded body."""
+    form = await request.form()
+    data = {k: v for k, v in form.items()}
+    result = await _easebuzz_process_response(data)
+    # Redirect user back to the order status page
+    order_id = data.get("udf1")
+    frontend_base = os.environ.get("PUBLIC_FRONTEND_URL", "").rstrip("/")
+    from fastapi.responses import RedirectResponse
+    if frontend_base and order_id:
+        status = "success" if result.get("paid") else "failed"
+        return RedirectResponse(url=f"{frontend_base}/orders/{order_id}?payment={status}", status_code=303)
+    return result
+
+
+async def _easebuzz_process_response(data: dict) -> dict:
+    """Shared: verify hash, mark order paid, trigger MLM if joining kit. Idempotent."""
+    import easebuzz_utils as ez
+    txnid = data.get("txnid") or ""
+    status = data.get("status") or ""
+    amount = str(data.get("amount") or "")
+    received_hash = data.get("hash") or ""
+    firstname = data.get("firstname") or ""
+    email = data.get("email") or ""
+    productinfo = data.get("productinfo") or ""
+    udf1 = data.get("udf1") or ""
+
+    expected = ez.build_reverse_hash(status, txnid, amount, productinfo, firstname, email, udf1=udf1)
+    if received_hash.lower() != expected:
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+
+    order = await db.orders.find_one({"payment_txnid": txnid}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found for txnid")
+
+    if order.get("payment_status") == "paid":
+        return {"paid": True, "order_id": order["id"], "already_processed": True}
+
+    if status == "success":
+        await db.orders.update_one(
+            {"id": order["id"]},
+            {"$set": {"payment_status": "paid", "payment_id": data.get("easepayid", txnid),
+                      "paid_at": now_iso(), "status": "confirmed"}}
+        )
+        # Reduce stock
+        for item in order.get("items", []):
+            await db.products.update_one({"id": item["product_id"]}, {"$inc": {"stock": -item["quantity"]}})
+        # Trigger MLM if this is the joining kit
+        if any(i.get("is_hamper") for i in order.get("items", [])) and not (await db.users.find_one({"id": order["user_id"]}, {"is_joining_paid": 1})).get("is_joining_paid"):
+            await process_paid_joining(db, order["user_id"], order["id"])
+        return {"paid": True, "order_id": order["id"]}
+    else:
+        await db.orders.update_one(
+            {"id": order["id"]},
+            {"$set": {"payment_status": "failed", "status": "cancelled"}}
+        )
+        return {"paid": False, "order_id": order["id"], "status": status}
+
+
+# ==================== MLM RE-ENTRY (Second Position) ====================
+@api.post("/mlm/re-entry")
+async def mlm_re_entry(payload: dict, user=Depends(get_user)):
+    """Existing paid member creates a NEW MLM position (fresh referral code) under a DIFFERENT sponsor.
+    Cannot use the same sponsor as any of their existing positions. Kit purchase (₹7,200) required next.
+    Body: {"referral_code": "SPNSR001"}
+    """
+    if not user.get("is_joining_paid"):
+        raise HTTPException(status_code=400, detail="Only paid members can create a re-entry position")
+
+    referral_code = (payload.get("referral_code") or "").strip().upper()
+    if not referral_code:
+        raise HTTPException(status_code=400, detail="referral_code required")
+
+    sponsor = await db.users.find_one({"referral_code": referral_code}, {"_id": 0})
+    if not sponsor:
+        raise HTTPException(status_code=400, detail="Invalid referral code")
+    if sponsor.get("direct_referrals_count", 0) >= MAX_REFERRALS_PER_LAYER:
+        raise HTTPException(status_code=400, detail=f"This sponsor is full ({MAX_REFERRALS_PER_LAYER} max direct refs).")
+    if sponsor["id"] == user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot sponsor your own re-entry position")
+
+    # Check the user doesn't already have a position under this sponsor (by phone + sponsor)
+    existing = await db.users.find_one({"phone": user["phone"], "sponsor_user_id": sponsor["id"]}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="You already have a position under this sponsor")
+
+    # Allocate new user_code
+    counter = await db.counters.find_one_and_update(
+        {"_id": "user_code"}, {"$inc": {"seq": 1}}, upsert=True, return_document=True,
+    )
+    seq = counter.get("seq") or ((await db.users.count_documents({})) + 1)
+    new_user_code = f"EG{seq:06d}"
+    new_ref_code = f"{new_user_code[-6:]}{str(uuid.uuid4())[:2].upper()}"
+    new_id = str(uuid.uuid4())
+
+    # Create the new re-entry account, linked to the same person
+    new_doc = {
+        "id": new_id,
+        "user_code": new_user_code,
+        "referral_code": new_ref_code,
+        "name": user["name"] + " (Position 2)" if "Position" not in user.get("name", "") else user["name"],
+        "email": f"{user['email'].split('@')[0]}+re{seq}@{user['email'].split('@')[1]}",
+        "phone": user["phone"],
+        "password_hash": user["password_hash"],  # same password as original
+        "role": "user",
+        "sponsor_user_id": sponsor["id"],
+        "sponsor_referral_code": referral_code,
+        "parent_user_id": sponsor["id"],
+        "depth_from_root": 0,
+        "current_stage": 1,
+        "joined_at_stage": 1,
+        "direct_referrals_count": 0,
+        "wallet_balance": 0.0,
+        "cashback_wallet": 0.0,
+        "total_earnings": 0.0,
+        "is_active": True,
+        "is_joining_paid": False,
+        "income_active": False,
+        "accepted_tc": True,
+        "is_re_entry": True,
+        "original_user_id": user["id"],  # points to primary account
+        "created_at": now_iso(),
+        "last_activity_at": now_iso(),
+    }
+    await db.users.insert_one(new_doc)
+    await log_audit("mlm_re_entry", actor=user, target_id=new_id,
+                    metadata={"new_user_code": new_user_code, "sponsor_code": referral_code})
+    # Return a login token for the new position so the frontend can immediately go pay
+    token = create_token(new_id, "user")
+    return {"ok": True, "new_position": public_user(new_doc), "token": token}
+
+
+@api.get("/mlm/my-positions")
+async def my_positions(user=Depends(get_user)):
+    """Return all positions belonging to this phone number (primary + all re-entries)."""
+    accts = await db.users.find(
+        {"phone": user["phone"], "role": "user"},
+        {"_id": 0, "password_hash": 0},
+    ).to_list(50)
+    return {"positions": [public_user(a) for a in accts]}
+
+
 @api.get("/auth/me")
 async def me(user=Depends(get_user)):
     # Track activity on every dashboard load

@@ -50,6 +50,16 @@ export default function Checkout() {
     }
   };
 
+  const loadEasebuzzScript = () =>
+    new Promise((resolve) => {
+      if (window.EasebuzzCheckout) return resolve(true);
+      const s = document.createElement("script");
+      s.src = "https://ebz-static.s3.ap-south-1.amazonaws.com/easecheckout/easebuzz-checkout.js";
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.body.appendChild(s);
+    });
+
   const placeOrder = async () => {
     if (!addr.line1 || !addr.city || !addr.pincode) {
       toast.error("Please complete address");
@@ -62,21 +72,39 @@ export default function Checkout() {
         items: itemsPayload,
         address: addr,
         coupon_code: appliedCoupon?.code || null,
-        payment_method: "razorpay",
+        payment_method: "easebuzz",
       });
       const order = createRes.order;
-      toast.info("Processing payment (MOCK mode)…");
-      // simulate Razorpay mock verification
-      await new Promise((r) => setTimeout(r, 1200));
-      const { data: verifyRes } = await api.post("/orders/verify-payment", {
-        order_id: order.id,
-        razorpay_payment_id: "pay_mock_" + Date.now(),
-        razorpay_signature: "mock",
+
+      // Get Easebuzz access_key
+      const { data: ez } = await api.post("/payments/easebuzz/initiate", { order_id: order.id });
+
+      const ok = await loadEasebuzzScript();
+      if (!ok) {
+        toast.error("Could not load payment gateway. Try again.");
+        return;
+      }
+      // eslint-disable-next-line no-undef
+      const checkout = new window.EasebuzzCheckout(ez.key, ez.env);
+      checkout.initiatePayment({
+        access_key: ez.access_key,
+        onResponse: async (resp) => {
+          try {
+            const { data: verify } = await api.post("/payments/easebuzz/verify", resp);
+            if (verify.paid) {
+              toast.success("Payment successful! Order confirmed.");
+              await fetchCart();
+              await refresh();
+              nav("/orders");
+            } else {
+              toast.error("Payment failed or cancelled");
+            }
+          } catch (err) {
+            toast.error(err?.response?.data?.detail || "Payment verification failed");
+          }
+        },
+        theme: "#65A30D",
       });
-      toast.success(`Order confirmed! Cashback ₹${verifyRes.cashback} credited.`);
-      await fetchCart();
-      await refresh();
-      nav("/orders");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Checkout failed");
     } finally { setBusy(false); }
