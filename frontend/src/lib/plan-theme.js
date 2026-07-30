@@ -27,7 +27,9 @@ export const INCOME_LEVELS = [
   { l: 8, per: 100,  members: 1679616, total: 167961600 },
 ].map((r) => ({ ...r, color: LEVEL_COLORS[r.l] }));
 
-export const TOTAL_POTENTIAL = 192099600; // ₹19,20,99,600 (mathematical sum: Σ perᴸ · 6ᴸ for L=1..8)
+// Auto-computed from INCOME_LEVELS so changing any per/level auto-updates the total.
+// Current value = 192,099,600 = ₹19,20,99,600.
+export const TOTAL_POTENTIAL = INCOME_LEVELS.reduce((s, r) => s + r.total, 0);
 export const TOTAL_POTENTIAL_WORDS = "Nineteen Crore Twenty Lakh Ninety Nine Thousand Six Hundred";
 
 export const KIT_PRICE = 7200;

@@ -641,7 +641,7 @@ async def my_positions(user=Depends(get_user)):
     accts = await db.users.find(
         {"phone": user["phone"]},
         {"_id": 0, "password_hash": 0},
-    ).to_list(50)
+    ).sort("created_at", 1).to_list(50)
     return {"positions": [public_user(a) for a in accts]}
 
 
