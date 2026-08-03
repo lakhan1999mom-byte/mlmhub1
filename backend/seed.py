@@ -17,7 +17,7 @@ TERMS_CONTENT = """<h2>EverGro eMart — Terms & Conditions (v1.0)</h2>
 
 <h3>2. Joining & Activation</h3>
 <ul>
-<li>A one-time purchase of the EverGro Joining Kit at <b>₹7,499</b> is required to activate your MLM account.</li>
+<li>A one-time purchase of the <b>EverGro Purchasing Kit</b> at <b>₹7,499</b> is required to activate your MLM account.</li>
 <li>Until the joining amount is successfully paid: (a) your MLM account remains inactive, (b) your referral link does not generate commissions, (c) no cashback or income is credited.</li>
 <li>Registration alone does <b>NOT</b> create any earning entitlement. Payment is mandatory.</li>
 </ul>
@@ -102,7 +102,7 @@ async def seed_all(db):
             updates["free_shipping_threshold"] = 999
         if "gst_percent" not in existing:
             updates["gst_percent"] = 5
-        if "terms_content" not in existing:
+        if "terms_content" not in existing or "EverGro Joining Kit" in (existing.get("terms_content", "") or "") or "7,200" in (existing.get("terms_content", "") or ""):
             updates["terms_content"] = TERMS_CONTENT
             updates["terms_version"] = "1.0"
         # Force-refresh notification bar text if it still references old ₹7,200 price
@@ -316,7 +316,8 @@ async def seed_all(db):
                 "created_at": now_iso(),
             })
 
-    # Force-refresh FAQ text on every startup (idempotent)
+    # FAQ master content — only INSERTS missing ones and REPLACES stale/wrong-price answers.
+    # Admin edits (that don't reference the wrong price) are preserved.
     faqs_master = [
         {"question": "What is EverGro eMart?", "answer": "EverGro eMart is a premium e-commerce platform combined with an 8-level MLM income plan. Purchase the ₹7,499 EverGro Kit, refer new members, and earn per-level commissions across your entire downline."},
         {"question": "How does the MLM plan work?", "answer": "It's an 8-stage plan. You refer up to 6 direct members. Once 3 of them pay their ₹7,499 kit, your income activates. You then earn fixed level-wise commissions on EVERY paid member across 8 downline levels:\n\n• Level 1 — ₹1,200 × 6 members = ₹7,200\n• Level 2 — ₹400 × 36 members = ₹14,400\n• Level 3 — ₹50 × 216 members = ₹10,800\n• Level 4 — ₹300 × 1,296 members = ₹3,88,800\n• Level 5 — ₹50 × 7,776 members = ₹3,88,800\n• Level 6 — ₹200 × 46,656 members = ₹93,31,200\n• Level 7 — ₹50 × 2,79,936 members = ₹1,39,96,800\n• Level 8 — ₹100 × 16,79,616 members = ₹16,79,61,600\n\nTotal lifetime earning potential: ₹19,20,99,600."},
@@ -327,14 +328,18 @@ async def seed_all(db):
         {"question": "What if I'm inactive?", "answer": "Accounts inactive for 180+ days are auto-disabled. Contact support to reactivate."},
     ]
     for i, f in enumerate(faqs_master):
-        await db.faqs.update_one(
-            {"question": f["question"]},
-            {"$set": {**f, "sort_order": i, "is_active": True, "id": str(uuid.uuid4())}},
-            upsert=True,
+        existing_faq = await db.faqs.find_one({"question": f["question"]})
+        stale = existing_faq and (
+            "7,200" in (existing_faq.get("answer", "") or "")
+            or "6 direct referrals per member" in (existing_faq.get("answer", "") or "")
+            or "Level 1: ₹1,200/member × 6 = ₹7,499" in (existing_faq.get("answer", "") or "")
         )
-    # Remove any stale FAQs whose question isn't in the master list
-    master_qs = [f["question"] for f in faqs_master]
-    await db.faqs.delete_many({"question": {"$nin": master_qs}})
+        if not existing_faq or stale:
+            await db.faqs.update_one(
+                {"question": f["question"]},
+                {"$set": {**f, "sort_order": i, "is_active": True, "id": existing_faq.get("id") if existing_faq else str(uuid.uuid4())}},
+                upsert=True,
+            )
 
     if await db.coupons.count_documents({}) == 0:
         await db.coupons.insert_one({

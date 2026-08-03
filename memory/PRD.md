@@ -66,6 +66,19 @@ Build a production-ready MLM E-Commerce Platform "EverGro eMart" with Landing We
 - **Cloudinary**: LIVE (uploads working)
 - **OTP**: Dev mode fallback (returned in API response as `dev_otp`)
 
+## Iteration 12 (Feb 2026) — Categories · Promo Codes · ₹7,499 · Delivery Toggle · Prod-gated OTP
+- **Price change**: Joining kit ₹7,200 → **₹7,499** across seed, hamper price, FAQs, JoinNow, Register, Cart, ProductDetail, Compensation Plan, Dashboard.
+- **Contact update**: Footer + Contact + WhatsApp FAB now use **+91-9928525889**. App Store & Google Play buttons removed from footer.
+- **FAQ overhaul**: Force-refreshed 7 FAQs (only replaces stale answers). "How does the MLM plan work?" now shows the full 8-level commission table (L1 ₹1,200 × 6 = ₹7,200 … L8 ₹100 × 16,79,616 = ₹16,79,61,600 · total ₹19.2 Cr).
+- **Categories admin** (NEW): CRUD at `/admin/categories`. Product upload UI now uses a Category dropdown instead of freeform text.
+- **Promo codes admin** (NEW): CRUD at `/admin/coupons` with percent OR flat discount, min-order, max-discount, usage limit, expiry. `/coupons/validate/{code}` enforces expiry + limit.
+- **Delivery toggle**: Admin can flip `delivery_charge_enabled` at `/admin/settings`. When OFF → `/site/delivery-config` returns 0 and orders skip shipping fee.
+- **JoinNow flow**: New `/auth/phone-status` endpoint queried BEFORE send-OTP. If phone has existing accounts → shows choice ("Login to existing" vs "Create NEW re-entry"). Fresh phone → straight to OTP. After signup lands on `/dashboard` (not `/hampers`).
+- **Dashboard Stage Commission fix**: previously showed hardcoded ₹500. Now pulls `stats.current_stage_commission` from backend which returns the correct L-value for the user's current stage (₹1,200 for Stage 1).
+- **Production OTP gate**: `/auth/otp/send` no longer returns `dev_otp` when the request Host/Origin/Referer/X-Forwarded-Host matches `evergroemart.com`. Firebase sends real SMS from the client on prod.
+- **Test report**: `/app/test_reports/iteration_12.json` — **12/12 backend + 10/10 frontend PASS** (one Dashboard.jsx variable-rename typo fixed by testing agent).
+- **Follow-up open**: Firebase Authorized Domains must include `evergroemart.com` (admin dashboard step) for real SMS delivery on production.
+
 ## Iteration 11 (Feb 2026) — Cashfree-only + Multi-Account Login
 - Ripped out all Easebuzz code + endpoints (`easebuzz_utils.py` deleted; `/payments/easebuzz/*` removed). All Razorpay mock fields on order docs removed.
 - `/payments/cashfree/initiate` + `/verify` support MOCK mode (auto-succeed) when admin has Cashfree inactive.
