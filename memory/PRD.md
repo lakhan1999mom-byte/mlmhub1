@@ -4,11 +4,11 @@
 Build a production-ready MLM E-Commerce Platform "EverGro eMart" with Landing Website, User Panel, Sub Admin Panel, and Super Admin Panel. Users buy the ₹7,200 Joining Kit, get a referral link, build a downline across 8 levels, earn per-level commissions, and withdraw earnings.
 
 ## Tech Stack
-- React (CRA + craco) + Tailwind + Shadcn UI
+- React (CRA + craco) + Tailwind + Shadcn UI + framer-motion
 - FastAPI + Motor (async MongoDB)
 - Cloudinary uploads (live)
-- Razorpay in MOCK mode (auto-succeeds)
-- JWT auth + Dev OTP (returned in API response)
+- **Cashfree Payments** (only provider) with legit mock mode (auto-succeeds when inactive)
+- JWT auth + Firebase Phone OTP (production only) + Dev OTP fallback (preview)
 
 ## Phase 2 (Implemented 2026-02)
 - **8-Level MLM Engine** (mlm_engine.py) with fixed commissions L1=₹1200 · L2=₹400 · L3=₹50 · L4=₹300 · L5=₹50 · L6=₹200 · L7=₹50 · L8=₹100
@@ -61,6 +61,17 @@ Build a production-ready MLM E-Commerce Platform "EverGro eMart" with Landing We
 - **P2**: Live chat, advanced leaderboard
 
 ## Integrations
-- **Razorpay**: **MOCK** (`/orders/verify-payment` auto-succeeds)
+- **Cashfree**: Only payment provider. Mock mode auto-succeeds when `cashfree_active=false` (default). Live keys settable via `/admin/payments`.
+- **Firebase Phone Auth**: Gated to `evergroemart.com` host only (via `REACT_APP_FIREBASE_HOSTS`). Preview/localhost falls back to dev-OTP path automatically.
 - **Cloudinary**: LIVE (uploads working)
-- **OTP**: dev mode (returned in API response)
+- **OTP**: Dev mode fallback (returned in API response as `dev_otp`)
+
+## Iteration 11 (Feb 2026) — Cashfree-only + Multi-Account Login
+- Ripped out all Easebuzz code + endpoints (`easebuzz_utils.py` deleted; `/payments/easebuzz/*` removed). All Razorpay mock fields on order docs removed.
+- `/payments/cashfree/initiate` + `/verify` support MOCK mode (auto-succeed) when admin has Cashfree inactive.
+- Admin `/admin/payments` UI is Cashfree-only with a prominent Mock/Live indicator.
+- **Fixed Join Now OTP UI hidden bug** — Firebase Phone Auth was rendering a visible reCAPTCHA on the preview host (not in Firebase authorized domains). `sendFirebaseOtp` now short-circuits on non-prod hosts → dev-OTP fallback runs and step-2 (`join-otp-input`) shows.
+- **Multi-Account Selector** across Login (mobile-OTP tab) and new `/forgot-password` page. Each account card shows @username, name, user_code, and activation status. Single account auto-logs in.
+- **New endpoint** `/auth/forgot-password/lookup` — lists accounts after OTP verify. `/auth/forgot-password` requires `user_code` when phone has multiple accounts (returns `{multiple: true, accounts: [...]}` when omitted). OTP is invalidated after successful reset (no replay).
+- Polish: framer-motion animations on JoinNow (step transitions), Login (multi-account cards), ForgotPassword, Checkout. ProductCard now shows discount % badge, quick-view overlay on hover, and lifts 2px on hover.
+- Test report: `/app/test_reports/iteration_11.json` — **15/15 backend + 5/5 frontend PASS**.

@@ -468,6 +468,8 @@ async def forgot_password(payload: ForgotPwReq):
         {"id": target["id"]},
         {"$set": {"password_hash": hash_password(payload.new_password), "updated_at": now_iso()}}
     )
+    # Invalidate OTP so it can't be reused to reset another account
+    await db.otps.delete_one({"phone": payload.phone})
     return {"ok": True, "user_code": target["user_code"]}
 
 
@@ -1303,7 +1305,8 @@ async def admin_set_payment_config(payload: dict, admin=Depends(require_admin)):
         upsert=True,
     )
     await log_audit("payment_config_update", actor=admin, metadata={"provider": "cashfree"})
-    return {"ok": True, "config": {k: v for k, v in update.items() if "secret" not in k}}
+    safe_update = {k: v for k, v in update.items() if "secret" not in k.lower()}
+    return {"ok": True, "config": safe_update}
 
 
 @api.get("/site/payment-provider")
@@ -1383,8 +1386,10 @@ async def cashfree_verify(payload: dict, user=Depends(get_user)):
     if order.get("payment_status") == "paid":
         return {"paid": True, "already_processed": True}
 
-    # MOCK MODE — auto succeed
-    if order.get("payment_mock"):
+    # MOCK MODE — auto succeed (payment_mock flag on order OR settings say inactive)
+    cfg = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {}
+    is_live_cfg = bool(cfg.get("cashfree_active") and cfg.get("cashfree_app_id") and cfg.get("cashfree_secret_key"))
+    if order.get("payment_mock") or not is_live_cfg:
         paid = True
     else:
         try:
