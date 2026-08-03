@@ -428,23 +428,33 @@ function Trust({ icon: Icon, title, sub }) {
 }
 
 export function ProductCard({ product }) {
+  const discount = product.mrp > product.price ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0;
   return (
     <Link to={`/products/${product.id}`} className="group block" data-testid={`product-card-${product.id}`}>
-      <div className="card-soft overflow-hidden hover:-translate-y-1 hover:shadow-xl transition-all">
-        <div className="relative aspect-square bg-[#FAFAF9] overflow-hidden">
+      <div className="card-soft overflow-hidden hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative">
+        <div className="relative aspect-square bg-gradient-to-br from-[#FAFAF9] to-[#ECFCCB]/30 overflow-hidden">
           <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
           {product.badges?.[0] && (
-            <div className="absolute top-3 left-3 badge-pill bg-[#84CC16] text-[#064E3B] uppercase">{product.badges[0]}</div>
+            <div className="absolute top-3 left-3 badge-pill bg-[#84CC16] text-[#064E3B] uppercase animate-pulse">{product.badges[0]}</div>
           )}
+          {discount > 0 && (
+            <div className="absolute top-3 right-3 bg-[#EF4444] text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">
+              -{discount}%
+            </div>
+          )}
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+            <span className="text-xs text-white font-bold tracking-wide">Quick view →</span>
+          </div>
         </div>
         <div className="p-4">
-          <div className="font-semibold text-[#064E3B] text-sm line-clamp-2 mb-2 min-h-[2.5rem]">{product.name}</div>
+          <div className="font-semibold text-[#064E3B] text-sm line-clamp-2 mb-2 min-h-[2.5rem] group-hover:text-[#65A30D] transition-colors">{product.name}</div>
           <div className="flex items-center gap-1 text-xs text-[#94A3B8] mb-2">
             <Star className="w-3 h-3 fill-[#FBBF24] text-[#FBBF24]"/> {product.rating} · {product.review_count} reviews
           </div>
           <div className="flex items-baseline gap-2">
             <span className="font-numbers text-lg font-bold text-[#064E3B]">₹{product.price}</span>
             {product.mrp > product.price && <span className="text-xs text-[#94A3B8] line-through">₹{product.mrp}</span>}
+            {discount > 0 && <span className="text-xs text-[#65A30D] font-bold ml-auto">Save ₹{product.mrp - product.price}</span>}
           </div>
         </div>
       </div>

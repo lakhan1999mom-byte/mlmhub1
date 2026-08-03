@@ -181,8 +181,12 @@ export default function Login() {
               <button disabled={busy} type="submit" className="btn-primary w-full justify-center" data-testid="login-submit-btn">
                 {busy ? "Logging in…" : "Login"}
               </button>
+              <div className="flex items-center justify-between text-sm">
+                <Link to="/forgot-password" className="text-[#64748B] hover:text-[#065F46]" data-testid="forgot-password-link">Forgot password?</Link>
+                <button type="button" onClick={() => setTab("otp")} className="text-[#65A30D] font-semibold" data-testid="switch-to-otp-btn">Login with OTP →</button>
+              </div>
               <div className="text-center text-sm text-[#64748B]">
-                Don't have an account? <Link to="/register" className="text-[#84CC16] font-semibold">Register</Link>
+                Don't have an account? <Link to="/join-now" className="text-[#84CC16] font-semibold">Join Now</Link>
               </div>
             </form>
           )}
@@ -239,32 +243,41 @@ export default function Login() {
                 </>
               )}
               <div className="text-center text-sm text-[#64748B]">
-                New to EverGro? <Link to="/register" className="text-[#84CC16] font-semibold">Join Free</Link>
+                New to EverGro? <Link to="/join-now" className="text-[#84CC16] font-semibold">Join Free</Link>
               </div>
             </div>
           )}
 
           {multiAccounts && (
             <div className="space-y-3" data-testid="multi-account-picker">
-              <div className="text-sm font-semibold text-[#064E3B]">Multiple accounts found on {phone}:</div>
-              <div className="text-xs text-[#64748B] mb-2">Pick which position you want to login to.</div>
+              <div className="rounded-2xl bg-gradient-to-br from-[#064E3B] to-[#065F46] text-white p-4">
+                <div className="text-xs uppercase tracking-widest text-[#84CC16] font-bold mb-1">Multiple positions found</div>
+                <div className="font-display font-black text-lg">Pick an account to login</div>
+                <div className="text-xs text-white/70 font-numbers">{multiAccounts.length} accounts on {phone}</div>
+              </div>
               {multiAccounts.map((a) => (
                 <button
                   key={a.user_code}
                   onClick={() => pickAccount(a.user_code)}
                   disabled={busy}
-                  className="w-full text-left card-soft p-4 hover:border-[#84CC16] transition-colors flex items-center justify-between"
+                  className="w-full text-left card-soft p-4 hover:border-[#84CC16] hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-between group"
                   data-testid={`pick-account-${a.user_code}`}
                 >
-                  <div>
-                    <div className="font-semibold text-[#064E3B]">{a.name}</div>
-                    <div className="text-xs text-[#64748B] font-numbers">{a.user_code} · {a.email}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#84CC16] to-[#65A30D] flex items-center justify-center text-white font-black text-lg flex-shrink-0">
+                      {(a.name || "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[#064E3B] truncate">{a.name}</div>
+                      {a.username && <div className="text-xs text-[#65A30D] font-semibold truncate">@{a.username}</div>}
+                      <div className="text-[10px] text-[#94A3B8] font-numbers">{a.user_code} · {a.is_joining_paid ? "✓ Active" : "Pending activation"}</div>
+                    </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[#84CC16]"/>
+                  <ChevronRight className="w-5 h-5 text-[#84CC16] group-hover:translate-x-1 transition-transform"/>
                 </button>
               ))}
-              <button onClick={() => { setMultiAccounts(null); setOtpStage("idle"); setOtp(""); confirmationRef.current = null; }} className="btn-outline w-full justify-center text-sm">
-                Cancel
+              <button onClick={() => { setMultiAccounts(null); setOtpStage("idle"); setOtp(""); confirmationRef.current = null; }} className="btn-outline w-full justify-center text-sm" data-testid="picker-cancel-btn">
+                ← Use a different number
               </button>
             </div>
           )}

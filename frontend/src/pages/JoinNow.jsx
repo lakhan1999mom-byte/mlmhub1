@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Sparkles, Shield, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Shield, TrendingUp, Check, X } from "lucide-react";
 import api from "@/lib/api";
 import { sendFirebaseOtp, toIndianE164 } from "@/lib/firebase";
 
@@ -99,7 +100,7 @@ export default function JoinNow() {
             One number.<br/>Many chances.<br/><span className="text-[#84CC16]">Unlimited income.</span>
           </h1>
           <p className="text-[#334155] mb-6 leading-relaxed">
-            Enter your mobile — we'll send an OTP. Once verified, pick a username and pay ₹7,200 to activate your first MLM position. Same phone can be used for multiple accounts.
+            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹7,200 to activate your first MLM position. Same phone can be used for multiple accounts.
           </p>
           <div className="space-y-3">
             {[
@@ -119,17 +120,28 @@ export default function JoinNow() {
         </div>
 
         {/* Right stepper */}
-        <div className="card-soft p-6 md:p-8">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="card-soft p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute -top-16 -right-16 w-40 h-40 bg-[#84CC16]/10 rounded-full blur-2xl"/>
+          <div className="relative">
           <div className="flex items-center gap-2 mb-6" data-testid="join-stepper">
             {[1, 2, 3].map((n) => (
-              <div key={n} className="flex-1 h-1 rounded-full" style={{ background: step >= n ? "#84CC16" : "#E2E8F0" }}/>
+              <div key={n} className="flex-1 relative">
+                <div className="h-1 rounded-full bg-[#E2E8F0]"/>
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: step >= n ? 1 : 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="absolute inset-0 h-1 rounded-full bg-gradient-to-r from-[#84CC16] to-[#65A30D] origin-left"
+                />
+              </div>
             ))}
           </div>
 
+          <AnimatePresence mode="wait">
           {step === 1 && (
-            <>
+            <motion.div key="s1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
               <h2 className="font-display text-2xl font-bold text-[#064E3B] mb-1">Enter your mobile</h2>
-              <p className="text-sm text-[#64748B] mb-5">We'll send a 6-digit OTP to verify.</p>
+              <p className="text-sm text-[#64748B] mb-5">We&apos;ll send a 6-digit OTP to verify.</p>
               <input
                 className="input-soft font-numbers text-lg"
                 placeholder="10-digit mobile"
@@ -145,11 +157,11 @@ export default function JoinNow() {
               >
                 {busy ? "Sending…" : "Send OTP"}
               </button>
-            </>
+            </motion.div>
           )}
 
           {step === 2 && (
-            <>
+            <motion.div key="s2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
               <h2 className="font-display text-2xl font-bold text-[#064E3B] mb-1">Enter OTP</h2>
               <p className="text-sm text-[#64748B] mb-5">Sent to {phone}. <button onClick={() => { setStep(1); confirmationRef.current = null; }} className="text-[#84CC16] font-semibold" data-testid="join-change-number">Change</button></p>
               {devOtp && (
@@ -168,13 +180,13 @@ export default function JoinNow() {
               <button onClick={verifyOtp} disabled={busy || otp.length < 4} className="btn-primary w-full justify-center mt-4" data-testid="join-verify-otp-btn">
                 {busy ? "Verifying…" : "Verify & Continue"}
               </button>
-            </>
+            </motion.div>
           )}
 
           {step === 3 && (
-            <>
+            <motion.div key="s3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
               <h2 className="font-display text-2xl font-bold text-[#064E3B] mb-1">Complete your profile</h2>
-              <p className="text-sm text-[#64748B] mb-5">Phone verified ✓. Just a few more details.</p>
+              <p className="text-sm text-[#64748B] mb-5">Phone verified <Check className="w-4 h-4 inline text-[#65A30D]"/>. Just a few more details.</p>
               <div className="space-y-3">
                 <input className="input-soft" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="join-name-input"/>
                 <div className="relative">
@@ -190,8 +202,8 @@ export default function JoinNow() {
                     data-testid="join-username-input"
                   />
                   {form.username && usernameOk !== null && (
-                    <div className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold ${usernameOk ? "text-[#65A30D]" : "text-[#EF4444]"}`} data-testid="join-username-status">
-                      {usernameOk ? "✓ available" : "✗ taken"}
+                    <div className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold flex items-center gap-1 ${usernameOk ? "text-[#65A30D]" : "text-[#EF4444]"}`} data-testid="join-username-status">
+                      {usernameOk ? <><Check className="w-3 h-3"/> available</> : <><X className="w-3 h-3"/> taken</>}
                     </div>
                   )}
                 </div>
@@ -206,9 +218,11 @@ export default function JoinNow() {
               <button onClick={submitRegister} disabled={busy || !termsAccepted || !form.name || !form.username || !form.email || form.password.length < 6 || usernameOk === false} className="btn-primary w-full justify-center mt-4 disabled:opacity-50" data-testid="join-submit-btn">
                 {busy ? "Creating…" : "Create Account →"}
               </button>
-            </>
+            </motion.div>
           )}
-        </div>
+          </AnimatePresence>
+          </div>
+        </motion.div>
       </div>
 
       {/* Recaptcha container (invisible) */}

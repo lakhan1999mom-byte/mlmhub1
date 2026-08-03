@@ -36,8 +36,30 @@ export function setupRecaptcha(containerId = "firebase-recaptcha") {
   return _recaptcha;
 }
 
+/**
+ * Only try Firebase Phone Auth on production domains. On the preview / localhost the
+ * domain isn't in Firebase's Authorized Domains, which forces a visible reCAPTCHA
+ * challenge (bicycles/traffic lights) that hijacks the UI and traps the user on
+ * step 1. On preview we short-circuit → the caller falls back to the dev-OTP path.
+ */
+const FIREBASE_ALLOWED_HOSTS = (
+  process.env.REACT_APP_FIREBASE_HOSTS || "evergroemart.com,www.evergroemart.com"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+export function isFirebaseHostAllowed() {
+  if (typeof window === "undefined") return false;
+  return FIREBASE_ALLOWED_HOSTS.includes(window.location.hostname);
+}
+
 /** Send OTP via Firebase Phone Auth. Returns confirmationResult with .confirm(code) method. */
 export async function sendFirebaseOtp(phoneE164) {
+  if (!isFirebaseHostAllowed()) {
+    // Force caller to use dev-OTP fallback on non-production hosts
+    throw new Error("Firebase disabled on this host — using dev-OTP fallback");
+  }
   const auth = getFirebaseAuth();
   const verifier = setupRecaptcha();
   return signInWithPhoneNumber(auth, phoneE164, verifier);

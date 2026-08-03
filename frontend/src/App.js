@@ -26,6 +26,7 @@ import Career from "@/pages/Career";
 import LegalPage from "@/pages/LegalPage";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
 import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 
@@ -115,6 +116,7 @@ export default function App() {
 
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/join-now" element={<JoinNow />} />
 
             <Route element={<RequireAuth role={["user","sub_admin","super_admin"]}><UserShell /></RequireAuth>}>

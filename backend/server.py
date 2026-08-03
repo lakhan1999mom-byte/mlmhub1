@@ -406,7 +406,7 @@ async def verify_otp(payload: OTPVerifyReq):
         await log_audit("login", actor=user, metadata={"method": "otp"})
         return {"verified": True, "token": token, "user": public_user(user), "new_user": False, "multiple": False}
     # Multiple accounts — return list for picker
-    accounts = [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "id": u["id"], "role": u.get("role", "user")} for u in users]
+    accounts = [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "username": u.get("username"), "id": u["id"], "role": u.get("role", "user"), "is_joining_paid": u.get("is_joining_paid", False)} for u in users]
     return {"verified": True, "new_user": False, "multiple": True, "accounts": accounts}
 
 
@@ -429,16 +429,46 @@ async def otp_pick_account(payload: dict):
     return {"token": token, "user": public_user(user)}
 
 
+@api.post("/auth/forgot-password/lookup")
+async def forgot_password_lookup(payload: dict):
+    """After OTP is verified, list all accounts on that phone so the user can pick
+    which one to reset. Requires a verified OTP row for the phone."""
+    phone = payload.get("phone")
+    otp = payload.get("otp")
+    rec = await db.otps.find_one({"phone": phone})
+    if not rec or rec.get("otp") != otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    if rec.get("expires_at", 0) < int(time.time()):
+        raise HTTPException(status_code=400, detail="OTP expired")
+    users = await db.users.find({"phone": phone}, {"_id": 0}).to_list(20)
+    if not users:
+        raise HTTPException(status_code=404, detail="No account on this number")
+    return {
+        "accounts": [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "username": u.get("username")} for u in users],
+        "single": len(users) == 1,
+    }
+
+
 @api.post("/auth/forgot-password")
 async def forgot_password(payload: ForgotPwReq):
     rec = await db.otps.find_one({"phone": payload.phone})
     if not rec or rec.get("otp") != payload.otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
+    users = await db.users.find({"phone": payload.phone}, {"_id": 0}).to_list(20)
+    if not users:
+        raise HTTPException(status_code=404, detail="No account on this number")
+    if len(users) > 1 and not payload.user_code:
+        # Force the client to select which account to reset
+        accounts = [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "username": u.get("username")} for u in users]
+        return {"multiple": True, "accounts": accounts}
+    target = users[0] if len(users) == 1 else next((u for u in users if u["user_code"] == payload.user_code), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Account not found on this number")
     await db.users.update_one(
-        {"phone": payload.phone},
+        {"id": target["id"]},
         {"$set": {"password_hash": hash_password(payload.new_password), "updated_at": now_iso()}}
     )
-    return {"ok": True}
+    return {"ok": True, "user_code": target["user_code"]}
 
 
 # ==================== FIREBASE PHONE AUTH ====================
@@ -489,115 +519,13 @@ async def firebase_verify(payload: dict):
         "phone": normalized,
         "multiple": True,
         "accounts": [
-            {"user_code": a["user_code"], "name": a["name"], "email": a["email"], "id": a["id"], "role": a["role"]}
+            {"user_code": a["user_code"], "name": a["name"], "email": a["email"], "username": a.get("username"), "id": a["id"], "role": a["role"], "is_joining_paid": a.get("is_joining_paid", False)}
             for a in accounts
         ],
     }
 
 
-# ==================== EASEBUZZ PAYMENT GATEWAY ====================
-@api.post("/payments/easebuzz/initiate")
-async def easebuzz_initiate(payload: dict, user=Depends(get_user)):
-    """Create an Easebuzz payment for a specific order_id. Returns access_key for frontend checkout."""
-    import easebuzz_utils as ez
-    order_id = payload.get("order_id")
-    if not order_id:
-        raise HTTPException(status_code=400, detail="order_id required")
-    order = await db.orders.find_one({"id": order_id, "user_id": user["id"]}, {"_id": 0})
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    if order.get("payment_status") == "paid":
-        raise HTTPException(status_code=400, detail="Order already paid")
-    txnid = f"EG{order_id[:8]}{int(datetime.now(timezone.utc).timestamp())}"
-    amount = float(order["total"])
-    productinfo = order.get("order_code", "EverGro Order")
-    firstname = user.get("name") or "Customer"
-    email = user.get("email") or f"user{user['id'][:6]}@evergroemart.com"
-    phone = user.get("phone") or "9999999999"
-    # Use backend URL as return URL — Easebuzz will POST back the form
-    backend_base = os.environ.get("PUBLIC_BACKEND_URL") or "https://hamper-mlm-hub.preview.emergentagent.com"
-    surl = f"{backend_base}/api/payments/easebuzz/return"
-    furl = f"{backend_base}/api/payments/easebuzz/return"
-    try:
-        resp = await ez.initiate_payment(txnid, amount, productinfo, firstname, email, phone, surl, furl, udf1=order_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Easebuzz init failed: {e}")
-    if resp.get("status") != 1:
-        raise HTTPException(status_code=400, detail=f"Easebuzz error: {resp.get('data')}")
-    access_key = resp.get("data")
-    await db.orders.update_one(
-        {"id": order_id},
-        {"$set": {"payment_txnid": txnid, "payment_provider": "easebuzz", "payment_access_key": access_key}}
-    )
-    return {"txnid": txnid, "access_key": access_key, "env": ez.EASEBUZZ_ENV, "key": ez.EASEBUZZ_KEY}
-
-
-@api.post("/payments/easebuzz/verify")
-async def easebuzz_verify_client(payload: dict, user=Depends(get_user)):
-    """Verify Easebuzz payment response (called from browser onResponse callback).
-    Body: full Easebuzz response object.
-    """
-    return await _easebuzz_process_response(payload)
-
-
-@api.post("/payments/easebuzz/return")
-async def easebuzz_return_webhook(request: Request):
-    """Server-to-server webhook / return URL from Easebuzz. Accepts form-encoded body."""
-    form = await request.form()
-    data = {k: v for k, v in form.items()}
-    result = await _easebuzz_process_response(data)
-    # Redirect user back to the order status page
-    order_id = data.get("udf1")
-    frontend_base = os.environ.get("PUBLIC_FRONTEND_URL", "").rstrip("/")
-    from fastapi.responses import RedirectResponse
-    if frontend_base and order_id:
-        status = "success" if result.get("paid") else "failed"
-        return RedirectResponse(url=f"{frontend_base}/orders/{order_id}?payment={status}", status_code=303)
-    return result
-
-
-async def _easebuzz_process_response(data: dict) -> dict:
-    """Shared: verify hash, mark order paid, trigger MLM if joining kit. Idempotent."""
-    import easebuzz_utils as ez
-    txnid = data.get("txnid") or ""
-    status = data.get("status") or ""
-    amount = str(data.get("amount") or "")
-    received_hash = data.get("hash") or ""
-    firstname = data.get("firstname") or ""
-    email = data.get("email") or ""
-    productinfo = data.get("productinfo") or ""
-    udf1 = data.get("udf1") or ""
-
-    expected = ez.build_reverse_hash(status, txnid, amount, productinfo, firstname, email, udf1=udf1)
-    if received_hash.lower() != expected:
-        raise HTTPException(status_code=400, detail="Invalid payment signature")
-
-    order = await db.orders.find_one({"payment_txnid": txnid}, {"_id": 0})
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found for txnid")
-
-    if order.get("payment_status") == "paid":
-        return {"paid": True, "order_id": order["id"], "already_processed": True}
-
-    if status == "success":
-        await db.orders.update_one(
-            {"id": order["id"]},
-            {"$set": {"payment_status": "paid", "payment_id": data.get("easepayid", txnid),
-                      "paid_at": now_iso(), "status": "confirmed"}}
-        )
-        # Reduce stock
-        for item in order.get("items", []):
-            await db.products.update_one({"id": item["product_id"]}, {"$inc": {"stock": -item["quantity"]}})
-        # Trigger MLM if this is the joining kit
-        if any(i.get("is_hamper") for i in order.get("items", [])) and not (await db.users.find_one({"id": order["user_id"]}, {"is_joining_paid": 1})).get("is_joining_paid"):
-            await process_paid_joining(db, order["user_id"], order["id"])
-        return {"paid": True, "order_id": order["id"]}
-    else:
-        await db.orders.update_one(
-            {"id": order["id"]},
-            {"$set": {"payment_status": "failed", "status": "cancelled"}}
-        )
-        return {"paid": False, "order_id": order["id"], "status": status}
+# ==================== (Easebuzz removed — Cashfree only) ====================
 
 
 # ==================== MLM RE-ENTRY (Second Position) ====================
@@ -974,29 +902,33 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         "coupon_code": payload.coupon_code,
         "payment_method": payload.payment_method,
         "payment_status": "pending",
-        "razorpay_order_id": f"order_mock_{uuid.uuid4().hex[:14]}",
-        "razorpay_payment_id": None,
+        "payment_provider": None,
         "status": "placed",
         "is_joining_order": is_joining,
         "tracking_no": None,
         "created_at": now_iso(),
     }
     await db.orders.insert_one(order)
-    return {"order": {k: v for k, v in order.items() if k != "_id"}, "razorpay_mock": True}
+    return {"order": {k: v for k, v in order.items() if k != "_id"}}
 
 
 @api.post("/orders/verify-payment")
 async def verify_payment(payload: PaymentVerify, user=Depends(get_user)):
+    """Legacy generic verify endpoint. Kept for backwards compat with any old client calls —
+    delegates to the Cashfree mock/live flow via /payments/cashfree/verify."""
     order = await db.orders.find_one({"id": payload.order_id, "user_id": user["id"]}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    # MOCK mode: auto-success
+    if order.get("payment_status") == "paid":
+        return {"ok": True, "already_processed": True}
+    # Mark paid (mock behaviour preserved)
     await db.orders.update_one(
         {"id": payload.order_id},
         {"$set": {
             "payment_status": "paid",
-            "razorpay_payment_id": payload.razorpay_payment_id,
+            "payment_id": payload.razorpay_payment_id or f"legacy_{uuid.uuid4().hex[:10]}",
             "status": "confirmed",
+            "paid_at": now_iso(),
         }}
     )
 
@@ -1347,46 +1279,46 @@ async def admin_get_payment_config(_=Depends(require_admin)):
     if doc.get("cashfree_secret_key"):
         s = doc["cashfree_secret_key"]
         doc["cashfree_secret_masked"] = ("*" * (len(s) - 4)) + s[-4:] if len(s) > 4 else "****"
-    if doc.get("easebuzz_salt"):
-        s = doc["easebuzz_salt"]
-        doc["easebuzz_salt_masked"] = ("*" * (len(s) - 4)) + s[-4:] if len(s) > 4 else "****"
+    # Strip any legacy easebuzz fields from the response
+    for k in list(doc.keys()):
+        if k.startswith("easebuzz"):
+            doc.pop(k, None)
+    doc["provider"] = "cashfree"
     return doc
 
 
 @api.post("/admin/payment-config")
 async def admin_set_payment_config(payload: dict, admin=Depends(require_admin)):
-    """Set active payment provider + credentials. Takes effect immediately (no redeploy)."""
-    update = {"_key": "payment_config"}
-    if "provider" in payload:
-        if payload["provider"] not in ("cashfree", "easebuzz"):
-            raise HTTPException(status_code=400, detail="provider must be 'cashfree' or 'easebuzz'")
-        update["provider"] = payload["provider"]
-    for k in ("cashfree_app_id", "cashfree_secret_key", "cashfree_env", "cashfree_active",
-              "easebuzz_key", "easebuzz_salt", "easebuzz_env", "easebuzz_active"):
+    """Set Cashfree credentials. Takes effect immediately (no redeploy).
+    If cashfree_active is False OR credentials are missing, the checkout runs in MOCK mode
+    (auto-succeeds so demos + testing work end-to-end).
+    """
+    update = {"_key": "payment_config", "provider": "cashfree"}
+    for k in ("cashfree_app_id", "cashfree_secret_key", "cashfree_env", "cashfree_active"):
         if k in payload and payload[k] != "" and payload[k] is not None:
             update[k] = payload[k]
     await db.settings.update_one(
         {"_key": "payment_config"},
-        {"$set": {**update, "updated_at": now_iso()}},
+        {"$set": {**update, "updated_at": now_iso()}, "$unset": {"easebuzz_key": "", "easebuzz_salt": "", "easebuzz_env": "", "easebuzz_active": ""}},
         upsert=True,
     )
-    await log_audit("payment_config_update", actor=admin, metadata={"provider": update.get("provider")})
-    return {"ok": True, "config": {k: v for k, v in update.items() if "secret" not in k and "salt" not in k}}
+    await log_audit("payment_config_update", actor=admin, metadata={"provider": "cashfree"})
+    return {"ok": True, "config": {k: v for k, v in update.items() if "secret" not in k}}
 
 
 @api.get("/site/payment-provider")
 async def site_active_payment_provider():
-    """Public endpoint — frontend needs to know which SDK to load at checkout."""
+    """Public endpoint — frontend needs to know if Cashfree is live or should use mock."""
     doc = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {}
-    provider = doc.get("provider", "easebuzz")
+    is_live = bool(doc.get("cashfree_active") and doc.get("cashfree_app_id") and doc.get("cashfree_secret_key"))
     return {
-        "provider": provider,
-        "cashfree_active": bool(doc.get("cashfree_active") and doc.get("cashfree_app_id") and doc.get("cashfree_secret_key")),
+        "provider": "cashfree",
+        "cashfree_active": is_live,
         "cashfree_env": doc.get("cashfree_env", "sandbox"),
-        "cashfree_app_id": doc.get("cashfree_app_id") if doc.get("cashfree_active") else None,
-        "easebuzz_active": bool(doc.get("easebuzz_active", True)),
-        "easebuzz_env": os.environ.get("EASEBUZZ_ENV", "prod"),
+        "cashfree_app_id": doc.get("cashfree_app_id") if is_live else None,
+        "mock_mode": not is_live,  # frontend uses this to auto-approve payment on the client side
     }
+
 
 
 # ==================== CASHFREE PAYMENT ====================
@@ -1401,6 +1333,27 @@ async def cashfree_initiate(payload: dict, user=Depends(get_user)):
         raise HTTPException(status_code=404, detail="Order not found")
     if order.get("payment_status") == "paid":
         raise HTTPException(status_code=400, detail="Order already paid")
+
+    # MOCK MODE — no real Cashfree keys configured OR active=false.
+    # Return a synthetic session_id and let the client call /verify to mark paid.
+    cfg = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {}
+    is_live = bool(cfg.get("cashfree_active") and cfg.get("cashfree_app_id") and cfg.get("cashfree_secret_key"))
+    if not is_live:
+        mock_session = f"mock_session_{uuid.uuid4().hex[:16]}"
+        await db.orders.update_one({"id": order_id}, {"$set": {
+            "payment_provider": "cashfree",
+            "payment_session_id": mock_session,
+            "payment_mock": True,
+        }})
+        return {
+            "mock": True,
+            "payment_session_id": mock_session,
+            "cf_order_id": order_id,
+            "env": cfg.get("cashfree_env", "sandbox"),
+            "app_id": None,
+            "message": "Mock mode — client should call /payments/cashfree/verify to auto-succeed.",
+        }
+
     frontend_base = os.environ.get("PUBLIC_FRONTEND_URL", "").rstrip("/") or "https://evergroemart.com"
     return_url = f"{frontend_base}/orders/{order_id}?cf_order_id={order_id}"
     try:
@@ -1415,8 +1368,9 @@ async def cashfree_initiate(payload: dict, user=Depends(get_user)):
         "payment_provider": "cashfree",
         "payment_txnid": cf_order["cf_order_id"],
         "payment_session_id": cf_order["payment_session_id"],
+        "payment_mock": False,
     }})
-    return cf_order
+    return {**cf_order, "mock": False}
 
 
 @api.post("/payments/cashfree/verify")
@@ -1428,25 +1382,33 @@ async def cashfree_verify(payload: dict, user=Depends(get_user)):
         raise HTTPException(status_code=404, detail="Order not found")
     if order.get("payment_status") == "paid":
         return {"paid": True, "already_processed": True}
-    try:
-        res = await cf.verify_cashfree_order(db, order_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Cashfree verify failed: {e}")
-    if res["paid"]:
-        # Atomic paid-flag flip to prevent double processing
-        r = await db.orders.update_one(
-            {"id": order_id, "payment_status": {"$ne": "paid"}},
-            {"$set": {"payment_status": "paid", "paid_at": now_iso(), "status": "confirmed"}},
-        )
-        if r.modified_count == 1:
-            for item in order.get("items", []):
-                await db.products.update_one({"id": item["product_id"]}, {"$inc": {"stock": -item["quantity"]}})
-            if any(i.get("is_hamper") for i in order.get("items", [])):
-                u = await db.users.find_one({"id": order["user_id"]}, {"_id": 0})
-                if not u.get("is_joining_paid"):
-                    await process_paid_joining(db, order["user_id"], order_id)
-        return {"paid": True, "order_id": order_id}
-    return {"paid": False, "order_status": res["order_status"]}
+
+    # MOCK MODE — auto succeed
+    if order.get("payment_mock"):
+        paid = True
+    else:
+        try:
+            res = await cf.verify_cashfree_order(db, order_id)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Cashfree verify failed: {e}")
+        paid = res["paid"]
+        if not paid:
+            return {"paid": False, "order_status": res.get("order_status")}
+
+    # Atomic paid-flag flip
+    r = await db.orders.update_one(
+        {"id": order_id, "payment_status": {"$ne": "paid"}},
+        {"$set": {"payment_status": "paid", "paid_at": now_iso(), "status": "confirmed",
+                  "payment_id": order.get("payment_session_id") or f"mock_{uuid.uuid4().hex[:10]}"}},
+    )
+    if r.modified_count == 1:
+        for item in order.get("items", []):
+            await db.products.update_one({"id": item["product_id"]}, {"$inc": {"stock": -item["quantity"]}})
+        if any(i.get("is_hamper") for i in order.get("items", [])):
+            u = await db.users.find_one({"id": order["user_id"]}, {"_id": 0})
+            if not u.get("is_joining_paid"):
+                await process_paid_joining(db, order["user_id"], order.get("order_code", order_id), order_id)
+    return {"paid": True, "order_id": order_id, "mock": bool(order.get("payment_mock"))}
 
 
 # ==================== PURCHASE KIT CONTENT (admin editable) ====================
@@ -1543,7 +1505,6 @@ async def my_tickets(user=Depends(get_user)):
 @api.get("/site/settings")
 async def site_settings():
     s = await db.settings.find_one({"_key": "site"}, {"_id": 0, "_key": 0,
-                                                      "razorpay_key_secret": 0,
                                                       "cloudinary_api_secret": 0})
     return s or {}
 

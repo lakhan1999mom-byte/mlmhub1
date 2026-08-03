@@ -46,6 +46,7 @@ class ForgotPwReq(Base):
     phone: str
     otp: str
     new_password: str
+    user_code: Optional[str] = None  # required when phone has multiple accounts
 
 
 class User(Base):
