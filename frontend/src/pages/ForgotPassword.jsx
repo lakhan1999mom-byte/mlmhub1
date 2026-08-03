@@ -39,7 +39,7 @@ export default function ForgotPassword() {
       } catch {
         const { data } = await api.post("/auth/otp/send", { phone });
         setDevOtp(data.dev_otp || "");
-        toast.success(data.dev_otp ? `Dev OTP: ${data.dev_otp}` : "OTP sent");
+        toast.success(data.dev_otp ? `OTP sent (${data.dev_otp})` : "OTP sent to your mobile");
       }
       setStep(2);
     } catch {
@@ -139,7 +139,7 @@ export default function ForgotPassword() {
             <div className="text-sm text-[#64748B]">OTP sent to <span className="font-numbers font-semibold text-[#064E3B]">{phone}</span>. <button onClick={() => { setStep(1); confirmationRef.current = null; setDevOtp(""); }} className="text-[#84CC16] font-semibold">Change</button></div>
             {devOtp && (
               <div className="text-xs bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] rounded-lg p-3" data-testid="fp-dev-otp">
-                DEV MODE — Your OTP: <b>{devOtp}</b>
+                Preview — Your OTP: <b>{devOtp}</b>
               </div>
             )}
             <input

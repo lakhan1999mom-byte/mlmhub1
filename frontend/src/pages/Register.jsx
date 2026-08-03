@@ -53,7 +53,7 @@ export default function Register() {
     setBusy(true);
     try {
       const u = await register({ ...form, terms_accepted: true });
-      toast.success(`Welcome @${u.username || u.user_code}! Now pay ₹7,200 to activate.`);
+      toast.success(`Welcome @${u.username || u.user_code}! Now pay ₹7,499 to activate.`);
       nav("/hampers");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Registration failed");
@@ -72,7 +72,7 @@ export default function Register() {
             </div>
           </Link>
           <h2 className="font-display text-3xl font-bold text-[#064E3B] mb-2">Create Account</h2>
-          <p className="text-[#64748B] mb-6">Step 1 of 2: Fill details · Step 2: Pay ₹7,200 Purchasing Kit to activate.</p>
+          <p className="text-[#64748B] mb-6">Step 1 of 2: Fill details · Step 2: Pay ₹7,499 Purchasing Kit to activate.</p>
           <p className="text-xs text-[#65A30D] mb-6">
             💡 Tip: If you already have an account, just pick a NEW <b>username</b> — you can reuse the same email & phone to create additional MLM positions.
           </p>
@@ -162,7 +162,7 @@ export default function Register() {
             EverGro <span className="text-[#FBBF24]">eMart</span>
           </div>
           <h1 className="font-display text-4xl font-bold mb-4">Shop · Save · Share · Earn</h1>
-          <p className="text-lg text-white/90 mb-6">Join ₹7,200 → earn from 8 downline levels → potential ₹19.2 Cr per cycle.</p>
+          <p className="text-lg text-white/90 mb-6">Join ₹7,499 → earn from 8 downline levels → potential ₹19.2 Cr per cycle.</p>
         </div>
       </div>
 

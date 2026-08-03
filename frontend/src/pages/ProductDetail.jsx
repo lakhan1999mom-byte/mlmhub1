@@ -25,7 +25,7 @@ export default function ProductDetail() {
     if (!user) { nav("/login"); return; }
     // Frontend guard: non-joined users can only add the joining hamper
     if (!user.is_joining_paid && !p.is_hamper) {
-      toast.error("Buy the ₹7,200 Joining Kit first to unlock regular product shopping.");
+      toast.error("Buy the ₹7,499 Joining Kit first to unlock regular product shopping.");
       nav("/hampers");
       return;
     }
@@ -39,7 +39,7 @@ export default function ProductDetail() {
   const handleBuy = async () => {
     if (!user) { nav("/login"); return; }
     if (!user.is_joining_paid && !p.is_hamper) {
-      toast.error("Buy the ₹7,200 Joining Kit first.");
+      toast.error("Buy the ₹7,499 Joining Kit first.");
       nav("/hampers");
       return;
     }

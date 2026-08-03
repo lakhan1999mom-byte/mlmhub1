@@ -22,7 +22,7 @@ export default function Contact() {
         </form>
         <div className="space-y-4">
           <div className="card-soft p-6 flex items-start gap-3"><Mail className="w-6 h-6 text-[#84CC16]"/><div><div className="font-semibold">Email</div><div className="text-sm text-[#334155]">support@evergroemart.com</div></div></div>
-          <div className="card-soft p-6 flex items-start gap-3"><Phone className="w-6 h-6 text-[#84CC16]"/><div><div className="font-semibold">Phone</div><div className="text-sm text-[#334155]">+91-9876543210</div></div></div>
+          <div className="card-soft p-6 flex items-start gap-3"><Phone className="w-6 h-6 text-[#84CC16]"/><div><div className="font-semibold">Phone</div><div className="text-sm text-[#334155]">+91-9928525889</div></div></div>
           <div className="card-soft p-6 flex items-start gap-3"><MessageCircle className="w-6 h-6 text-[#84CC16]"/><div><div className="font-semibold">WhatsApp</div><div className="text-sm text-[#334155]">24x7 chat support</div></div></div>
           <div className="card-soft p-6 flex items-start gap-3"><MapPin className="w-6 h-6 text-[#84CC16]"/><div><div className="font-semibold">Address</div><div className="text-sm text-[#334155]">Mumbai, India</div></div></div>
         </div>

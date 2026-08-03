@@ -45,7 +45,7 @@ export default function Cart() {
           <Lock className="w-5 h-5 text-[#92400E] flex-shrink-0 mt-0.5"/>
           <div className="text-sm text-[#92400E]">
             <div className="font-semibold mb-0.5">Joining Kit required</div>
-            Until you complete your ₹7,200 Joining Kit purchase, you can only add the joining hamper to cart. Regular product shopping unlocks after activation.
+            Until you complete your ₹7,499 Joining Kit purchase, you can only add the joining hamper to cart. Regular product shopping unlocks after activation.
           </div>
         </div>
       )}

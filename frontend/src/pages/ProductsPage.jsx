@@ -58,7 +58,7 @@ export default function ProductsPage() {
           <Lock className="w-5 h-5 text-[#92400E] flex-shrink-0 mt-0.5"/>
           <div className="text-sm text-[#92400E] flex-1">
             <div className="font-semibold mb-0.5">Unlock the full store</div>
-            You can browse products, but adding to cart is locked until you complete your ₹7,200 Purchasing Kit.
+            You can browse products, but adding to cart is locked until you complete your ₹7,499 Purchasing Kit.
           </div>
           <Link to="/hampers" className="btn-primary text-xs whitespace-nowrap" data-testid="products-view-kit-btn">View Purchasing Kit</Link>
         </div>

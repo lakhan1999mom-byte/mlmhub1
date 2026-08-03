@@ -134,7 +134,7 @@ export default function PurchaseKitPage() {
       <section className="card-soft p-8 md:p-12 bg-gradient-to-r from-[#84CC16] to-[#65A30D] text-[#064E3B] text-center" data-testid="pk-bottom-cta">
         <Sparkles className="w-10 h-10 mx-auto mb-3"/>
         <h2 className="font-display text-3xl md:text-4xl font-black mb-2">One kit. One life-changing decision.</h2>
-        <p className="mb-6 max-w-2xl mx-auto opacity-80">Join tens of thousands who've turned their ₹7,200 into consistent monthly income.</p>
+        <p className="mb-6 max-w-2xl mx-auto opacity-80">Join tens of thousands who've turned their ₹7,499 into consistent monthly income.</p>
         <button onClick={startPurchase} className="bg-[#064E3B] hover:bg-black text-white font-bold px-8 py-4 rounded-full text-lg" data-testid="pk-bottom-cta-btn">
           Get Started — ₹{KIT_PRICE.toLocaleString('en-IN')}
         </button>

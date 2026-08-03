@@ -11,12 +11,14 @@ export default function Login() {
   const nav = useNavigate();
   const loc = useLocation();
 
-  const [tab, setTab] = useState("password"); // password | otp
+  // Auto-switch to OTP tab if landed from /join-now with a pre-existing phone
+  const preFillPhone = new URLSearchParams(loc.search).get("phone") || "";
+  const [tab, setTab] = useState(preFillPhone ? "otp" : "password"); // password | otp
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(preFillPhone);
   const [otp, setOtp] = useState("");
   const [otpStage, setOtpStage] = useState("idle"); // idle | sent | verifying
   const [devOtp, setDevOtp] = useState("");
@@ -54,7 +56,7 @@ export default function Login() {
         const { data } = await api.post("/auth/otp/send", { phone });
         setOtpStage("sent");
         setDevOtp(data.dev_otp || "");
-        toast.success(data.dev_otp ? `Dev OTP: ${data.dev_otp}` : "OTP sent!");
+        toast.success(data.dev_otp ? `OTP sent (${data.dev_otp})` : "OTP sent to your mobile");
       }
     } catch (err) {
       toast.error("Failed to send OTP");
@@ -215,7 +217,7 @@ export default function Login() {
                 <>
                   {devOtp && (
                     <div className="text-xs bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] rounded-lg p-3" data-testid="dev-otp-display">
-                      DEV MODE — Your OTP: <b>{devOtp}</b>
+                      Preview — Your OTP: <b>{devOtp}</b>
                     </div>
                   )}
                   <div>

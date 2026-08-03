@@ -10,24 +10,37 @@ import { sendFirebaseOtp, toIndianE164 } from "@/lib/firebase";
  * JoinNow — phone-first onboarding.
  * Step 1: Enter phone → OTP (Firebase or dev fallback)
  * Step 2: Complete form (name, username, email, password, sponsor) → account created
- * Step 3: Redirect to /hampers to pay ₹7,200
+ * Step 3: Redirect to /hampers to pay ₹7,499
  */
 export default function JoinNow() {
   const nav = useNavigate();
-  const [step, setStep] = useState(1); // 1: phone, 2: otp, 3: details
+  const [step, setStep] = useState(1); // 1: phone, 1.5: existing-choice, 2: otp, 3: details
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [devOtp, setDevOtp] = useState("");
   const [busy, setBusy] = useState(false);
+  const [existingCount, setExistingCount] = useState(0);
   const confirmationRef = useRef(null);
   const [form, setForm] = useState({ name: "", username: "", email: "", password: "", referral_code: "" });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [usernameOk, setUsernameOk] = useState(null);
 
-  const sendOtp = async () => {
+  const sendOtp = async (skipExistingCheck = false) => {
     if (phone.replace(/\D/g, "").length < 10) return toast.error("Enter valid 10-digit mobile");
     setBusy(true);
     try {
+      // Check if phone already has accounts — offer choice UNLESS user already picked "re-entry"
+      if (!skipExistingCheck) {
+        try {
+          const { data: st } = await api.get(`/auth/phone-status?phone=${encodeURIComponent(phone)}`);
+          if (st.exists) {
+            setExistingCount(st.count);
+            setStep(1.5);
+            setBusy(false);
+            return;
+          }
+        } catch { /* ignore, continue */ }
+      }
       try {
         const conf = await sendFirebaseOtp(toIndianE164(phone));
         confirmationRef.current = conf;
@@ -36,7 +49,7 @@ export default function JoinNow() {
       } catch {
         const { data } = await api.post("/auth/otp/send", { phone });
         setDevOtp(data.dev_otp || "");
-        toast.success(data.dev_otp ? `Dev OTP: ${data.dev_otp}` : "OTP sent");
+        toast.success(data.dev_otp ? `OTP sent (${data.dev_otp})` : "OTP sent to your mobile");
       }
       setStep(2);
     } catch (e) {
@@ -51,15 +64,10 @@ export default function JoinNow() {
         await confirmationRef.current.confirm(otp);
       } else {
         const { data } = await api.post("/auth/otp/verify", { phone, otp });
-        // If existing account, tell user and redirect to login. If new, allow registration.
-        if (data.token) {
-          localStorage.setItem("evergro_token", data.token);
-          toast.info("Existing account detected — welcome back!");
-          window.location.href = "/dashboard";
-          return;
-        }
-        if (data.multiple) {
-          toast.info(`${data.accounts.length} accounts on this number. Use Login instead or continue with a new username.`);
+        // Since Join Now is for re-entry (user chose to create NEW account), do NOT auto-login.
+        // Just validate the OTP and move to step 3. If phone had no accounts, `verified: true`.
+        if (data.verified === false) {
+          throw new Error("Invalid OTP");
         }
       }
       setStep(3);
@@ -83,8 +91,9 @@ export default function JoinNow() {
     try {
       const { data } = await api.post("/auth/register", { ...form, phone, terms_accepted: true });
       localStorage.setItem("evergro_token", data.token);
-      toast.success(`Welcome @${data.user.username}! Now pay ₹7,200 to activate.`);
-      nav("/hampers");
+      toast.success(`Welcome @${data.user.username}! Purchase the ₹7,499 kit anytime from your dashboard to activate.`);
+      // Land on dashboard — kit purchase is mandatory but not forced landing.
+      nav("/dashboard");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Registration failed");
     } finally { setBusy(false); }
@@ -100,7 +109,7 @@ export default function JoinNow() {
             One number.<br/>Many chances.<br/><span className="text-[#84CC16]">Unlimited income.</span>
           </h1>
           <p className="text-[#334155] mb-6 leading-relaxed">
-            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹7,200 to activate your first MLM position. Same phone can be used for multiple accounts.
+            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹7,499 to activate your first MLM position. Same phone can be used for multiple accounts.
           </p>
           <div className="space-y-3">
             {[
@@ -150,7 +159,7 @@ export default function JoinNow() {
                 data-testid="join-phone-input"
               />
               <button
-                onClick={sendOtp}
+                onClick={() => sendOtp(false)}
                 disabled={busy || phone.length < 10}
                 className="btn-primary w-full justify-center mt-4"
                 data-testid="join-send-otp-btn"
@@ -160,13 +169,51 @@ export default function JoinNow() {
             </motion.div>
           )}
 
+          {step === 1.5 && (
+            <motion.div key="s15" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }} data-testid="join-existing-choice">
+              <div className="rounded-2xl bg-gradient-to-br from-[#FEF3C7] to-[#FED7AA] p-4 mb-4 border border-[#F59E0B]/30">
+                <div className="text-xs uppercase tracking-widest font-bold text-[#92400E] mb-1">Heads up</div>
+                <div className="font-display font-black text-[#7C2D12] text-lg leading-tight">This number already has {existingCount} account{existingCount > 1 ? "s" : ""}</div>
+                <div className="text-xs text-[#92400E] mt-1">You can either login to your existing account, or create a NEW re-entry position on the same number (must use a different sponsor code).</div>
+              </div>
+              <div className="space-y-3">
+                <button
+                  onClick={() => nav(`/login?phone=${phone}`)}
+                  className="w-full text-left card-soft p-4 hover:border-[#84CC16] hover:-translate-y-0.5 transition-all flex items-center justify-between group"
+                  data-testid="join-choice-login"
+                >
+                  <div>
+                    <div className="font-semibold text-[#064E3B]">Login to existing account</div>
+                    <div className="text-xs text-[#64748B]">Skip signup — go to your dashboard</div>
+                  </div>
+                  <div className="text-[#84CC16] group-hover:translate-x-1 transition-transform">→</div>
+                </button>
+                <button
+                  onClick={() => sendOtp(true)}
+                  disabled={busy}
+                  className="w-full text-left card-soft p-4 hover:border-[#84CC16] hover:-translate-y-0.5 transition-all flex items-center justify-between group border-2 border-[#84CC16]/40"
+                  data-testid="join-choice-reentry"
+                >
+                  <div>
+                    <div className="font-semibold text-[#064E3B]">Create a NEW re-entry account</div>
+                    <div className="text-xs text-[#64748B]">Same phone, new username, new sponsor · earn on multiple positions</div>
+                  </div>
+                  <div className="text-[#84CC16] group-hover:translate-x-1 transition-transform">→</div>
+                </button>
+                <button onClick={() => { setStep(1); setExistingCount(0); }} className="text-sm text-[#64748B] hover:text-[#065F46] w-full text-center pt-2" data-testid="join-choice-back">
+                  ← Use a different number
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {step === 2 && (
             <motion.div key="s2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
               <h2 className="font-display text-2xl font-bold text-[#064E3B] mb-1">Enter OTP</h2>
               <p className="text-sm text-[#64748B] mb-5">Sent to {phone}. <button onClick={() => { setStep(1); confirmationRef.current = null; }} className="text-[#84CC16] font-semibold" data-testid="join-change-number">Change</button></p>
               {devOtp && (
                 <div className="text-xs bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] rounded-lg p-3 mb-3" data-testid="join-dev-otp">
-                  DEV MODE — Your OTP: <b>{devOtp}</b>
+                  Preview — Your OTP: <b>{devOtp}</b>
                 </div>
               )}
               <input

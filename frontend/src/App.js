@@ -60,6 +60,8 @@ import AdminAccounts from "@/pages/admin/AdminAccounts";
 import AdminBrands from "@/pages/admin/AdminBrands";
 import AdminTestimonials from "@/pages/admin/AdminTestimonials";
 import AdminPayments from "@/pages/admin/AdminPayments";
+import AdminCategories from "@/pages/admin/AdminCategories";
+import AdminCoupons from "@/pages/admin/AdminCoupons";
 import JoinNow from "@/pages/JoinNow";
 import PurchaseKitPage from "@/pages/PurchaseKitPage";
 
@@ -150,6 +152,8 @@ export default function App() {
               <Route path="/admin/brands" element={<AdminBrands />} />
               <Route path="/admin/testimonials" element={<AdminTestimonials />} />
               <Route path="/admin/payments" element={<AdminPayments />} />
+              <Route path="/admin/categories" element={<AdminCategories />} />
+              <Route path="/admin/coupons" element={<AdminCoupons />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" />} />

@@ -57,6 +57,19 @@ export default function AdminSettings() {
 
       <div className="card-soft p-6 space-y-3">
         <h3 className="font-display font-bold text-lg">Delivery & GST</h3>
+        <label className="flex items-center gap-2 cursor-pointer p-3 bg-[#ECFCCB] border border-[#84CC16]/30 rounded-xl">
+          <input
+            type="checkbox"
+            checked={site.delivery_charge_enabled !== false}
+            onChange={(e) => setSite({...site, delivery_charge_enabled: e.target.checked})}
+            className="accent-[#84CC16] w-4 h-4"
+            data-testid="delivery-charge-enabled-toggle"
+          />
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-[#064E3B]">Charge delivery fee to customers</div>
+            <div className="text-xs text-[#065F46]">When OFF, all orders get FREE shipping regardless of amount.</div>
+          </div>
+        </label>
         <div className="grid sm:grid-cols-3 gap-3">
           <Input label="Delivery Charge (₹)" type="number" v={site.delivery_charge} on={(e) => setSite({...site, delivery_charge: +e.target.value})} testid="delivery-charge"/>
           <Input label="Free Shipping Above (₹)" type="number" v={site.free_shipping_threshold} on={(e) => setSite({...site, free_shipping_threshold: +e.target.value})} testid="free-shipping-threshold"/>

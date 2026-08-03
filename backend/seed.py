@@ -17,14 +17,14 @@ TERMS_CONTENT = """<h2>EverGro eMart — Terms & Conditions (v1.0)</h2>
 
 <h3>2. Joining & Activation</h3>
 <ul>
-<li>A one-time purchase of the EverGro Joining Kit at <b>₹7,200</b> is required to activate your MLM account.</li>
+<li>A one-time purchase of the EverGro Joining Kit at <b>₹7,499</b> is required to activate your MLM account.</li>
 <li>Until the joining amount is successfully paid: (a) your MLM account remains inactive, (b) your referral link does not generate commissions, (c) no cashback or income is credited.</li>
 <li>Registration alone does <b>NOT</b> create any earning entitlement. Payment is mandatory.</li>
 </ul>
 
 <h3>3. 8-Level Income Structure</h3>
 <p>Each active member can add a maximum of <b>6 direct referrals</b>. Income accrues across 8 levels according to the published plan (Level 1 ₹1,200 / member; Level 2 ₹400; Level 3 ₹50; Level 4 ₹300; Level 5 ₹50; Level 6 ₹200; Level 7 ₹50; Level 8 ₹100).</p>
-<p>Your income begins only when <b>3 of your direct referrals</b> have completed their ₹7,200 joining purchase.</p>
+<p>Your income begins only when <b>3 of your direct referrals</b> have completed their ₹7,499 joining purchase.</p>
 
 <h3>4. Withdrawals</h3>
 <ul>
@@ -68,15 +68,15 @@ async def seed_all(db):
             "favicon_url": os.environ.get("APP_LOGO_URL", ""),
             "site_name": "EverGro eMart",
             "tagline": "Shop • Save • Share • Earn — Smart Shopping, Limitless Earning",
-            "phone": "+91-9876543210",
+            "phone": "+91-9928525889",
             "email": "support@evergroemart.com",
             "address": "Evergro LLP, India",
-            "whatsapp": "+919876543210",
+            "whatsapp": "+919928525889",
             "facebook": "https://facebook.com/evergroemart",
             "instagram": "https://instagram.com/evergroemart",
             "twitter": "https://twitter.com/evergroemart",
             "youtube": "https://youtube.com/@evergroemart",
-            "notification_bar_text": "🎉 EverGro eMart — 8-Level Income Plan · Purchasing Kit ₹7,200",
+            "notification_bar_text": "🎉 EverGro eMart — 8-Level Income Plan · Purchasing Kit ₹7,499",
             "notification_bar_enabled": True,
             "razorpay_key_id": "",
             "razorpay_key_secret": "",
@@ -86,6 +86,7 @@ async def seed_all(db):
             "cloudinary_api_secret": os.environ.get("CLOUDINARY_API_SECRET", ""),
             # Delivery config
             "delivery_charge": 49,
+            "delivery_charge_enabled": True,
             "free_shipping_threshold": 999,
             "gst_percent": 5,
             # Terms
@@ -104,8 +105,18 @@ async def seed_all(db):
         if "terms_content" not in existing:
             updates["terms_content"] = TERMS_CONTENT
             updates["terms_version"] = "1.0"
-        if "notification_bar_text" in existing and ("Joining Kit" in existing.get("notification_bar_text", "") or "8-Level" not in existing.get("notification_bar_text", "")):
-            updates["notification_bar_text"] = "🎉 EverGro eMart — 8-Level Income Plan · Purchasing Kit ₹7,200"
+        # Force-refresh notification bar text if it still references old ₹7,200 price
+        cur_notif = existing.get("notification_bar_text", "") or ""
+        if "7,200" in cur_notif or "Joining Kit" in cur_notif or "8-Level" not in cur_notif:
+            updates["notification_bar_text"] = "🎉 EverGro eMart — 8-Level Income Plan · Purchasing Kit ₹7,499"
+        # Force-update phone/whatsapp if they still hold the old placeholder
+        if existing.get("phone") in ("+91-9876543210", None, ""):
+            updates["phone"] = "+91-9928525889"
+        if existing.get("whatsapp") in ("+919876543210", None, ""):
+            updates["whatsapp"] = "+919928525889"
+        # Delivery charge toggle (admin-controlled)
+        if "delivery_charge_enabled" not in existing:
+            updates["delivery_charge_enabled"] = True
         if updates:
             await db.settings.update_one({"_key": "site"}, {"$set": updates})
 
@@ -116,7 +127,7 @@ async def seed_all(db):
             "levels_total": 8,
             "max_direct_referrals": 6,
             "min_direct_paid_for_income": 3,
-            "joining_amount": 7200.0,
+            "joining_amount": 7499.0,
             "level_commissions": [1200, 400, 50, 300, 50, 200, 50, 100],
         }},
         upsert=True,
@@ -177,7 +188,7 @@ async def seed_all(db):
         {"$set": {"is_joining_paid": True, "income_active": True, "is_active": True}},
     )
 
-    # ============ SINGLE ACTIVE PURCHASING KIT (₹7,200) ============
+    # ============ SINGLE ACTIVE PURCHASING KIT (₹7,499) ============
     joining = await db.products.find_one({"sku": "HMP-JOINING-7200"})
     if not joining:
         # Lock all existing hampers
@@ -186,8 +197,8 @@ async def seed_all(db):
         await db.products.insert_one({
             "id": str(uuid.uuid4()),
             "name": "EverGro Purchasing Kit",
-            "description": "The official EverGro purchasing kit — includes premium groceries, wellness essentials, and unlocks your 8-level MLM income structure. One-time ₹7,200 purchase activates your account and referral link.",
-            "price": 7200.0, "mrp": 8999.0,
+            "description": "The official EverGro purchasing kit — includes premium groceries, wellness essentials, and unlocks your 8-level MLM income structure. One-time ₹7,499 purchase activates your account and referral link.",
+            "price": 7499.0, "mrp": 8999.0,
             "sku": "HMP-JOINING-7200",
             "category": "hamper", "brand": "EverGro",
             "gst_percent": 5, "stock": 5000,
@@ -213,12 +224,11 @@ async def seed_all(db):
             "created_at": now_iso(),
         })
     else:
-        # Rename old "EverGro Joining Kit" → "EverGro Purchasing Kit" (idempotent)
-        if joining.get("name") == "EverGro Joining Kit":
-            await db.products.update_one(
-                {"sku": "HMP-JOINING-7200"},
-                {"$set": {"name": "EverGro Purchasing Kit", "hamper_tier": "Purchasing"}},
-            )
+        # Force update price to ₹7,499 on every startup (idempotent)
+        await db.products.update_one(
+            {"sku": "HMP-JOINING-7200"},
+            {"$set": {"name": "EverGro Purchasing Kit", "hamper_tier": "Purchasing", "price": 7499.0}},
+        )
 
     # ============ Regular Products ============
     if await db.products.count_documents({"is_hamper": False}) == 0:
@@ -306,18 +316,25 @@ async def seed_all(db):
                 "created_at": now_iso(),
             })
 
-    if await db.faqs.count_documents({}) == 0:
-        faqs = [
-            {"question": "How does the plan work?", "answer": "Level 1: ₹1,200/member × 6 = ₹7,200 · Level 2: ₹400 × 36 = ₹14,400 · Level 3: ₹50 × 216 = ₹10,800 · Level 4: ₹300 × 1,296 = ₹3,88,800 · Level 5: ₹50 × 7,776 = ₹3,88,800 · Level 6: ₹200 × 46,656 = ₹93,31,200 · Level 7: ₹50 × 2,79,936 = ₹1,39,96,800 · Level 8: ₹100 × 16,79,616 = ₹16,79,61,600. Total potential ₹19,20,99,600."},
-            {"question": "When does income start?", "answer": "As soon as 3 of your direct referrals complete their ₹7,200 joining purchase."},
-            {"question": "How do I withdraw?", "answer": "You need 3 paid direct referrals AND approved KYC. Min ₹100. Processed within 48h."},
-            {"question": "What's the max team per layer?", "answer": "6 direct referrals per member. Beyond that, new refs must be under a different sponsor."},
-            {"question": "Can one phone have multiple accounts?", "answer": "Yes. Each account gets a unique random user code. On OTP login, pick which account to open."},
-            {"question": "What if I'm inactive?", "answer": "Accounts inactive for 180+ days are auto-disabled. Contact support to reactivate."},
-        ]
-        for i, f in enumerate(faqs):
-            f["id"] = str(uuid.uuid4()); f["sort_order"] = i; f["is_active"] = True
-            await db.faqs.insert_one(f)
+    # Force-refresh FAQ text on every startup (idempotent)
+    faqs_master = [
+        {"question": "What is EverGro eMart?", "answer": "EverGro eMart is a premium e-commerce platform combined with an 8-level MLM income plan. Purchase the ₹7,499 EverGro Kit, refer new members, and earn per-level commissions across your entire downline."},
+        {"question": "How does the MLM plan work?", "answer": "It's an 8-stage plan. You refer up to 6 direct members. Once 3 of them pay their ₹7,499 kit, your income activates. You then earn fixed level-wise commissions on EVERY paid member across 8 downline levels:\n\n• Level 1 — ₹1,200 × 6 members = ₹7,200\n• Level 2 — ₹400 × 36 members = ₹14,400\n• Level 3 — ₹50 × 216 members = ₹10,800\n• Level 4 — ₹300 × 1,296 members = ₹3,88,800\n• Level 5 — ₹50 × 7,776 members = ₹3,88,800\n• Level 6 — ₹200 × 46,656 members = ₹93,31,200\n• Level 7 — ₹50 × 2,79,936 members = ₹1,39,96,800\n• Level 8 — ₹100 × 16,79,616 members = ₹16,79,61,600\n\nTotal lifetime earning potential: ₹19,20,99,600."},
+        {"question": "How do I withdraw earnings?", "answer": "Minimum ₹100. Requires approved KYC and at least 3 paid direct referrals. Payouts processed to your registered bank account within 48 hours."},
+        {"question": "Is KYC required?", "answer": "Yes. To withdraw funds you must complete KYC (PAN + Aadhaar + bank details). Browsing and earning does not require KYC — only withdrawal does."},
+        {"question": "What is the joining amount?", "answer": "₹7,499 (one-time). Purchase the EverGro Purchasing Kit to activate your MLM account and unlock the referral link. This is a real-value grocery + wellness kit — not a fee."},
+        {"question": "Can one phone have multiple accounts?", "answer": "Yes. You can create unlimited accounts on the same phone number — each with a unique username and user code. On login, if the number has multiple accounts you'll pick which one to open. If only one, you're logged in directly."},
+        {"question": "What if I'm inactive?", "answer": "Accounts inactive for 180+ days are auto-disabled. Contact support to reactivate."},
+    ]
+    for i, f in enumerate(faqs_master):
+        await db.faqs.update_one(
+            {"question": f["question"]},
+            {"$set": {**f, "sort_order": i, "is_active": True, "id": str(uuid.uuid4())}},
+            upsert=True,
+        )
+    # Remove any stale FAQs whose question isn't in the master list
+    master_qs = [f["question"] for f in faqs_master]
+    await db.faqs.delete_many({"question": {"$nin": master_qs}})
 
     if await db.coupons.count_documents({}) == 0:
         await db.coupons.insert_one({
@@ -329,7 +346,7 @@ async def seed_all(db):
 
     if await db.sliders.count_documents({}) == 0:
         sliders = [
-            {"title": "8-Level Income Plan", "subtitle": "Earn up to ₹20.36 Cr from a single ₹7,200 kit", "image_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&q=80", "link": "/business-plan", "cta_label": "View Plan", "location": "landing_top", "sort_order": 1},
+            {"title": "8-Level Income Plan", "subtitle": "Earn up to ₹20.36 Cr from a single ₹7,499 kit", "image_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&q=80", "link": "/business-plan", "cta_label": "View Plan", "location": "landing_top", "sort_order": 1},
             {"title": "Refer 3 — Start Earning", "subtitle": "Income activates on your 3rd direct paid referral", "image_url": "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?w=1600&q=80", "link": "/register", "cta_label": "Join Now", "location": "landing_top", "sort_order": 2},
             {"title": "Premium Groceries, Genuine Income", "subtitle": "100% legal, transparent, no monthly fees", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600&q=80", "link": "/hampers", "cta_label": "Get the Kit", "location": "landing_top", "sort_order": 3},
             {"title": "Build Wealth With Your Network", "subtitle": "8 levels, 6 refs per layer, lifetime income", "image_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1600&q=80", "link": "/business-plan", "cta_label": "Learn More", "location": "landing_mid", "sort_order": 1},
@@ -342,7 +359,7 @@ async def seed_all(db):
 
     if await db.reels.count_documents({}) == 0:
         reels = [
-            {"title": "Unboxing the ₹7,200 Joining Kit", "video_url": "https://cdn.pixabay.com/video/2024/05/02/210073-941264636_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80", "description": "See what's inside", "location": "both", "sort_order": 1},
+            {"title": "Unboxing the ₹7,499 Joining Kit", "video_url": "https://cdn.pixabay.com/video/2024/05/02/210073-941264636_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80", "description": "See what's inside", "location": "both", "sort_order": 1},
             {"title": "How I Earned ₹50K in 30 Days", "video_url": "https://cdn.pixabay.com/video/2023/10/19/185393-877329524_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400&q=80", "description": "Real member story", "location": "both", "sort_order": 2},
             {"title": "Sharing Your Referral Link", "video_url": "https://cdn.pixabay.com/video/2024/04/05/207386_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&q=80", "description": "60-second demo", "location": "both", "sort_order": 3},
             {"title": "Inside Our Warehouse", "video_url": "https://cdn.pixabay.com/video/2020/02/28/32847-394089014_tiny.mp4", "thumbnail_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80", "description": "Quality hand-packed", "location": "both", "sort_order": 4},

@@ -161,7 +161,7 @@ async def log_audit(event: str, actor: Optional[dict] = None, target_id: Optiona
 @api.post("/auth/register")
 async def register(payload: UserCreate, request: Request = None):
     """Phase 2: Register creates a PENDING user. Account is fully activated only after
-    the joining hamper payment (₹7,200) is verified. Until then:
+    the joining hamper payment (₹7,499) is verified. Until then:
     - is_joining_paid = False
     - referral counts on sponsor NOT incremented
     - no commissions distributed
@@ -283,7 +283,7 @@ async def register(payload: UserCreate, request: Request = None):
                     metadata={"sponsor_code": sponsor["user_code"] if sponsor else None, "paid": False})
 
     # NOTE: Sponsor's direct_referrals_count is NOT incremented on registration.
-    # It is only incremented when the user's ₹7,200 joining payment is verified.
+    # It is only incremented when the user's ₹7,499 joining payment is verified.
 
     # Welcome / activation notification
     await db.notifications.insert_one({
@@ -370,8 +370,19 @@ async def login_with_code(payload: dict):
     return {"token": token, "user": public_user(user)}
 
 
+@api.get("/auth/phone-status")
+async def phone_status(phone: str):
+    """Public endpoint — check if a phone already has account(s) on it.
+    Used by Join Now to offer 'Login vs Re-entry' choice before sending OTP.
+    Returns count only (no PII)."""
+    if not phone or len(phone) < 6:
+        return {"exists": False, "count": 0}
+    n = await db.users.count_documents({"phone": phone})
+    return {"exists": n > 0, "count": n}
+
+
 @api.post("/auth/otp/send")
-async def send_otp(payload: OTPSendReq):
+async def send_otp(payload: OTPSendReq, request: Request):
     otp = gen_otp()
     expires = int(time.time()) + 300  # 5 min
     await db.otps.update_one(
@@ -380,7 +391,20 @@ async def send_otp(payload: OTPSendReq):
         upsert=True,
     )
     logger.info(f"[DEV-OTP] phone={payload.phone} otp={otp}")
-    # In dev mode we expose OTP in response so user can test easily
+    # Only expose OTP in response on non-production hosts (preview / localhost).
+    # On production, Firebase Phone Auth sends real SMS from the client. Backend fallback
+    # keeps a record for verification but does NOT leak the OTP in the response.
+    prod_hosts = (os.environ.get("PROD_HOSTS", "evergroemart.com,www.evergroemart.com")).split(",")
+    host = (request.headers.get("host") or "").split(":")[0].lower()
+    origin = (request.headers.get("origin") or "").lower()
+    fwd_host = (request.headers.get("x-forwarded-host") or "").split(":")[0].lower()
+    referer = (request.headers.get("referer") or "").lower()
+    is_prod = any(
+        ph.strip() and (ph.strip() in host or ph.strip() in origin or ph.strip() in fwd_host or ph.strip() in referer)
+        for ph in prod_hosts
+    )
+    if is_prod:
+        return {"ok": True, "message": "OTP sent successfully"}
     return {"ok": True, "message": "OTP sent successfully", "dev_otp": otp}
 
 
@@ -534,7 +558,7 @@ async def firebase_verify(payload: dict):
 @api.post("/mlm/re-entry")
 async def mlm_re_entry(payload: dict, user=Depends(get_user)):
     """Existing paid member creates a NEW MLM position (fresh referral code) under a DIFFERENT sponsor.
-    Cannot use the same sponsor as any of their existing positions. Kit purchase (₹7,200) required next.
+    Cannot use the same sponsor as any of their existing positions. Kit purchase (₹7,499) required next.
     Body: {"referral_code": "SPNSR001"}
     """
     if not user.get("is_joining_paid"):
@@ -627,7 +651,10 @@ async def user_dashboard(user=Depends(get_user)):
     pending_withdrawals = await db.withdrawals.count_documents({"user_id": user["id"], "status": "pending"})
     unread_notifications = await db.notifications.count_documents({"user_id": user["id"], "read": False})
     # commissions at current stage
-    direct_at_stage = await db.users.count_documents({"sponsor_user_id": user["id"], "joined_at_stage": user.get("current_stage", 1)})
+    cur_stage = user.get("current_stage", 1)
+    direct_at_stage = await db.users.count_documents({"sponsor_user_id": user["id"], "joined_at_stage": cur_stage})
+    # Correct stage commission from plan: LEVEL_COMMISSIONS is L1..L8 → stage N pays L{N}
+    stage_commission = LEVEL_COMMISSIONS[cur_stage - 1] if 1 <= cur_stage <= len(LEVEL_COMMISSIONS) else 0
     return {
         "user": public_user(user),
         "stats": {
@@ -636,6 +663,8 @@ async def user_dashboard(user=Depends(get_user)):
             "unread_notifications": unread_notifications,
             "stage_progress": direct_at_stage,
             "stage_required": 3,
+            "current_stage_commission": stage_commission,
+            "level_commissions": LEVEL_COMMISSIONS,
         },
     }
 
@@ -738,7 +767,7 @@ async def add_to_cart(payload: CartAdd, user=Depends(get_user)):
         if not is_hamper:
             raise HTTPException(
                 status_code=403,
-                detail="You must purchase the ₹7,200 Joining Kit before shopping regular products.",
+                detail="You must purchase the ₹7,499 Joining Kit before shopping regular products.",
             )
     else:
         # Already-joined users cannot re-purchase a joining hamper
@@ -820,9 +849,21 @@ async def clear_cart(user=Depends(get_user)):
 
 @api.get("/coupons/validate/{code}")
 async def validate_coupon(code: str):
-    c = await db.coupons.find_one({"code": code, "is_active": True}, {"_id": 0})
+    c = await db.coupons.find_one({"code": code.upper(), "is_active": True}, {"_id": 0})
     if not c:
         raise HTTPException(status_code=404, detail="Invalid coupon")
+    # Expiry check
+    if c.get("expires_at"):
+        try:
+            from datetime import datetime as _dt
+            exp = _dt.fromisoformat(c["expires_at"].replace("Z", "+00:00"))
+            if exp < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="Coupon expired")
+        except (ValueError, TypeError):
+            pass
+    # Usage limit check
+    if c.get("usage_limit") and c.get("used_count", 0) >= c["usage_limit"]:
+        raise HTTPException(status_code=400, detail="Coupon usage limit reached")
     return c
 
 
@@ -834,7 +875,8 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
 
     # Fetch delivery config once
     site = await db.settings.find_one({"_key": "site"}, {"_id": 0}) or {}
-    delivery_charge = site.get("delivery_charge", 49)
+    delivery_enabled = site.get("delivery_charge_enabled", True)
+    delivery_charge = site.get("delivery_charge", 49) if delivery_enabled else 0
     free_threshold = site.get("free_shipping_threshold", 999)
     gst_percent_default = site.get("gst_percent", 5)
 
@@ -854,7 +896,7 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         if not user.get("is_joining_paid", False) and not p.get("is_hamper", False):
             raise HTTPException(
                 status_code=403,
-                detail="Complete your ₹7,200 Joining Kit purchase before ordering other products.",
+                detail="Complete your ₹7,499 Joining Kit purchase before ordering other products.",
             )
         if user.get("is_joining_paid", False) and p.get("is_hamper", False):
             raise HTTPException(status_code=400, detail="You have already purchased the joining kit.")
@@ -1437,7 +1479,7 @@ async def set_purchase_kit_content(payload: dict, admin=Depends(require_admin)):
 def _default_purchase_kit_content() -> dict:
     return {
         "hero_title": "The EverGro Purchasing Kit",
-        "hero_subtitle": "One-time ₹7,200 · Premium groceries + wellness + 8-Level income unlock",
+        "hero_subtitle": "One-time ₹7,499 · Premium groceries + wellness + 8-Level income unlock",
         "hero_image": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&q=80",
         "highlight_stat": "₹19.2 Cr Lifetime Potential",
         "features": [
@@ -1451,7 +1493,7 @@ def _default_purchase_kit_content() -> dict:
             {"icon": "💰", "title": "₹500 Store Credit", "desc": "Instant credit for your next purchase"},
         ],
         "how_it_works": [
-            {"step": 1, "title": "Purchase Kit", "desc": "Order the ₹7,200 kit — pay via Cashfree/UPI/Card"},
+            {"step": 1, "title": "Purchase Kit", "desc": "Order the ₹7,499 kit — pay via Cashfree/UPI/Card"},
             {"step": 2, "title": "Get Referral Code", "desc": "Unique code unlocks after payment confirms"},
             {"step": 3, "title": "Refer 6 Direct", "desc": "Share your code, hit 3 refs to activate income"},
             {"step": 4, "title": "Earn From 8 Levels", "desc": "Every downline purchase pays you L1–L8 commissions"},
@@ -1651,6 +1693,113 @@ async def admin_update_product(product_id: str, payload: dict, _=Depends(require
 @api.delete("/admin/products/{product_id}")
 async def admin_delete_product(product_id: str, _=Depends(require_admin)):
     await db.products.update_one({"id": product_id}, {"$set": {"is_active": False}})
+    return {"ok": True}
+
+
+# ==================== CATEGORIES ====================
+@api.get("/categories")
+async def list_categories():
+    items = await db.categories.find({"is_active": True}, {"_id": 0}).sort("sort_order", 1).to_list(200)
+    return items
+
+
+@api.get("/admin/categories")
+async def admin_list_categories(_=Depends(require_admin)):
+    items = await db.categories.find({}, {"_id": 0}).sort("sort_order", 1).to_list(500)
+    return items
+
+
+@api.post("/admin/categories")
+async def admin_create_category(payload: dict, admin=Depends(require_admin)):
+    if not payload.get("name"):
+        raise HTTPException(status_code=400, detail="name required")
+    slug = payload.get("slug") or payload["name"].lower().replace(" ", "-").replace("&", "and")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": payload["name"],
+        "slug": slug,
+        "description": payload.get("description", ""),
+        "image_url": payload.get("image_url", ""),
+        "sort_order": payload.get("sort_order", 0),
+        "is_active": payload.get("is_active", True),
+        "created_at": now_iso(),
+    }
+    await db.categories.insert_one(doc)
+    doc.pop("_id", None)
+    await log_audit("category_create", actor=admin, target_label=doc["name"])
+    return doc
+
+
+@api.put("/admin/categories/{category_id}")
+async def admin_update_category(category_id: str, payload: dict, admin=Depends(require_admin)):
+    payload.pop("_id", None)
+    payload.pop("id", None)
+    await db.categories.update_one({"id": category_id}, {"$set": payload})
+    c = await db.categories.find_one({"id": category_id}, {"_id": 0})
+    await log_audit("category_update", actor=admin, target_label=c.get("name") if c else category_id)
+    return c
+
+
+@api.delete("/admin/categories/{category_id}")
+async def admin_delete_category(category_id: str, admin=Depends(require_admin)):
+    c = await db.categories.find_one({"id": category_id}, {"_id": 0})
+    await db.categories.delete_one({"id": category_id})
+    await log_audit("category_delete", actor=admin, target_label=c.get("name") if c else category_id)
+    return {"ok": True}
+
+
+# ==================== COUPONS / PROMO CODES ====================
+@api.get("/admin/coupons")
+async def admin_list_coupons(_=Depends(require_admin)):
+    items = await db.coupons.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return items
+
+
+@api.post("/admin/coupons")
+async def admin_create_coupon(payload: dict, admin=Depends(require_admin)):
+    if not payload.get("code"):
+        raise HTTPException(status_code=400, detail="code required")
+    code = payload["code"].upper().strip()
+    if await db.coupons.find_one({"code": code}):
+        raise HTTPException(status_code=400, detail="Code already exists")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "code": code,
+        "description": payload.get("description", ""),
+        "discount_percent": int(payload.get("discount_percent", 0) or 0),
+        "discount_amount": int(payload.get("discount_amount", 0) or 0),
+        "min_order": int(payload.get("min_order", 0) or 0),
+        "max_discount": int(payload.get("max_discount", 0) or 0),
+        "usage_limit": int(payload.get("usage_limit", 0) or 0),  # 0 = unlimited
+        "used_count": 0,
+        "expires_at": payload.get("expires_at"),  # ISO string or null
+        "is_active": bool(payload.get("is_active", True)),
+        "created_at": now_iso(),
+    }
+    await db.coupons.insert_one(doc)
+    doc.pop("_id", None)
+    await log_audit("coupon_create", actor=admin, target_label=code)
+    return doc
+
+
+@api.put("/admin/coupons/{coupon_id}")
+async def admin_update_coupon(coupon_id: str, payload: dict, admin=Depends(require_admin)):
+    payload.pop("_id", None)
+    payload.pop("id", None)
+    payload.pop("used_count", None)
+    if "code" in payload:
+        payload["code"] = payload["code"].upper().strip()
+    await db.coupons.update_one({"id": coupon_id}, {"$set": payload})
+    c = await db.coupons.find_one({"id": coupon_id}, {"_id": 0})
+    await log_audit("coupon_update", actor=admin, target_label=c.get("code") if c else coupon_id)
+    return c
+
+
+@api.delete("/admin/coupons/{coupon_id}")
+async def admin_delete_coupon(coupon_id: str, admin=Depends(require_admin)):
+    c = await db.coupons.find_one({"id": coupon_id}, {"_id": 0})
+    await db.coupons.delete_one({"id": coupon_id})
+    await log_audit("coupon_delete", actor=admin, target_label=c.get("code") if c else coupon_id)
     return {"ok": True}
 
 
@@ -2098,8 +2247,10 @@ async def get_terms():
 @api.get("/site/delivery-config")
 async def get_delivery_config():
     s = await db.settings.find_one({"_key": "site"}, {"_id": 0})
+    enabled = s.get("delivery_charge_enabled", True) if s else True
     return {
-        "delivery_charge": s.get("delivery_charge", 49) if s else 49,
+        "delivery_charge": (s.get("delivery_charge", 49) if s else 49) if enabled else 0,
+        "delivery_charge_enabled": enabled,
         "free_shipping_threshold": s.get("free_shipping_threshold", 999) if s else 999,
         "gst_percent": s.get("gst_percent", 5) if s else 5,
     }

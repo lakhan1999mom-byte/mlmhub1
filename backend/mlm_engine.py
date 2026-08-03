@@ -6,7 +6,7 @@ import uuid
 MAX_LEVELS = 8
 MAX_DIRECT_REFERRALS = 6  # 6-per-layer rule
 MIN_DIRECT_PAID_FOR_INCOME = 3  # income starts when 3 direct members purchase
-JOINING_AMOUNT = 7200.0
+JOINING_AMOUNT = 7499.0
 
 # Per-member commission at each level (index 0 = Level 1)
 LEVEL_COMMISSIONS = [1200, 400, 50, 300, 50, 200, 50, 100]

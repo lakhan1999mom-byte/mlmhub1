@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 12 verification — 12/14 backend pytest tests PASS (2 skipped as k8s ingress limitation, not a code bug) and all targeted frontend UI checks PASS after fixing 1 CRITICAL bug in Dashboard.jsx. Backend deltas verified: (a) /site/settings.phone='+91-9928525889', whatsapp='+919928525889', notification_bar_text ends with '₹7,499'. (b) GET /products?is_hamper=true → 'EverGro Purchasing Kit' price=7499.0. (c) GET /site/faqs contains new joining-amount FAQ (₹7,499) and MLM-plan FAQ with Level 1..Level 8 breakdown incl. ₹1,200 × 6 line. (d) /auth/phone-status?phone=9876500099 → {exists:true,count:2}; ?phone=8888800000 → {exists:false,count:0}. (e) /auth/otp/send: dev_otp present on plain preview call; ABSENT when Referer=https://evergroemart.com/join-now. Origin & X-Forwarded-Host client-set headers are rewritten by the preview k8s ingress before reaching backend — cannot be tested from outside (test skipped, not a code bug; production Host will trigger the same guard because the deployed domain IS evergroemart.com). (f) /categories public list works; /admin/categories full CRUD (POST auto-slug, PUT, DELETE) works. (g) /admin/coupons CRUD + /coupons/validate happy path works; expired coupon → 400 'Coupon expired'; usage-limit-exhausted → 400 'usage limit reached' (validated by writing used_count directly to mongo since both POST/PUT strip used_count). (h) /site/delivery-config includes delivery_charge_enabled; PUT /admin/settings/site {delivery_charge_enabled:false} → GET returns {delivery_charge:0, delivery_charge_enabled:false}; restored to true after test. (i) /users/dashboard as test1_1785761123 → stats.current_stage_commission=1200, stats.level_commissions=[1200,400,50,300,50,200,50,100]. Frontend deltas verified on preview: /join-now with 9876500099 (2 accts) reveals join-existing-choice ('This number already has 2 accounts'); join-choice-login → /login?phone=9876500099. Fresh phone 9998887789 → OTP step directly (choice hidden). Footer on / shows +91-9928525889, NO Google Play / App Store links / links. Contact page shows +91-9928525889. Homepage FAQ 'How does the MLM plan work?' expands to show Level 1..Level 8 commission table with 1,200 × 6 through Level 8 (₹100) and total ₹19,20,99,600. Admin routes: /admin/categories create card with correct slug + delete works; /admin/products Add-Product modal shows Category dropdown populated with ['General','Hamper','Groceries'] (real API-fed list, not free text); /admin/coupons New Code modal saves and card appears; /admin/settings has delivery-charge-enabled-toggle with clear label 'Charge delivery fee to customers · When OFF, all orders get FREE shipping regardless of amount.'. /dashboard as test1_1785761123 → 'STAGE COMMISSION' displays ₹1,200 for Stage 1 (after Dashboard.jsx runtime-crash fix).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      { "endpoint": "/auth/otp/send", "issue": "Origin and X-Forwarded-Host client-set headers are rewritten/stripped by the preview k8s ingress before reaching backend, so those two prod-detection paths cannot be exercised from outside the cluster. Code inspection (server.py:397-407) shows all four sources (host/origin/x-forwarded-host/referer) are checked correctly, and the Referer path was verified working. No fix required — flagged for awareness." }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "user/Dashboard.jsx (lines 55-56)",
+        "issue": "FIXED: ReferenceError 'dashboard is not defined' — code read `dashboard?.stats?.level_commissions` / `dashboard?.stats?.current_stage_commission` but the state variable is named `stats` (see line 23 `setStats(data.stats)`). This crashed the entire /dashboard page with an Uncaught runtime error, blocking THE PRIMARY iteration-12 acceptance criterion (Stage 1 commission = ₹1,200). Replaced with `stats?.level_commissions` / `stats?.current_stage_commission`.",
+        "selector": "[data-testid=\"dashboard-stage-card\"]",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration12_features.py",
+    "/app/test_reports/pytest/iter12_results.xml"
+  ],
+  "action_items": [
+    "Confirm the Dashboard.jsx fix (variable rename dashboard?.stats → stats) is acceptable — it was a straightforward typo blocking the whole page.",
+    "Optional: strip the still-present ₹7,200 references from /site/settings.terms_content (section 2 + section 3) — the terms document was not updated to the new joining fee of ₹7,499. Not part of the iteration 12 acceptance list but likely a follow-up.",
+    "Optional hardening: /admin/coupons POST accepts `used_count` but ignores it. Consider surfacing an error when a non-zero used_count is sent, or better — provide an admin PUT path that ALLOWS bumping used_count (currently PUT also strips it). Testing 'usage limit reached' required a direct mongo write."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 2296 lines (was 2140 in iter11) — well past the 700-line guideline. Split into routers before more features land.",
+    "Dashboard.jsx variable naming inconsistency (dashboard vs stats) already crashed the page once — audit other pages for similar stale-refactor leftovers.",
+    "/admin/coupons PUT strips used_count silently. Fine for accidental override protection, but there is no supported admin path to reset a bad used_count value. Consider a dedicated /admin/coupons/{id}/reset-usage endpoint.",
+    "/auth/otp/send prod-detection uses substring `in` on 4 request-header sources — good defense-in-depth, but consider using exact host comparison after stripping scheme/port to avoid a domain like 'notevergroemart.com.example' from ever slipping through (currently the check is `'evergroemart.com' in host`).",
+    "seed.py force-refreshes FAQs on startup, which is great for consistency but also means admin-edited FAQ answers will be nuked on next backend restart. Consider gating this to a one-shot migration flag."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/user/Dashboard.jsx (fixed dashboard→stats variable reference on lines 55-56)",
+    "/app/backend/tests/test_iteration12_features.py (new — 14 tests)"
+  ],
+  "success_rate": { "backend": "12/12 (100%, 2 skipped due to ingress)", "frontend": "10/10 targeted checks" },
+  "test_credentials": "admin@evergroemart.com/Admin@123 and test1_1785761123/NewPass@123 both work as documented in /app/memory/test_credentials.md.",
+  "seed_data_creation": "Created and CLEANED UP three coupons prefixed ITER12_ (happy, ITER12_EXP_, ITER12_USED_) and one category prefixed ITER12_Groceries_ — teardown_module in test file deletes all of them via /admin DELETE endpoints. UI flow also created + deleted one category ITER12UI<ts>. No residual test data expected in mongo after this run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 12 delivered: new phone number, joining kit ₹7,499, FAQ updates, phone-status endpoint, prod-host-gated dev_otp, categories admin+public, coupons admin+validate, delivery-charge master toggle, corrected Stage-1 commission on dashboard, existing-account choice on Join Now. Dashboard.jsx had a rename-leftover ReferenceError that has been fixed inline by the testing agent — main agent should keep it. IMPORTANT selectors: JoinNow → join-phone-input / join-send-otp-btn / join-existing-choice / join-choice-login / join-choice-reentry / join-choice-back / join-otp-input. Admin Categories → add-category-btn / cat-name-input / cat-slug-input / save-category-btn / category-card-{slug} / edit-cat-{slug} / del-cat-{slug}. Admin Settings → delivery-charge-enabled-toggle. Login identifier field uses placeholder 'you@example.com or 9999999999' — no type=email, use placeholder or role selector. The k8s ingress on the preview URL REWRITES client-supplied Origin and X-Forwarded-Host headers, so only Referer-based prod-host detection is externally testable; production Host header will drive detection in the real deployment.",
+  "rca of the issue": "Dashboard runtime crash — variable naming refactor from `dashboard.stats.*` to a top-level `stats` state was incomplete: lines 55-56 still referenced the removed `dashboard` identifier. React rendered the component, JS hit `dashboard?.stats?.level_commissions`, ReferenceError bubbled to the ErrorBoundary and the entire page rendered blank with 'Uncaught runtime errors'. Reproduction: login as any joined user → navigate to /dashboard → see the 'dashboard is not defined' overlay. Fix: replace `dashboard?.stats?.level_commissions` with `stats?.level_commissions` and `dashboard?.stats?.current_stage_commission` with `stats?.current_stage_commission`. Verified post-fix: STAGE COMMISSION card renders ₹1,200 for Stage 1 user EG000043."
+}

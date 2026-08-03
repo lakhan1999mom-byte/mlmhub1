@@ -79,7 +79,7 @@ export default function CompensationPlan() {
   const shareWhatsApp = () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
     const text = encodeURIComponent(
-      `🌱 EverGro eMart — 8-Level Income Plan\n\nOne-time ₹7,200 purchase → earn from 8 levels.\nTotal potential: ₹19,20,99,600\n\nView plan: ${url}`
+      `🌱 EverGro eMart — 8-Level Income Plan\n\nOne-time ₹7,499 purchase → earn from 8 levels.\nTotal potential: ₹19,20,99,600\n\nView plan: ${url}`
     );
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
@@ -115,7 +115,7 @@ export default function CompensationPlan() {
         <span className="text-[#84CC16]">₹{TOTAL_POTENTIAL.toLocaleString('en-IN')}</span>
       </h1>
       <p className="text-base md:text-lg text-[#334155] mb-6 max-w-3xl">
-        One-time ₹{KIT_PRICE.toLocaleString('en-IN')} purchasing kit. Every downline member's ₹7,200 purchase generates a fixed commission at each of 8 levels. Income starts when your {MIN_PAID_DIRECTS_FOR_INCOME}rd direct referral pays.
+        One-time ₹{KIT_PRICE.toLocaleString('en-IN')} purchasing kit. Every downline member's ₹7,499 purchase generates a fixed commission at each of 8 levels. Income starts when your {MIN_PAID_DIRECTS_FOR_INCOME}rd direct referral pays.
       </p>
 
       {/* Share / Download row */}
@@ -164,7 +164,7 @@ export default function CompensationPlan() {
         <div className="card-soft p-5" data-testid="plan-stat-min-refs">
           <div className="text-xs uppercase text-[#65A30D] font-semibold">Income Starts After</div>
           <div className="font-numbers text-3xl font-bold text-[#064E3B] mt-1">{MIN_PAID_DIRECTS_FOR_INCOME} Paid Refs</div>
-          <div className="text-xs text-[#64748B] mt-1">Your {MIN_PAID_DIRECTS_FOR_INCOME}rd direct member pays ₹7,200</div>
+          <div className="text-xs text-[#64748B] mt-1">Your {MIN_PAID_DIRECTS_FOR_INCOME}rd direct member pays ₹7,499</div>
         </div>
       </div>
 
@@ -205,7 +205,7 @@ export default function CompensationPlan() {
       </div>
 
       <p className="text-xs md:text-sm text-[#64748B] mt-6" data-testid="plan-disclaimer">
-        {TOTAL_POTENTIAL_WORDS}. Calculated on 6 members per level (theoretical maximum). Actual income depends on your team's growth and their ₹7,200 purchases. Withdrawals require KYC approval and minimum {MIN_PAID_DIRECTS_FOR_INCOME} paid direct referrals.
+        {TOTAL_POTENTIAL_WORDS}. Calculated on 6 members per level (theoretical maximum). Actual income depends on your team's growth and their ₹7,499 purchases. Withdrawals require KYC approval and minimum {MIN_PAID_DIRECTS_FOR_INCOME} paid direct referrals.
       </p>
     </div>
   );

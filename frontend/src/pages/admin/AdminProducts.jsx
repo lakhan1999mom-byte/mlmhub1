@@ -11,12 +11,14 @@ const blank = {
 
 export default function AdminProducts() {
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
   const [contentInput, setContentInput] = useState("");
 
   const load = () => api.get("/products").then(({ data }) => setItems(data));
-  useEffect(() => { load(); }, []);
+  const loadCats = () => api.get("/admin/categories").then(({ data }) => setCategories(data));
+  useEffect(() => { load(); loadCats(); }, []);
 
   const open = (p) => setEdit(p ? {...p} : {...blank});
   const close = () => setEdit(null);
@@ -82,7 +84,18 @@ export default function AdminProducts() {
             <div className="grid grid-cols-2 gap-3">
               <input className="input-soft" type="number" placeholder="Price" value={edit.price} onChange={(e) => setEdit({...edit, price: +e.target.value})}/>
               <input className="input-soft" type="number" placeholder="MRP" value={edit.mrp} onChange={(e) => setEdit({...edit, mrp: +e.target.value})}/>
-              <input className="input-soft" placeholder="Category" value={edit.category} onChange={(e) => setEdit({...edit, category: e.target.value})}/>
+              <select
+                className="input-soft"
+                value={edit.category}
+                onChange={(e) => setEdit({...edit, category: e.target.value})}
+                data-testid="product-category-select"
+              >
+                <option value="general">General</option>
+                <option value="hamper">Hamper</option>
+                {categories.filter((c) => c.is_active).map((c) => (
+                  <option key={c.id} value={c.slug}>{c.name}</option>
+                ))}
+              </select>
               <input className="input-soft" placeholder="Brand" value={edit.brand} onChange={(e) => setEdit({...edit, brand: e.target.value})}/>
               <input className="input-soft" type="number" placeholder="Stock" value={edit.stock} onChange={(e) => setEdit({...edit, stock: +e.target.value})}/>
               <input className="input-soft" type="number" placeholder="GST %" value={edit.gst_percent} onChange={(e) => setEdit({...edit, gst_percent: +e.target.value})}/>

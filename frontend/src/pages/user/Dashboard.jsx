@@ -33,9 +33,9 @@ export default function Dashboard() {
     setReentryBusy(true);
     try {
       const { data } = await api.post("/mlm/re-entry", { referral_code: reentryCode.trim().toUpperCase() });
-      // Switch to the new position's token → user must pay ₹7,200 to activate it
+      // Switch to the new position's token → user must pay ₹7,499 to activate it
       localStorage.setItem("evergro_token", data.token);
-      toast.success(`New position ${data.new_position.user_code} created! Pay ₹7,200 to activate.`);
+      toast.success(`New position ${data.new_position.user_code} created! Pay ₹7,499 to activate.`);
       window.location.href = "/hampers";
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Re-entry failed");
@@ -51,8 +51,9 @@ export default function Dashboard() {
   if (!user) return null;
 
   const progressPct = Math.min(((stats?.stage_progress || 0) / (stats?.stage_required || 3)) * 100, 100);
-  const stageCommissions = [500, 0, 1500, 0, 5000, 0, 15000, 50000];
-  const nextCommission = stageCommissions[(user.current_stage - 1)] || 0;
+  // Level commissions per plan: L1..L8. Stage N pays L{N}. Backend also returns this in stats.
+  const stageCommissions = stats?.level_commissions || [1200, 400, 50, 300, 50, 200, 50, 100];
+  const nextCommission = stats?.current_stage_commission ?? (stageCommissions[(user.current_stage - 1)] || 0);
 
   return (
     <div className="space-y-6" data-testid="user-dashboard">
@@ -216,7 +217,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
             <div>
               <h3 className="font-display font-bold text-xl text-[#064E3B]">Start a New MLM Position</h3>
-              <p className="text-sm text-[#64748B] mt-1">Create an additional position under a DIFFERENT sponsor. You'll need to pay ₹7,200 again to activate it. All positions share your login credentials.</p>
+              <p className="text-sm text-[#64748B] mt-1">Create an additional position under a DIFFERENT sponsor. You'll need to pay ₹7,499 again to activate it. All positions share your login credentials.</p>
             </div>
             <div>
               <label className="text-sm font-semibold text-[#064E3B]">Sponsor's Referral Code</label>

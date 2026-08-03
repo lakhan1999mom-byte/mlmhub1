@@ -54,17 +54,10 @@ export default function Footer({ site }) {
         <div>
           <h4 className="text-white font-display font-semibold mb-4">Contact</h4>
           <ul className="space-y-3 text-sm text-white/70">
-            <li className="flex items-start gap-2"><Phone className="w-4 h-4 mt-0.5 text-[#FBBF24]"/> {s.phone || "+91-9876543210"}</li>
+            <li className="flex items-start gap-2"><Phone className="w-4 h-4 mt-0.5 text-[#FBBF24]"/> {s.phone || "+91-9928525889"}</li>
             <li className="flex items-start gap-2"><Mail className="w-4 h-4 mt-0.5 text-[#FBBF24]"/> {s.email || "support@evergroemart.com"}</li>
             <li className="flex items-start gap-2"><MapPin className="w-4 h-4 mt-0.5 text-[#FBBF24]"/> {s.address || "India"}</li>
           </ul>
-          <div className="mt-6">
-            <div className="text-xs uppercase tracking-wider text-white/50 mb-2">Download App</div>
-            <div className="flex gap-2">
-              <button className="px-3 py-2 bg-white/10 rounded-lg text-xs hover:bg-white/20" data-testid="footer-android-btn">Google Play</button>
-              <button className="px-3 py-2 bg-white/10 rounded-lg text-xs hover:bg-white/20" data-testid="footer-ios-btn">App Store</button>
-            </div>
-          </div>
         </div>
       </div>
       <div className="border-t border-white/10">

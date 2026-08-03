@@ -146,14 +146,14 @@ export default function Landing() {
             <div className="text-xs uppercase tracking-widest font-semibold text-[#84CC16] mb-2">8-Level Income Plan</div>
             <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white">Earn Continuously From 8 Levels</h2>
             <p className="text-white/70 mt-3 max-w-2xl mx-auto text-sm md:text-base">
-              One-time ₹7,200 purchase • Refer up to 6 direct members • Earn from every downline level.
+              One-time ₹7,499 purchase • Refer up to 6 direct members • Earn from every downline level.
             </p>
           </div>
 
           {/* Plan Overview flow — 4 steps */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10" data-testid="plan-overview-flow">
             {[
-              { n: 1, title: "Purchase Kit", sub: "₹7,200 One-Time", icon: "🛒" },
+              { n: 1, title: "Purchase Kit", sub: "₹7,499 One-Time", icon: "🛒" },
               { n: 2, title: "Get Referral Code", sub: "Your unique ID", icon: "🔗" },
               { n: 3, title: "Refer 6 Direct", sub: "Max 6 per member", icon: "👥" },
               { n: 4, title: "Team Refers Too", sub: "Earn continuously", icon: "🌱" },
@@ -238,7 +238,7 @@ export default function Landing() {
             <div className="text-xs uppercase tracking-widest font-semibold text-[#84CC16] mb-3">Terms & Conditions</div>
             <ul className="space-y-2 text-sm text-white/80">
               <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> The above income is calculated on the basis of 6 members per level.</li>
-              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> Your income will start from the time <strong className="text-[#FBBF24]">3 of your direct members</strong> make the ₹7,200 purchase.</li>
+              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> Your income will start from the time <strong className="text-[#FBBF24]">3 of your direct members</strong> make the ₹7,499 purchase.</li>
               <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> No monthly fees, no hidden charges — 100% transparent plan.</li>
               <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> Unlimited income potential with lifetime opportunity.</li>
             </ul>
