@@ -50,15 +50,73 @@ export default function Checkout() {
     }
   };
 
-  const loadEasebuzzScript = () =>
-    new Promise((resolve) => {
-      if (window.EasebuzzCheckout) return resolve(true);
+  const startPayment = async (orderId) => {
+    // Check active provider
+    const { data: pp } = await api.get("/site/payment-provider");
+
+    if (pp.provider === "cashfree" && pp.cashfree_active) {
+      // Cashfree flow
+      const { data: cf } = await api.post("/payments/cashfree/initiate", { order_id: orderId });
+      // Load Cashfree SDK
+      await new Promise((resolve) => {
+        if (window.Cashfree) return resolve();
+        const s = document.createElement("script");
+        s.src = cf.env === "prod"
+          ? "https://sdk.cashfree.com/js/v3/cashfree.js"
+          : "https://sdk.cashfree.com/js/v3/cashfree.js";
+        s.onload = resolve; s.onerror = resolve;
+        document.body.appendChild(s);
+      });
+      // eslint-disable-next-line new-cap
+      const cashfree = window.Cashfree({ mode: cf.env === "prod" ? "production" : "sandbox" });
+      cashfree.checkout({
+        paymentSessionId: cf.payment_session_id,
+        redirectTarget: "_modal",
+      }).then(async () => {
+        try {
+          const { data: verify } = await api.post("/payments/cashfree/verify", { order_id: orderId });
+          if (verify.paid) {
+            toast.success("Payment successful! Order confirmed.");
+            await fetchCart();
+            await refresh();
+            nav("/orders");
+          } else {
+            toast.error("Payment not completed");
+          }
+        } catch (e) {
+          toast.error(e?.response?.data?.detail || "Verification failed");
+        }
+      });
+      return;
+    }
+
+    // Easebuzz fallback
+    const { data: ez } = await api.post("/payments/easebuzz/initiate", { order_id: orderId });
+    await new Promise((resolve) => {
+      if (window.EasebuzzCheckout) return resolve();
       const s = document.createElement("script");
       s.src = "https://ebz-static.s3.ap-south-1.amazonaws.com/easecheckout/easebuzz-checkout.js";
-      s.onload = () => resolve(true);
-      s.onerror = () => resolve(false);
+      s.onload = resolve; s.onerror = resolve;
       document.body.appendChild(s);
     });
+    // eslint-disable-next-line new-cap
+    const checkout = new window.EasebuzzCheckout(ez.key, ez.env);
+    checkout.initiatePayment({
+      access_key: ez.access_key,
+      onResponse: async (resp) => {
+        try {
+          const { data: verify } = await api.post("/payments/easebuzz/verify", resp);
+          if (verify.paid) {
+            toast.success("Payment successful!");
+            await fetchCart();
+            await refresh();
+            nav("/orders");
+          } else { toast.error("Payment failed"); }
+        } catch (e) { toast.error(e?.response?.data?.detail || "Verification failed"); }
+      },
+      theme: "#65A30D",
+    });
+  };
 
   const placeOrder = async () => {
     if (!addr.line1 || !addr.city || !addr.pincode) {
@@ -72,39 +130,10 @@ export default function Checkout() {
         items: itemsPayload,
         address: addr,
         coupon_code: appliedCoupon?.code || null,
-        payment_method: "easebuzz",
+        payment_method: "gateway",
       });
       const order = createRes.order;
-
-      // Get Easebuzz access_key
-      const { data: ez } = await api.post("/payments/easebuzz/initiate", { order_id: order.id });
-
-      const ok = await loadEasebuzzScript();
-      if (!ok) {
-        toast.error("Could not load payment gateway. Try again.");
-        return;
-      }
-      // eslint-disable-next-line no-undef
-      const checkout = new window.EasebuzzCheckout(ez.key, ez.env);
-      checkout.initiatePayment({
-        access_key: ez.access_key,
-        onResponse: async (resp) => {
-          try {
-            const { data: verify } = await api.post("/payments/easebuzz/verify", resp);
-            if (verify.paid) {
-              toast.success("Payment successful! Order confirmed.");
-              await fetchCart();
-              await refresh();
-              nav("/orders");
-            } else {
-              toast.error("Payment failed or cancelled");
-            }
-          } catch (err) {
-            toast.error(err?.response?.data?.detail || "Payment verification failed");
-          }
-        },
-        theme: "#65A30D",
-      });
+      await startPayment(order.id);
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Checkout failed");
     } finally { setBusy(false); }

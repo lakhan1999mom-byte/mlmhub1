@@ -98,7 +98,7 @@ export default function Navbar({ siteSettings }) {
             ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Link to="/login" className="btn-outline" data-testid="navbar-login-link">Login</Link>
-                <Link to="/register" className="btn-primary" data-testid="navbar-register-link">Join Free</Link>
+                <Link to="/join-now" className="btn-primary" data-testid="navbar-register-link">Join Now</Link>
               </div>
             )}
             <button className="lg:hidden p-2" onClick={() => setMobile(!mobile)} data-testid="mobile-menu-btn">

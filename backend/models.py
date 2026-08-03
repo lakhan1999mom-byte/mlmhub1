@@ -23,6 +23,7 @@ class UserCreate(Base):
     email: EmailStr
     phone: str
     password: str
+    username: Optional[str] = None  # Instagram-style unique handle
     referral_code: Optional[str] = None  # sponsor's code
     terms_accepted: bool = False
 

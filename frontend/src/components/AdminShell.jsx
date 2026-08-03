@@ -17,6 +17,7 @@ const items = [
   { to: "/admin/reels", icon: Film, label: "Reels", perm: "*" },
   { to: "/admin/brands", icon: Award, label: "Brand Logos", perm: "*" },
   { to: "/admin/testimonials", icon: MessageCircle, label: "Testimonials", perm: "*" },
+  { to: "/admin/payments", icon: LayoutDashboard, label: "Payment Gateway", perm: "*" },
   { to: "/admin/audit-logs", icon: ScrollText, label: "Audit Logs", perm: "*" },
   { to: "/admin/settings", icon: Settings, label: "Settings", perm: "*" },
 ];

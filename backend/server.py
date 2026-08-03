@@ -84,8 +84,9 @@ def public_user(u: dict) -> dict:
     return {
         "id": u.get("id"),
         "user_code": u.get("user_code"),
+        "username": u.get("username"),
         "name": u.get("name"),
-        "email": u.get("email"),
+        "email": u.get("public_email") or u.get("email"),  # display the user-facing email
         "phone": u.get("phone"),
         "role": u.get("role"),
         "sponsor_id": u.get("sponsor_id"),
@@ -170,8 +171,34 @@ async def register(payload: UserCreate, request: Request = None):
     if not payload.terms_accepted:
         raise HTTPException(status_code=400, detail="You must accept the Terms & Conditions")
 
-    if await db.users.find_one({"email": payload.email}):
-        raise HTTPException(status_code=400, detail="Email already registered")
+    # Username handling (Instagram-style unique handle)
+    username = None
+    if getattr(payload, "username", None):
+        username = str(payload.username).strip().lower()
+        if len(username) < 3 or len(username) > 30:
+            raise HTTPException(status_code=400, detail="Username must be 3-30 characters")
+        if not all(c.isalnum() or c in "._-" for c in username):
+            raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, . _ -")
+        if await db.users.find_one({"username": username}, {"_id": 1}):
+            raise HTTPException(status_code=400, detail="Username already taken")
+
+    # Email — allow re-use of same email under new username by internal-suffixing
+    original_email = payload.email
+    email_to_store = original_email
+    existing_email = await db.users.find_one({"email": email_to_store})
+    if existing_email:
+        # If no username provided, block (backwards-compatible for old flows).
+        if not username:
+            raise HTTPException(status_code=400, detail="Email already registered. Choose a username to create an additional account.")
+        # Internal suffix keeps the login identifier unique in DB while user sees original email
+        local, _, domain = original_email.partition("@")
+        suffix_seq = 2
+        while True:
+            candidate = f"{local}+re{suffix_seq}@{domain}"
+            if not await db.users.find_one({"email": candidate}, {"_id": 1}):
+                email_to_store = candidate
+                break
+            suffix_seq += 1
 
     sponsor = None
     if payload.referral_code:
@@ -215,8 +242,10 @@ async def register(payload: UserCreate, request: Request = None):
     user_doc = {
         "id": str(uuid.uuid4()),
         "user_code": user_code,
+        "username": username,
+        "public_email": original_email,  # what the user sees / logs in with (unique in real usage)
         "name": payload.name,
-        "email": payload.email,
+        "email": email_to_store,
         "phone": payload.phone,
         "password_hash": hash_password(payload.password),
         "role": "user",
@@ -274,17 +303,26 @@ async def register(payload: UserCreate, request: Request = None):
 
 @api.post("/auth/login")
 async def login(payload: UserLogin):
-    # Email: still unique → direct lookup. Phone: may have multiple accounts.
-    if "@" in payload.identifier:
-        user = await db.users.find_one({"email": payload.identifier}, {"_id": 0})
-    else:
+    """Login by email, phone, or username. All 3 accepted in `identifier` field."""
+    ident = payload.identifier.strip()
+    if "@" in ident:
+        # Email — could be the user's original email OR the internal +reN suffixed value
+        user = await db.users.find_one(
+            {"$or": [{"email": ident}, {"public_email": ident}]},
+            {"_id": 0},
+        )
+        # If phone has multiple users with same public_email, need password match
+        if user and not verify_password(payload.password, user.get("password_hash", "")):
+            # Try other candidates on that public_email
+            candidates = await db.users.find({"public_email": ident}, {"_id": 0}).to_list(20)
+            user = next((c for c in candidates if verify_password(payload.password, c.get("password_hash", ""))), None)
+    elif ident.replace("+", "").replace("-", "").isdigit():
         # phone-based login — find an account whose password matches
-        candidates = await db.users.find({"phone": payload.identifier}, {"_id": 0}).to_list(20)
-        user = None
-        for c in candidates:
-            if verify_password(payload.password, c.get("password_hash", "")):
-                user = c
-                break
+        candidates = await db.users.find({"phone": ident}, {"_id": 0}).to_list(20)
+        user = next((c for c in candidates if verify_password(payload.password, c.get("password_hash", ""))), None)
+    else:
+        # username-based login
+        user = await db.users.find_one({"username": ident.lower()}, {"_id": 0})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.get("is_active", True):
@@ -1216,12 +1254,264 @@ async def mlm_config():
 
 @api.get("/mlm/leaderboard")
 async def leaderboard():
-    items = await db.users.find(
-        {"role": "user"}, {"_id": 0, "password_hash": 0}
-    ).sort("total_earnings", -1).limit(20).to_list(20)
-    return [{"user_code": u["user_code"], "name": u["name"], "stage": u.get("current_stage", 1),
-             "team_size": u.get("team_size", 0), "total_earnings": u.get("total_earnings", 0),
-             "avatar_url": u.get("avatar_url")} for u in items]
+    """Public leaderboard. Returns fake but stable Indian names + lakh/crore incomes.
+    Refreshes every 7 days (ISO-week deterministic hash) so the same list persists
+    across page refreshes within a week and changes automatically the next week.
+    Also mixes in the real top-3 earners from DB (if they have >0 earnings) so real
+    milestones aren't hidden.
+    """
+    import hashlib
+    from datetime import date
+
+    year, week, _ = date.today().isocalendar()
+    seed = f"evergro-topearners-{year}-{week}"
+
+    # Fake Indian roster (pool of 30 → we pick 8 deterministic each week)
+    pool = [
+        ("Rajesh Kumar", "Ahmedabad"), ("Priya Sharma", "Mumbai"),
+        ("Amit Patel", "Surat"), ("Neha Gupta", "Delhi"),
+        ("Vikram Singh", "Jaipur"), ("Kavita Rao", "Bangalore"),
+        ("Sanjay Verma", "Lucknow"), ("Anjali Mehta", "Pune"),
+        ("Rohit Choudhary", "Indore"), ("Pooja Nair", "Kochi"),
+        ("Arjun Reddy", "Hyderabad"), ("Sunita Yadav", "Kanpur"),
+        ("Deepak Iyer", "Chennai"), ("Meena Joshi", "Nagpur"),
+        ("Karan Malhotra", "Ludhiana"), ("Ritu Bansal", "Chandigarh"),
+        ("Naveen Krishna", "Coimbatore"), ("Divya Prasad", "Vizag"),
+        ("Suresh Menon", "Trivandrum"), ("Anita Desai", "Bhopal"),
+        ("Manoj Tiwari", "Patna"), ("Sneha Kapoor", "Gurugram"),
+        ("Ravi Shankar", "Nashik"), ("Lakshmi Iyer", "Madurai"),
+        ("Vinod Aggarwal", "Ghaziabad"), ("Shweta Rana", "Dehradun"),
+        ("Bhavesh Shah", "Rajkot"), ("Aarti Naidu", "Vijayawada"),
+        ("Pankaj Rathi", "Udaipur"), ("Kiran Bala", "Amritsar"),
+    ]
+
+    def h(s: str) -> int:
+        return int.from_bytes(hashlib.sha256(s.encode()).digest()[:4], "big")
+
+    # Shuffle deterministic by week
+    indices = sorted(range(len(pool)), key=lambda i: h(f"{seed}-{i}"))
+    selected = indices[:8]
+
+    fake = []
+    for rank, idx in enumerate(selected, start=1):
+        name, city = pool[idx]
+        # Income: top ranks earn crore, mid earn lakhs
+        seed_income = h(f"{seed}-income-{idx}")
+        if rank == 1:
+            earnings = 12_00_000 + (seed_income % 800_000)   # ₹12–20 lakh
+        elif rank == 2:
+            earnings = 8_00_000 + (seed_income % 400_000)    # ₹8–12 lakh
+        elif rank == 3:
+            earnings = 5_00_000 + (seed_income % 300_000)    # ₹5–8 lakh
+        elif rank <= 5:
+            earnings = 2_00_000 + (seed_income % 300_000)    # ₹2–5 lakh
+        else:
+            earnings = 50_000 + (seed_income % 150_000)      # ₹50k–2 lakh
+        team = 20 + (seed_income % 480)  # 20-500 team
+        avatar_seed = (seed_income % 70) + 1  # pravatar image
+        fake.append({
+            "user_code": f"EG{100000 + idx * 137:06d}",
+            "name": name,
+            "city": city,
+            "stage": min(8, 3 + (seed_income % 6)),
+            "team_size": team,
+            "total_earnings": earnings,
+            "avatar_url": f"https://i.pravatar.cc/100?img={avatar_seed}",
+            "is_verified": True,
+        })
+
+    # Real top 3 earners (only if they've earned > 0) — keep the real names too
+    real = await db.users.find(
+        {"role": "user", "total_earnings": {"$gt": 0}}, {"_id": 0, "password_hash": 0}
+    ).sort("total_earnings", -1).limit(3).to_list(3)
+    real_entries = [{
+        "user_code": u["user_code"], "name": u["name"], "city": None,
+        "stage": u.get("current_stage", 1),
+        "team_size": u.get("team_size", 0),
+        "total_earnings": u.get("total_earnings", 0),
+        "avatar_url": u.get("avatar_url"),
+        "is_verified": False,
+    } for u in real]
+
+    combined = real_entries + fake
+    # Sort by earnings desc, cap 10
+    combined.sort(key=lambda x: -x["total_earnings"])
+    return combined[:10]
+
+
+# ==================== PAYMENT PROVIDER CONFIG (Admin editable) ====================
+@api.get("/admin/payment-config")
+async def admin_get_payment_config(_=Depends(require_admin)):
+    doc = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {"_key": "payment_config"}
+    # Never send the secret in full — mask it for the admin UI
+    if doc.get("cashfree_secret_key"):
+        s = doc["cashfree_secret_key"]
+        doc["cashfree_secret_masked"] = ("*" * (len(s) - 4)) + s[-4:] if len(s) > 4 else "****"
+    if doc.get("easebuzz_salt"):
+        s = doc["easebuzz_salt"]
+        doc["easebuzz_salt_masked"] = ("*" * (len(s) - 4)) + s[-4:] if len(s) > 4 else "****"
+    return doc
+
+
+@api.post("/admin/payment-config")
+async def admin_set_payment_config(payload: dict, admin=Depends(require_admin)):
+    """Set active payment provider + credentials. Takes effect immediately (no redeploy)."""
+    update = {"_key": "payment_config"}
+    if "provider" in payload:
+        if payload["provider"] not in ("cashfree", "easebuzz"):
+            raise HTTPException(status_code=400, detail="provider must be 'cashfree' or 'easebuzz'")
+        update["provider"] = payload["provider"]
+    for k in ("cashfree_app_id", "cashfree_secret_key", "cashfree_env", "cashfree_active",
+              "easebuzz_key", "easebuzz_salt", "easebuzz_env", "easebuzz_active"):
+        if k in payload and payload[k] != "" and payload[k] is not None:
+            update[k] = payload[k]
+    await db.settings.update_one(
+        {"_key": "payment_config"},
+        {"$set": {**update, "updated_at": now_iso()}},
+        upsert=True,
+    )
+    await log_audit("payment_config_update", actor=admin, metadata={"provider": update.get("provider")})
+    return {"ok": True, "config": {k: v for k, v in update.items() if "secret" not in k and "salt" not in k}}
+
+
+@api.get("/site/payment-provider")
+async def site_active_payment_provider():
+    """Public endpoint — frontend needs to know which SDK to load at checkout."""
+    doc = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {}
+    provider = doc.get("provider", "easebuzz")
+    return {
+        "provider": provider,
+        "cashfree_active": bool(doc.get("cashfree_active") and doc.get("cashfree_app_id") and doc.get("cashfree_secret_key")),
+        "cashfree_env": doc.get("cashfree_env", "sandbox"),
+        "cashfree_app_id": doc.get("cashfree_app_id") if doc.get("cashfree_active") else None,
+        "easebuzz_active": bool(doc.get("easebuzz_active", True)),
+        "easebuzz_env": os.environ.get("EASEBUZZ_ENV", "prod"),
+    }
+
+
+# ==================== CASHFREE PAYMENT ====================
+@api.post("/payments/cashfree/initiate")
+async def cashfree_initiate(payload: dict, user=Depends(get_user)):
+    import cashfree_utils as cf
+    order_id = payload.get("order_id")
+    if not order_id:
+        raise HTTPException(status_code=400, detail="order_id required")
+    order = await db.orders.find_one({"id": order_id, "user_id": user["id"]}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.get("payment_status") == "paid":
+        raise HTTPException(status_code=400, detail="Order already paid")
+    frontend_base = os.environ.get("PUBLIC_FRONTEND_URL", "").rstrip("/") or "https://evergroemart.com"
+    return_url = f"{frontend_base}/orders/{order_id}?cf_order_id={order_id}"
+    try:
+        cf_order = await cf.create_cashfree_order(
+            db, order_id=order_id, amount=order["total"],
+            customer={"id": user["id"], "name": user["name"], "email": user.get("email"), "phone": user.get("phone")},
+            return_url=return_url,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cashfree init failed: {e}")
+    await db.orders.update_one({"id": order_id}, {"$set": {
+        "payment_provider": "cashfree",
+        "payment_txnid": cf_order["cf_order_id"],
+        "payment_session_id": cf_order["payment_session_id"],
+    }})
+    return cf_order
+
+
+@api.post("/payments/cashfree/verify")
+async def cashfree_verify(payload: dict, user=Depends(get_user)):
+    import cashfree_utils as cf
+    order_id = payload.get("order_id")
+    order = await db.orders.find_one({"id": order_id, "user_id": user["id"]}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.get("payment_status") == "paid":
+        return {"paid": True, "already_processed": True}
+    try:
+        res = await cf.verify_cashfree_order(db, order_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cashfree verify failed: {e}")
+    if res["paid"]:
+        # Atomic paid-flag flip to prevent double processing
+        r = await db.orders.update_one(
+            {"id": order_id, "payment_status": {"$ne": "paid"}},
+            {"$set": {"payment_status": "paid", "paid_at": now_iso(), "status": "confirmed"}},
+        )
+        if r.modified_count == 1:
+            for item in order.get("items", []):
+                await db.products.update_one({"id": item["product_id"]}, {"$inc": {"stock": -item["quantity"]}})
+            if any(i.get("is_hamper") for i in order.get("items", [])):
+                u = await db.users.find_one({"id": order["user_id"]}, {"_id": 0})
+                if not u.get("is_joining_paid"):
+                    await process_paid_joining(db, order["user_id"], order_id)
+        return {"paid": True, "order_id": order_id}
+    return {"paid": False, "order_status": res["order_status"]}
+
+
+# ==================== PURCHASE KIT CONTENT (admin editable) ====================
+@api.get("/site/purchase-kit-content")
+async def get_purchase_kit_content():
+    doc = await db.settings.find_one({"_key": "purchase_kit_content"}, {"_id": 0}) or {}
+    return doc.get("content") or _default_purchase_kit_content()
+
+
+@api.post("/admin/purchase-kit-content")
+async def set_purchase_kit_content(payload: dict, admin=Depends(require_admin)):
+    await db.settings.update_one(
+        {"_key": "purchase_kit_content"},
+        {"$set": {"content": payload, "updated_at": now_iso()}},
+        upsert=True,
+    )
+    await log_audit("purchase_kit_content_update", actor=admin)
+    return {"ok": True}
+
+
+def _default_purchase_kit_content() -> dict:
+    return {
+        "hero_title": "The EverGro Purchasing Kit",
+        "hero_subtitle": "One-time ₹7,200 · Premium groceries + wellness + 8-Level income unlock",
+        "hero_image": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&q=80",
+        "highlight_stat": "₹19.2 Cr Lifetime Potential",
+        "features": [
+            {"icon": "🌾", "title": "Premium Basmati Rice 5kg", "desc": "Aged extra-long grain from Punjab farms"},
+            {"icon": "🍲", "title": "Mixed Dals & Pulses 3kg", "desc": "Toor · Moong · Chana · Urad · Masoor"},
+            {"icon": "🫒", "title": "Cold-pressed Oil 2L", "desc": "Zero refining, extra-virgin quality"},
+            {"icon": "🌶️", "title": "Assorted Spice Box", "desc": "20+ hand-ground everyday spices"},
+            {"icon": "☕", "title": "Premium Tea & Coffee", "desc": "Assam tea + Coorg coffee blend"},
+            {"icon": "🍯", "title": "Wellness Pack", "desc": "Ayurvedic honey · Kashmir saffron · Almonds"},
+            {"icon": "🛍️", "title": "Reusable Basket", "desc": "Eco-friendly cotton shopping basket"},
+            {"icon": "💰", "title": "₹500 Store Credit", "desc": "Instant credit for your next purchase"},
+        ],
+        "how_it_works": [
+            {"step": 1, "title": "Purchase Kit", "desc": "Order the ₹7,200 kit — pay via Cashfree/UPI/Card"},
+            {"step": 2, "title": "Get Referral Code", "desc": "Unique code unlocks after payment confirms"},
+            {"step": 3, "title": "Refer 6 Direct", "desc": "Share your code, hit 3 refs to activate income"},
+            {"step": 4, "title": "Earn From 8 Levels", "desc": "Every downline purchase pays you L1–L8 commissions"},
+        ],
+        "cta_text": "Order Kit Now →",
+    }
+
+
+
+# ==================== USERNAME AVAILABILITY ====================
+@api.get("/auth/check-username")
+async def check_username(username: str):
+    """Instagram-style live availability check."""
+    u = username.strip().lower()
+    if len(u) < 3:
+        return {"available": False, "reason": "Username must be at least 3 characters"}
+    if len(u) > 30:
+        return {"available": False, "reason": "Username too long (max 30)"}
+    if not all(c.isalnum() or c in "._-" for c in u):
+        return {"available": False, "reason": "Only letters, numbers, . _ - allowed"}
+    if u.startswith(".") or u.endswith(".") or ".." in u:
+        return {"available": False, "reason": "Invalid dot placement"}
+    reserved = {"admin", "root", "support", "help", "system", "evergro", "emart"}
+    if u in reserved:
+        return {"available": False, "reason": "This username is reserved"}
+    existing = await db.users.find_one({"username": u}, {"_id": 1})
+    return {"available": not existing, "reason": "Already taken" if existing else "Available"}
 
 
 # ==================== SUPPORT TICKETS ====================

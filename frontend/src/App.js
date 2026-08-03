@@ -58,6 +58,9 @@ import AdminInventory from "@/pages/admin/AdminInventory";
 import AdminAccounts from "@/pages/admin/AdminAccounts";
 import AdminBrands from "@/pages/admin/AdminBrands";
 import AdminTestimonials from "@/pages/admin/AdminTestimonials";
+import AdminPayments from "@/pages/admin/AdminPayments";
+import JoinNow from "@/pages/JoinNow";
+import PurchaseKitPage from "@/pages/PurchaseKitPage";
 
 function PublicLayout() {
   const [site, setSite] = useState(null);
@@ -106,11 +109,13 @@ export default function App() {
               <Route path="/career" element={<Career />} />
               <Route path="/legal/:type" element={<LegalPage />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/purchase-kit" element={<PurchaseKitPage />} />
               <Route path="/checkout" element={<RequireAuth role={["user","sub_admin","super_admin"]}><Checkout /></RequireAuth>} />
             </Route>
 
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/join-now" element={<JoinNow />} />
 
             <Route element={<RequireAuth role={["user","sub_admin","super_admin"]}><UserShell /></RequireAuth>}>
               <Route path="/dashboard" element={<Dashboard />} />
@@ -142,6 +147,7 @@ export default function App() {
               <Route path="/admin/accounts" element={<AdminAccounts />} />
               <Route path="/admin/brands" element={<AdminBrands />} />
               <Route path="/admin/testimonials" element={<AdminTestimonials />} />
+              <Route path="/admin/payments" element={<AdminPayments />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" />} />
