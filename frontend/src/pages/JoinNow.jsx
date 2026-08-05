@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Shield, TrendingUp, Check, X } from "lucide-react";
 import api from "@/lib/api";
 import { sendFirebaseOtp, toIndianE164 } from "@/lib/firebase";
+import TermsModal from "@/components/TermsModal";
 
 /**
  * JoinNow — phone-first onboarding.
@@ -23,6 +24,7 @@ export default function JoinNow() {
   const confirmationRef = useRef(null);
   const [form, setForm] = useState({ name: "", username: "", email: "", password: "", referral_code: "" });
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [usernameOk, setUsernameOk] = useState(null);
 
   const sendOtp = async (skipExistingCheck = false) => {
@@ -259,7 +261,17 @@ export default function JoinNow() {
                 <input className="input-soft uppercase" placeholder="Sponsor code (optional)" value={form.referral_code} onChange={(e) => setForm({ ...form, referral_code: e.target.value.toUpperCase() })} data-testid="join-referral-input"/>
                 <label className="flex items-start gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-1 accent-[#84CC16]" data-testid="join-terms-checkbox"/>
-                  <span className="text-[#334155]">I agree to the <a href="/terms-conditions" target="_blank" rel="noopener" className="text-[#65A30D] underline">Terms & Conditions</a></span>
+                  <span className="text-[#334155]">
+                    I agree to the{" "}
+                    <button
+                      type="button"
+                      onClick={() => setTermsModalOpen(true)}
+                      className="text-[#65A30D] underline font-semibold hover:text-[#4D7C0F]"
+                      data-testid="join-terms-link"
+                    >
+                      Terms & Conditions
+                    </button>
+                  </span>
                 </label>
               </div>
               <button onClick={submitRegister} disabled={busy || !termsAccepted || !form.name || !form.username || !form.email || form.password.length < 6 || usernameOk === false} className="btn-primary w-full justify-center mt-4 disabled:opacity-50" data-testid="join-submit-btn">
@@ -274,6 +286,13 @@ export default function JoinNow() {
 
       {/* Recaptcha container (invisible) */}
       <div id="firebase-recaptcha"/>
+
+      {/* Terms & Conditions modal */}
+      <TermsModal
+        open={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        onAccept={() => { setTermsAccepted(true); toast.success("Terms accepted"); }}
+      />
     </div>
   );
 }

@@ -37,6 +37,7 @@ import Wallet from "@/pages/user/Wallet";
 import Withdrawals from "@/pages/user/Withdrawals";
 import KycPage from "@/pages/user/KycPage";
 import Orders from "@/pages/user/Orders";
+import OrderDetail from "@/pages/user/OrderDetail";
 import Profile from "@/pages/user/Profile";
 import NotificationsPage from "@/pages/user/NotificationsPage";
 import Referral from "@/pages/user/Referral";
@@ -128,6 +129,7 @@ export default function App() {
               <Route path="/withdrawals" element={<Withdrawals />} />
               <Route path="/kyc" element={<KycPage />} />
               <Route path="/orders" element={<Orders />} />
+              <Route path="/orders/:id" element={<OrderDetail />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/referral" element={<Referral />} />

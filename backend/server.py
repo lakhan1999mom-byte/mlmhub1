@@ -350,7 +350,40 @@ async def login(payload: UserLogin):
 async def accounts_by_phone(phone: str):
     """Return list of accounts for a phone — used by multi-account picker."""
     items = await db.users.find({"phone": phone}, {"_id": 0, "password_hash": 0}).to_list(20)
-    return [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "role": u.get("role", "user")} for u in items]
+    return [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "username": u.get("username"), "is_joining_paid": u.get("is_joining_paid", False), "role": u.get("role", "user")} for u in items]
+
+
+@api.post("/auth/identifier-lookup")
+async def identifier_lookup(payload: dict):
+    """Given a mobile OR email, return whether ONE or MULTIPLE accounts match.
+    Client uses this to decide: single -> show password; multiple -> OTP + picker.
+    Username lookups aren't needed here — usernames are unique globally.
+    """
+    ident = (payload.get("identifier") or "").strip()
+    if not ident:
+        raise HTTPException(status_code=400, detail="identifier required")
+    q = None
+    kind = None
+    if "@" in ident:
+        kind = "email"
+        q = {"$or": [{"email": ident}, {"public_email": ident}]}
+    elif ident.replace("+", "").replace("-", "").isdigit():
+        kind = "phone"
+        q = {"phone": ident}
+    else:
+        # username fast-path — always exactly one match, client should proceed to password directly
+        u = await db.users.find_one({"username": ident.lower()}, {"_id": 0, "password_hash": 0})
+        if not u:
+            raise HTTPException(status_code=404, detail="No account found")
+        return {"single": True, "kind": "username", "user_code": u["user_code"], "name": u["name"], "username": u.get("username"), "phone": u.get("phone")}
+
+    users = await db.users.find(q, {"_id": 0, "password_hash": 0}).to_list(20)
+    if not users:
+        raise HTTPException(status_code=404, detail="No account found")
+    if len(users) == 1:
+        u = users[0]
+        return {"single": True, "kind": kind, "user_code": u["user_code"], "name": u["name"], "username": u.get("username"), "phone": u.get("phone")}
+    return {"multiple": True, "kind": kind, "count": len(users), "phone": users[0].get("phone")}
 
 
 @api.post("/auth/login-with-code")
@@ -950,6 +983,15 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         "status": "placed",
         "is_joining_order": is_joining,
         "tracking_no": None,
+        "courier_name": None,
+        "tracking_url": None,
+        "tracking_history": [{
+            "at": now_iso(),
+            "status": "placed",
+            "label": "Order Placed",
+            "note": "Awaiting payment confirmation.",
+            "by": "System",
+        }],
         "created_at": now_iso(),
     }
     await db.orders.insert_one(order)
@@ -1446,7 +1488,14 @@ async def cashfree_verify(payload: dict, user=Depends(get_user)):
     r = await db.orders.update_one(
         {"id": order_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"payment_status": "paid", "paid_at": now_iso(), "status": "confirmed",
-                  "payment_id": order.get("payment_session_id") or f"mock_{uuid.uuid4().hex[:10]}"}},
+                  "payment_id": order.get("payment_session_id") or f"mock_{uuid.uuid4().hex[:10]}"},
+         "$push": {"tracking_history": {
+             "at": now_iso(),
+             "status": "confirmed",
+             "label": "Confirmed",
+             "note": "Payment received. Preparing your order.",
+             "by": "System",
+         }}},
     )
     if r.modified_count == 1:
         for item in order.get("items", []):
@@ -1814,25 +1863,91 @@ async def admin_list_orders(_=Depends(require_admin), status: Optional[str] = No
     return {"items": items, "total": total}
 
 
+TRACKING_STEPS = ["placed", "confirmed", "packed", "shipped", "out_for_delivery", "delivered"]
+TRACKING_STEP_LABELS = {
+    "placed": "Order Placed",
+    "confirmed": "Confirmed",
+    "packed": "Packed",
+    "shipped": "Shipped",
+    "out_for_delivery": "Out for Delivery",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+}
+
+
 @api.put("/admin/orders/{order_id}")
-async def admin_update_order(order_id: str, payload: dict, _=Depends(require_admin)):
-    allowed = {"status", "tracking_no"}
-    update = {k: v for k, v in payload.items() if k in allowed}
-    await db.orders.update_one({"id": order_id}, {"$set": update})
-    o = await db.orders.find_one({"id": order_id}, {"_id": 0})
-    # notify user
-    if update.get("status") in ("shipped", "delivered"):
+async def admin_update_order(order_id: str, payload: dict, admin=Depends(require_admin)):
+    """Update order status, tracking number, courier, and append a tracking history event.
+    Body fields (all optional):
+      - status: one of placed/confirmed/packed/shipped/out_for_delivery/delivered/cancelled
+      - tracking_no: courier tracking number
+      - courier_name: courier partner name (e.g. Delhivery, Bluedart)
+      - tracking_url: full URL to track on courier's site
+      - note: free-text update visible to the customer (e.g. "Reached Jaipur hub")
+    Every call appends an event to tracking_history for the customer timeline.
+    """
+    allowed = {"status", "tracking_no", "courier_name", "tracking_url"}
+    update = {k: v for k, v in payload.items() if k in allowed and v is not None}
+
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Build tracking event
+    now_str = now_iso()
+    event = {
+        "at": now_str,
+        "status": update.get("status") or order.get("status"),
+        "label": TRACKING_STEP_LABELS.get(update.get("status") or order.get("status"), "Update"),
+        "note": payload.get("note", "").strip(),
+        "tracking_no": update.get("tracking_no") or order.get("tracking_no"),
+        "courier_name": update.get("courier_name") or order.get("courier_name"),
+        "tracking_url": update.get("tracking_url") or order.get("tracking_url"),
+        "by": admin.get("name") or "Admin",
+    }
+    # Only append if something meaningful changed OR a note was supplied
+    should_append = bool(payload.get("note")) or any(
+        update.get(k) not in (order.get(k), None) for k in allowed
+    )
+    push_ops = {}
+    if should_append:
+        push_ops["tracking_history"] = event
+
+    set_ops = {**update, "updated_at": now_str}
+    ops = {"$set": set_ops}
+    if push_ops:
+        ops["$push"] = push_ops
+    await db.orders.update_one({"id": order_id}, ops)
+
+    updated = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    # notify user on key milestones
+    if update.get("status") in ("shipped", "out_for_delivery", "delivered"):
+        title_map = {
+            "shipped": "📦 Order Shipped",
+            "out_for_delivery": "🚚 Out for Delivery",
+            "delivered": "✅ Delivered",
+        }
+        body = f"Your order {updated['order_code']} is now {TRACKING_STEP_LABELS.get(update['status'], update['status'])}."
+        if update.get("tracking_no"):
+            body += f" Tracking: {update['tracking_no']}"
         await db.notifications.insert_one({
             "id": str(uuid.uuid4()),
-            "user_id": o["user_id"],
-            "title": f"📦 Order {update['status'].title()}",
-            "body": f"Your order {o['order_code']} is now {update['status']}." + (f" Tracking: {update.get('tracking_no')}" if update.get('tracking_no') else ""),
+            "user_id": updated["user_id"],
+            "title": title_map[update["status"]],
+            "body": body,
             "type": "success",
             "event": f"order_{update['status']}",
             "read": False,
-            "created_at": now_iso(),
+            "created_at": now_str,
         })
-    return o
+    await log_audit("order_update", actor=admin, target_label=updated.get("order_code"))
+    return updated
+
+
+@api.get("/admin/tracking/steps")
+async def get_tracking_steps():
+    """Return the ordered list of allowed tracking steps for the admin UI."""
+    return {"steps": [{"key": k, "label": TRACKING_STEP_LABELS[k]} for k in TRACKING_STEPS]}
 
 
 @api.get("/admin/withdrawals")
