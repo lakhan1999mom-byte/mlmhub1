@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Lock, ChevronRight, User, Mail, Phone, ArrowLeft, ShieldCheck, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import { sendFirebaseOtp, toIndianE164 } from "@/lib/firebase";
+import { sendFirebaseOtp, toIndianE164, isFirebaseHostAllowed } from "@/lib/firebase";
+import ResendOtpButton from "@/components/ResendOtpButton";
 
 /**
  * 3-tab login flow (Iteration 13):
@@ -90,16 +91,36 @@ export default function Login() {
     } finally { setBusy(false); }
   };
 
+  const [otpPhone, setOtpPhone] = useState(""); // the phone the current OTP was sent to
+
   const sendOtpToPhone = async (phone) => {
+    setOtpPhone(phone);
+    let firebaseFailed = false;
+    if (isFirebaseHostAllowed()) {
+      try {
+        const conf = await sendFirebaseOtp(toIndianE164(phone));
+        confirmationRef.current = conf;
+        setDevOtp("");
+        toast.success("OTP sent to your mobile via SMS");
+        return;
+      } catch (err) {
+        firebaseFailed = true;
+        // eslint-disable-next-line no-console
+        console.warn("[Firebase Phone Auth failed]", err?.code, err?.message);
+      }
+    }
+    // Preview OR Firebase failed → backend fallback
     try {
-      const conf = await sendFirebaseOtp(toIndianE164(phone));
-      confirmationRef.current = conf;
-      setDevOtp("");
-      toast.success("OTP sent to your mobile");
-    } catch {
       const { data } = await api.post("/auth/otp/send", { phone });
       setDevOtp(data.dev_otp || "");
-      toast.success(data.dev_otp ? `OTP sent (${data.dev_otp})` : "OTP sent to your mobile");
+      if (firebaseFailed) {
+        toast.warning("SMS provider is temporarily down. Please contact support if your OTP doesn't arrive.", { duration: 6000 });
+      } else {
+        toast.success(data.dev_otp ? `OTP sent (${data.dev_otp})` : "OTP sent to your mobile");
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to send OTP. Try again.");
+      throw err;
     }
   };
 
@@ -107,14 +128,13 @@ export default function Login() {
     if (otp.length < 4) return toast.error("Enter OTP");
     setBusy(true);
     try {
-      // For multi flow — always fetch accounts on the phone
-      const phone = tab === "mobile" ? identifier.trim() : (accountsList?.[0]?.phone || "");
+      const phone = otpPhone || (tab === "mobile" ? identifier.trim() : "");
       if (confirmationRef.current) {
         await confirmationRef.current.confirm(otp);
       } else {
         await api.post("/auth/otp/verify", { phone, otp });
       }
-      const { data: accs } = await api.get(`/auth/accounts-by-phone?phone=${encodeURIComponent(phone || identifier.trim())}`);
+      const { data: accs } = await api.get(`/auth/accounts-by-phone?phone=${encodeURIComponent(phone)}`);
       // if user entered an EMAIL that matches multiple, filter to those matching that email
       const filtered = tab === "email"
         ? accs.filter((a) => a.email === identifier.trim())
@@ -309,9 +329,15 @@ export default function Login() {
               <button onClick={verifyOtp} disabled={busy || otp.length < 4} className="btn-primary w-full justify-center" data-testid="verify-otp-btn">
                 {busy ? "Verifying…" : "Verify OTP"}
               </button>
-              <button onClick={resetFlow} className="text-sm text-[#64748B] hover:text-[#065F46] w-full text-center" data-testid="cancel-otp-btn">
-                <ArrowLeft className="w-3 h-3 inline"/> Change {tab === "mobile" ? "number" : "email"}
-              </button>
+              <div className="flex items-center justify-between pt-1">
+                <button onClick={resetFlow} className="text-xs text-[#64748B] hover:text-[#065F46]" data-testid="cancel-otp-btn">
+                  <ArrowLeft className="w-3 h-3 inline"/> Change {tab === "mobile" ? "number" : "email"}
+                </button>
+                <ResendOtpButton
+                  onResend={() => sendOtpToPhone(otpPhone)}
+                  testId="login-resend-otp-btn"
+                />
+              </div>
             </motion.div>
           )}
 

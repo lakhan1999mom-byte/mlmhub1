@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 14 (OTP resend + 20s server rate limit) fully verified. Backend: 5/5 pytest tests PASS — /auth/otp/send returns resend_count (0 first, increments on resend), returns dev_otp only on preview host and MASKS it when Origin/Referer=evergroemart.com, enforces 20s cooldown per phone (2nd call within 20s → 429 with 'Please wait Xs before requesting another OTP'), and after cooldown a new OTP is issued that invalidates the previous one (verify old OTP → 400). Multi-account /auth/otp/verify still returns multiple:true with 2 users for 9876500099. Frontend: all 3 resend buttons render with 30s countdown (disabled) and coexist with 'Change number' in the same row — login-resend-otp-btn on /login OTP stage, join-resend-otp-btn on /join-now step 2, fp-resend-otp-btn on /forgot-password step 2. Clicking resend while disabled produces no /auth/otp/send call (client cooldown works). After 30s, button becomes 'Resend OTP' enabled → clicking triggers /auth/otp/send, dev-otp-display banner updates with the NEW OTP (verified rotation 214308 → 509150), and countdown restarts. End-to-end login multi-flow with the LATEST OTP → picker (EG000043 + EG000044) → password (NewPass@123) → /dashboard succeeded.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration14_otp_rate_limit.py",
+    "/app/test_reports/pytest/iter14_results.xml"
+  ],
+  "action_items": [
+    "None for iteration 14 code — all resend + rate-limit behaviour on preview is correct.",
+    "PRODUCTION SMS DELIVERY (evergroemart.com): root cause per main agent is Firebase Console → Authorized Domains missing 'evergroemart.com' + 'www.evergroemart.com'. This is a Firebase console config the app owner must apply; not testable from preview. Confirm the two domains are added, and confirm Firebase Phone Auth quota/reCAPTCHA is enabled for the project (amora-b93c0).",
+    "Minor observation: backend resend_count for a fresh phone stays 0 on the first send and jumps to 1 on the first resend (formula `(existing.count or 0) + (1 if existing else 0)`). This is intentional per the request spec (0 first time, 1+ on resend) — confirmed correct."
+  ],
+  "critical_code_review_comments": [
+    "server.py /auth/otp/send: `is_prod` uses substring match (`ph.strip() in host`). 'evergroemart.com' would also match a malicious host like 'notevergroemart.com.attacker.tld'. Consider exact-suffix match with a leading dot for safety. Not blocking for this iteration.",
+    "server.py: 20s rate limit is per-phone only — an attacker who rotates phones can still spam SMS. Consider adding a per-IP rate limit before enabling live Firebase in production.",
+    "ResendOtpButton respects server 429 by parsing 'wait Ns' from the error detail (nice). But it uses regex /wait (\\d+)s/ — if backend changes message format this will silently break. Consider returning `retry_after` in the JSON error body for a structured contract.",
+    "server.py has grown to 2417 lines (was 2411 last iteration) — still recommend router split (auth/orders/tracking/admin)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration14_otp_rate_limit.py (NEW — 5 tests, all pass)"
+  ],
+  "success_rate": {"backend": "5/5 (100%)", "frontend": "100% (all 3 resend flows verified, disabled-click blocked, cooldown expires, OTP rotates, end-to-end login succeeds)"},
+  "test_credentials": "Reused /app/memory/test_credentials.md — admin@evergroemart.com/Admin@123, phone 9876500099 accounts test1_1785761123/NewPass@123 (EG000043) + test2_1785761123/Test@123 (EG000044).",
+  "seed_data_creation": "None — used unique 98700xxxxx/98701xxxxx/98702xxxxx/98703xxxxx/98705xxxxx/98706xxxxx test phones for rate-limit tests; /auth/otp/verify was called for the ephemeral phones with no user (verified: true, new_user: true). No DB writes to persist. OTPs collection may have residual test records but they are keyed by phone and self-expire via `expires_at` after 5 min.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter14 selectors added: login-resend-otp-btn, join-resend-otp-btn, fp-resend-otp-btn. All show 'Resend in Ns' when disabled and 'Resend OTP' when enabled. Backend /auth/otp/send response now includes resend_count (int, 0 on first send, +1 on each subsequent within window). 429 responses use `detail` = 'Please wait Ns before requesting another OTP'. Prod host detection via headers host/origin/x-forwarded-host/referer against comma-separated env PROD_HOSTS (default 'evergroemart.com,www.evergroemart.com') — substring match. To simulate prod from tests: send header `Origin: https://evergroemart.com` or `Referer: https://evergroemart.com/...`. Multi-account picker + login-with-code still works end-to-end with the LATEST OTP after resend (old OTP is overwritten in mongo and 400s).",
+  "rca of the issue": "User-reported 'OTP not delivering to phone on production' (evergroemart.com) is NOT fixable from code — root cause is Firebase Console configuration: the production hostname is not in Firebase Auth → Authorized Domains, so the Firebase JS SDK refuses to run recaptcha/sms flow. On PREVIEW the frontend explicitly bypasses Firebase via isFirebaseHostAllowed() and uses the backend dev-OTP fallback (which works and now has 20s rate limit + resend). Iteration 14 correctly (a) surfaces a clear warning toast on Firebase failure and (b) provides a Resend OTP UX on all 3 OTP screens. Definitive fix requires the app owner to add 'evergroemart.com' and 'www.evergroemart.com' to Firebase Console → Authentication → Settings → Authorized domains (project amora-b93c0)."
+}

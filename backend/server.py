@@ -416,17 +416,23 @@ async def phone_status(phone: str):
 
 @api.post("/auth/otp/send")
 async def send_otp(payload: OTPSendReq, request: Request):
+    # Simple rate limit — don't allow resending within 20 seconds
+    existing = await db.otps.find_one({"phone": payload.phone})
+    now = int(time.time())
+    if existing and existing.get("last_sent_at") and (now - existing["last_sent_at"]) < 20:
+        wait = 20 - (now - existing["last_sent_at"])
+        raise HTTPException(status_code=429, detail=f"Please wait {wait}s before requesting another OTP")
+
     otp = gen_otp()
-    expires = int(time.time()) + 300  # 5 min
+    expires = now + 300  # 5 min
+    resend_count = (existing.get("resend_count", 0) if existing else 0) + (1 if existing else 0)
     await db.otps.update_one(
         {"phone": payload.phone},
-        {"$set": {"phone": payload.phone, "otp": otp, "expires_at": expires, "verified": False, "created_at": now_iso()}},
+        {"$set": {"phone": payload.phone, "otp": otp, "expires_at": expires, "verified": False,
+                  "last_sent_at": now, "resend_count": resend_count, "created_at": now_iso()}},
         upsert=True,
     )
-    logger.info(f"[DEV-OTP] phone={payload.phone} otp={otp}")
-    # Only expose OTP in response on non-production hosts (preview / localhost).
-    # On production, Firebase Phone Auth sends real SMS from the client. Backend fallback
-    # keeps a record for verification but does NOT leak the OTP in the response.
+    logger.info(f"[DEV-OTP] phone={payload.phone} otp={otp} resend#={resend_count}")
     prod_hosts = (os.environ.get("PROD_HOSTS", "evergroemart.com,www.evergroemart.com")).split(",")
     host = (request.headers.get("host") or "").split(":")[0].lower()
     origin = (request.headers.get("origin") or "").lower()
@@ -437,8 +443,8 @@ async def send_otp(payload: OTPSendReq, request: Request):
         for ph in prod_hosts
     )
     if is_prod:
-        return {"ok": True, "message": "OTP sent successfully"}
-    return {"ok": True, "message": "OTP sent successfully", "dev_otp": otp}
+        return {"ok": True, "message": "OTP sent successfully", "resend_count": resend_count}
+    return {"ok": True, "message": "OTP sent successfully", "dev_otp": otp, "resend_count": resend_count}
 
 
 @api.post("/auth/otp/verify")

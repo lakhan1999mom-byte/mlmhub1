@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Shield, TrendingUp, Check, X } from "lucide-react";
 import api from "@/lib/api";
-import { sendFirebaseOtp, toIndianE164 } from "@/lib/firebase";
+import { sendFirebaseOtp, toIndianE164, isFirebaseHostAllowed } from "@/lib/firebase";
 import TermsModal from "@/components/TermsModal";
+import ResendOtpButton from "@/components/ResendOtpButton";
 
 /**
  * JoinNow — phone-first onboarding.
@@ -43,20 +44,36 @@ export default function JoinNow() {
           }
         } catch { /* ignore, continue */ }
       }
+      await sendOtpForPhone();
+      setStep(2);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not send OTP");
+    } finally { setBusy(false); }
+  };
+
+  // Extracted OTP send so Resend can reuse it
+  const sendOtpForPhone = async () => {
+    let firebaseFailed = false;
+    if (isFirebaseHostAllowed()) {
       try {
         const conf = await sendFirebaseOtp(toIndianE164(phone));
         confirmationRef.current = conf;
         setDevOtp("");
-        toast.success("OTP sent via SMS");
-      } catch {
-        const { data } = await api.post("/auth/otp/send", { phone });
-        setDevOtp(data.dev_otp || "");
-        toast.success(data.dev_otp ? `OTP sent (${data.dev_otp})` : "OTP sent to your mobile");
+        toast.success("OTP sent to your mobile via SMS");
+        return;
+      } catch (err) {
+        firebaseFailed = true;
+        // eslint-disable-next-line no-console
+        console.warn("[Firebase] failed", err?.code, err?.message);
       }
-      setStep(2);
-    } catch (e) {
-      toast.error("Could not send OTP");
-    } finally { setBusy(false); }
+    }
+    const { data } = await api.post("/auth/otp/send", { phone });
+    setDevOtp(data.dev_otp || "");
+    if (firebaseFailed) {
+      toast.warning("SMS provider temporarily unavailable — contact support if OTP does not arrive.", { duration: 6000 });
+    } else {
+      toast.success(data.dev_otp ? `OTP sent (${data.dev_otp})` : "OTP sent to your mobile");
+    }
   };
 
   const verifyOtp = async () => {
@@ -229,6 +246,15 @@ export default function JoinNow() {
               <button onClick={verifyOtp} disabled={busy || otp.length < 4} className="btn-primary w-full justify-center mt-4" data-testid="join-verify-otp-btn">
                 {busy ? "Verifying…" : "Verify & Continue"}
               </button>
+              <div className="flex items-center justify-between pt-3">
+                <button onClick={() => { setStep(1); confirmationRef.current = null; }} className="text-xs text-[#64748B] hover:text-[#065F46]" data-testid="join-change-number-2">
+                  Change number
+                </button>
+                <ResendOtpButton
+                  onResend={sendOtpForPhone}
+                  testId="join-resend-otp-btn"
+                />
+              </div>
             </motion.div>
           )}
 
