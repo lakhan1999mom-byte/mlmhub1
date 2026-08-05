@@ -187,7 +187,7 @@ export default function OrderDetail() {
             <MapPin className="w-5 h-5 text-[#65A30D]"/> Shipping to
           </h3>
           <div className="text-sm text-[#334155] space-y-0.5">
-            <div className="font-semibold">{order.address.full_name}</div>
+            <div className="font-semibold">{order.address.full_name || order.address.name}</div>
             <div>{order.address.line1}</div>
             <div>{order.address.city}, {order.address.state} — {order.address.pincode}</div>
             <div className="text-[#64748B]">📞 {order.address.phone}</div>

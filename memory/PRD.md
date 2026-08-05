@@ -66,6 +66,14 @@ Build a production-ready MLM E-Commerce Platform "EverGro eMart" with Landing We
 - **Cloudinary**: LIVE (uploads working)
 - **OTP**: Dev mode fallback (returned in API response as `dev_otp`)
 
+## Iteration 13 (Feb 2026) — 3-Tab Login · Order Tracking · T&C Modal
+- **New Login flow (3 tabs)**: Mobile / Email / Username. Username tab is instant fast-path. Mobile+Email tabs go through identifier-lookup → single account = direct password prompt; multiple accounts = OTP → picker → password. **Password ALWAYS required.**
+- New backend endpoints: `POST /auth/identifier-lookup`, `GET /admin/tracking/steps`. `/auth/accounts-by-phone` now returns `username` + `is_joining_paid`.
+- **Full order tracking system**: `orders.tracking_history[]` seeded on create ("Order Placed") + auto-appended on `cashfree/verify` ("Confirmed · Payment received"). Admin `PUT /admin/orders/{id}` extended with `courier_name`, `tracking_url`, `note` — every meaningful change appends an event and creates a customer notification on shipped/out_for_delivery/delivered.
+- **New pages**: `/orders/:id` (customer timeline with 6-step progress + full event log + copy-tracking + track-online button). `AdminOrders` fully rebuilt with per-order tracking modal (status buttons, courier, tracking no, tracking URL, free-text note, history preview).
+- **Terms & Conditions modal**: `/join-now` T&C link now opens a modal with the live terms HTML from `/site/settings`. "I Accept" auto-ticks the required checkbox. Reusable `TermsModal` component created for future use elsewhere.
+- **Test report**: `/app/test_reports/iteration_13.json` — **14/14 backend + 100% frontend PASS**. One low-priority typo (address.full_name) already fixed post-report.
+
 ## Iteration 12 (Feb 2026) — Categories · Promo Codes · ₹7,499 · Delivery Toggle · Prod-gated OTP
 - **Price change**: Joining kit ₹7,200 → **₹7,499** across seed, hamper price, FAQs, JoinNow, Register, Cart, ProductDetail, Compensation Plan, Dashboard.
 - **Contact update**: Footer + Contact + WhatsApp FAB now use **+91-9928525889**. App Store & Google Play buttons removed from footer.
