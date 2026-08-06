@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 
 const CartContext = createContext(null);
 
-const DEFAULT_DELIVERY = { delivery_charge: 49, free_shipping_threshold: 999, gst_percent: 5 };
+const DEFAULT_DELIVERY = { delivery_charge: 49, free_shipping_threshold: 999, gst_percent: 5, gst_enabled: true, delivery_charge_enabled: true, extra_charges: [] };
 
 export function CartProvider({ children }) {
   const { user } = useAuth();

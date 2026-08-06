@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 15 (Phase 1 auth/dashboard rewrite) fully verified. Backend: 12/12 pytest PASS — /auth/register enforces phone+email+username uniqueness (409 with correct detail messages), short/missing phone returns 400 'Valid mobile number required', admin phone 9999999999 rejected. /admin/settings/site (GET+PUT) exposes and persists new fields gst_enabled, delivery_charge_enabled, extra_charges[]. /site/delivery-config correctly returns gst_percent:0 when gst off, delivery_charge:0 when delivery off, and only enabled extras. /orders/create for a fresh joining user with packing (flat 25) + handling (2%) + disabled donation produces order.gst=0, order.extras has exactly 2 entries (Packing Fee + Handling %), order.extras_total = 25 + subtotal*0.02, order.total = subtotal + shipping + extras_total - discount (persisted in DB). Frontend: /login has exactly 2 tabs (login-tab-mobile, login-tab-email), NO login-tab-username, toggle-password-btn works, remember-me-checkbox stores identifier in localStorage under key 'evergro_remember' (verified {tab:'email', identifier:'admin@evergroemart.com'} after admin login), forgot-password-link + join-now-link present, wrong password shows 'Invalid credentials' toast, admin login redirects to /admin. /admin/charges page loads with gst-enabled-toggle + delivery-enabled-toggle + Add button, add-extra-charge-btn creates extra-charge-0 row with label/type/value/toggle/remove-button; Save + refresh persists 'Packing' label correctly; toggling GST off hides gst-percent-input and toggling delivery off hides delivery-charge-input. Site settings reset to gst_enabled=true, extra_charges=[] to leave preview clean.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/join-now (JoinNow.jsx line 131)", "issues": ["Stale copy: 'Same phone can be used for multiple accounts.' contradicts iter15 policy of 1-phone-1-user. Users who read this then try to reuse an existing phone will hit the 409 error late in the flow."]},
+      {"screen": "/register (Register.jsx line 119)", "issues": ["Stale copy: '✓ Same phone + email can host multiple accounts (unique username each).' — same contradiction with new uniqueness rule."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration15_auth_charges.py",
+    "/app/test_reports/pytest/iter15_results.xml"
+  ],
+  "action_items": [
+    "Update stale UX copy in /app/frontend/src/pages/JoinNow.jsx line 131 and /app/frontend/src/pages/Register.jsx line 119 to reflect the new 1-phone-1-user rule (e.g. 'Each mobile can be used for one account. To create additional referral businesses, add them from your dashboard after login.'). Backend already rejects duplicates with the correct 409 toast, so this is UX-only.",
+    "Consider surfacing an early client-side check on /join-now when the user enters a phone that already exists (call an existence-check endpoint before OTP) — right now the duplicate is only caught after OTP + username + submission, which is late-stage friction. Not a bug, purely UX.",
+    "/join-now flow was not run end-to-end because it triggers Firebase reCAPTCHA and payment, but the backend 409 rejection on POST /auth/register for phone 9999999999 (admin's phone) is explicitly covered by test_admin_phone_9999999999_conflict — passing."
+  ],
+  "critical_code_review_comments": [
+    "server.py has grown to 2431 lines (was 2417). The /admin/settings/site PUT accepts a raw dict (payload: dict) with no Pydantic validation — extra_charges items could arrive with wrong types (e.g. value: 'twenty' instead of number) and only fail downstream at order-create. Recommend a SiteSettings/ExtraCharge Pydantic model with type validation ('flat'|'percent') and numeric value.",
+    "/orders/create line 909 reads gst_percent_default but never uses it — the actual per-line gst_percent is read from the product on line 934. Dead code; harmless but confusing.",
+    "AdminCharges.jsx doesn't validate label/value on save (empty label allowed, negative values blocked only by HTML min=0). Consider a client-side check + trim so admins don't save {label:'', value:0, enabled:true} rows.",
+    "Login.jsx stores identifier in localStorage in cleartext under key 'evergro_remember' — expected for a remember-me convenience, but note that this includes admin email. Consider not persisting for role='admin' accounts or using a distinct key per session."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration15_auth_charges.py (NEW — 12 tests, all pass)"
+  ],
+  "success_rate": {"backend": "12/12 (100%)", "frontend": "100% — /login 2-tab + toggle + remember + wrong-cred toast + admin redirect verified; /admin/charges add/save/persist + GST-off + delivery-off toggles verified"},
+  "test_credentials": "Reused /app/memory/test_credentials.md — admin@evergroemart.com/Admin@123. Test users created dynamically with random phones/usernames; not seeded.",
+  "seed_data_creation": "Backend tests register several TEST_* users on random phones (98########) via /auth/register — no cleanup endpoint used; residual records remain in db.users but are harmless (unique phones per run, no fixed test data). Admin site settings were mutated during tests but the final TestCleanup.test_reset_site_to_defaults resets gst_enabled=true + extra_charges=[] so the preview is clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 15 selectors: /login = login-page + login-tab-mobile + login-tab-email + login-{mobile|email}-input + login-password-input + toggle-password-btn + remember-me-checkbox + forgot-password-link + join-now-link + login-submit-btn. /admin/charges = admin-charges-page + gst-enabled-toggle + gst-percent-input + delivery-enabled-toggle + delivery-charge-input + add-extra-charge-btn + save-charges-btn + extra-charge-{i} + extra-label-{i} + extra-type-{i} + extra-value-{i} + extra-toggle-{i} + extra-remove-{i}. Backend contract: POST /auth/register 409 messages are exact: 'This mobile is already registered. Please login instead.', 'Username already taken', 'This email is already registered. Please login instead.'. 400 short-phone message: 'Valid mobile number required'. Order response is wrapped in {'order': {...}}. /site/delivery-config includes gst_enabled + gst_percent + delivery_charge + delivery_charge_enabled + extra_charges (only enabled=true items).",
+  "rca of the issue": "No blocking issues. The only observation is UX copy debt on /join-now and /register that still advertises the old 'multi-account per phone' behavior; backend correctly enforces the new 1-phone-1-user policy but two static marketing lines were missed in the rewrite. Fix location: JoinNow.jsx line 131, Register.jsx line 119."
+}

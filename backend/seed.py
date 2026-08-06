@@ -84,11 +84,14 @@ async def seed_all(db):
             "cloudinary_cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
             "cloudinary_api_key": os.environ.get("CLOUDINARY_API_KEY", ""),
             "cloudinary_api_secret": os.environ.get("CLOUDINARY_API_SECRET", ""),
-            # Delivery config
-            "delivery_charge": 49,
-            "delivery_charge_enabled": True,
-            "free_shipping_threshold": 999,
-            "gst_percent": 5,
+        # Delivery config
+        "delivery_charge": 49,
+        "delivery_charge_enabled": True,
+        "free_shipping_threshold": 999,
+        "gst_percent": 5,
+        "gst_enabled": True,
+        # Flexible extra charges — admin can add/remove/toggle these
+        "extra_charges": [],
             # Terms
             "terms_version": "1.0",
             "terms_content": TERMS_CONTENT,
@@ -117,6 +120,10 @@ async def seed_all(db):
         # Delivery charge toggle (admin-controlled)
         if "delivery_charge_enabled" not in existing:
             updates["delivery_charge_enabled"] = True
+        if "gst_enabled" not in existing:
+            updates["gst_enabled"] = True
+        if "extra_charges" not in existing:
+            updates["extra_charges"] = []
         if updates:
             await db.settings.update_one({"_key": "site"}, {"$set": updates})
 

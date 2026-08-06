@@ -30,8 +30,14 @@ export default function Checkout() {
 
   const items = cart?.items || [];
   const subtotal = cart?.subtotal || 0;
-  const shipping = subtotal >= delivery.free_shipping_threshold ? 0 : delivery.delivery_charge;
-  const gst = subtotal * (delivery.gst_percent / 100);
+  const shipping = subtotal >= delivery.free_shipping_threshold ? 0 : (delivery.delivery_charge || 0);
+  const gst = (delivery.gst_percent || 0) > 0 ? subtotal * (delivery.gst_percent / 100) : 0;
+  // Extra admin-configured charges
+  const extraCharges = (delivery.extra_charges || []).map((c) => ({
+    label: c.label,
+    amount: c.type === "percent" ? (subtotal * (c.value || 0)) / 100 : (c.value || 0),
+  }));
+  const extrasTotal = extraCharges.reduce((s, c) => s + c.amount, 0);
   let discount = 0;
   if (appliedCoupon) {
     if (appliedCoupon.discount_percent) {
@@ -41,7 +47,7 @@ export default function Checkout() {
       discount = appliedCoupon.discount_amount;
     }
   }
-  const total = subtotal + gst + shipping - discount;
+  const total = subtotal + gst + shipping + extrasTotal - discount;
 
   const applyCoupon = async () => {
     try {
@@ -220,8 +226,11 @@ export default function Checkout() {
                 </div>
               ))}
               <div className="border-t pt-2 flex justify-between"><span>Subtotal</span><span>₹{subtotal.toFixed(0)}</span></div>
-              <div className="flex justify-between"><span>GST ({delivery.gst_percent}%)</span><span>₹{gst.toFixed(0)}</span></div>
+              {gst > 0 && <div className="flex justify-between"><span>GST ({delivery.gst_percent}%)</span><span>₹{gst.toFixed(0)}</span></div>}
               <div className="flex justify-between"><span>Shipping</span><span className={shipping ? "" : "text-[#65A30D] font-semibold"}>{shipping ? `₹${shipping}` : "FREE"}</span></div>
+              {extraCharges.map((c) => (
+                <div key={c.label} className="flex justify-between text-[#334155]"><span>{c.label}</span><span>₹{c.amount.toFixed(0)}</span></div>
+              ))}
               {discount > 0 && <div className="flex justify-between text-[#65A30D]"><span>Coupon</span><span>−₹{discount.toFixed(0)}</span></div>}
               <div className="border-t pt-3 flex justify-between font-black text-xl text-[#064E3B]"><span>Total</span><span>₹{total.toFixed(0)}</span></div>
             </div>

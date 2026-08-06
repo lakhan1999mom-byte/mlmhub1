@@ -63,6 +63,7 @@ import AdminTestimonials from "@/pages/admin/AdminTestimonials";
 import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminCoupons from "@/pages/admin/AdminCoupons";
+import AdminCharges from "@/pages/admin/AdminCharges";
 import JoinNow from "@/pages/JoinNow";
 import PurchaseKitPage from "@/pages/PurchaseKitPage";
 
@@ -156,6 +157,7 @@ export default function App() {
               <Route path="/admin/payments" element={<AdminPayments />} />
               <Route path="/admin/categories" element={<AdminCategories />} />
               <Route path="/admin/coupons" element={<AdminCoupons />} />
+              <Route path="/admin/charges" element={<AdminCharges />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" />} />

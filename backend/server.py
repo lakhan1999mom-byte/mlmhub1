@@ -160,18 +160,20 @@ async def log_audit(event: str, actor: Optional[dict] = None, target_id: Optiona
 
 @api.post("/auth/register")
 async def register(payload: UserCreate, request: Request = None):
-    """Phase 2: Register creates a PENDING user. Account is fully activated only after
-    the joining hamper payment (₹7,499) is verified. Until then:
-    - is_joining_paid = False
-    - referral counts on sponsor NOT incremented
-    - no commissions distributed
-    - user can login and see the "Pay to activate" screen only
+    """Iteration 15+: One phone = ONE user. Duplicate phone/email/username are rejected.
+    Users create additional 'referral businesses' from their dashboard later.
     """
     # T&C mandatory
     if not payload.terms_accepted:
         raise HTTPException(status_code=400, detail="You must accept the Terms & Conditions")
 
-    # Username handling (Instagram-style unique handle)
+    # PHONE uniqueness — one phone = one main account
+    if not payload.phone or len(payload.phone.replace("+", "").replace("-", "").strip()) < 10:
+        raise HTTPException(status_code=400, detail="Valid mobile number required")
+    if await db.users.find_one({"phone": payload.phone}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="This mobile is already registered. Please login instead.")
+
+    # Username handling (unique globally)
     username = None
     if getattr(payload, "username", None):
         username = str(payload.username).strip().lower()
@@ -180,25 +182,12 @@ async def register(payload: UserCreate, request: Request = None):
         if not all(c.isalnum() or c in "._-" for c in username):
             raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, . _ -")
         if await db.users.find_one({"username": username}, {"_id": 1}):
-            raise HTTPException(status_code=400, detail="Username already taken")
+            raise HTTPException(status_code=409, detail="Username already taken")
 
-    # Email — allow re-use of same email under new username by internal-suffixing
-    original_email = payload.email
-    email_to_store = original_email
-    existing_email = await db.users.find_one({"email": email_to_store})
-    if existing_email:
-        # If no username provided, block (backwards-compatible for old flows).
-        if not username:
-            raise HTTPException(status_code=400, detail="Email already registered. Choose a username to create an additional account.")
-        # Internal suffix keeps the login identifier unique in DB while user sees original email
-        local, _, domain = original_email.partition("@")
-        suffix_seq = 2
-        while True:
-            candidate = f"{local}+re{suffix_seq}@{domain}"
-            if not await db.users.find_one({"email": candidate}, {"_id": 1}):
-                email_to_store = candidate
-                break
-            suffix_seq += 1
+    # Email uniqueness (strict — no more +reN suffixing)
+    email_to_store = payload.email
+    if await db.users.find_one({"email": email_to_store}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="This email is already registered. Please login instead.")
 
     sponsor = None
     if payload.referral_code:
@@ -243,7 +232,7 @@ async def register(payload: UserCreate, request: Request = None):
         "id": str(uuid.uuid4()),
         "user_code": user_code,
         "username": username,
-        "public_email": original_email,  # what the user sees / logs in with (unique in real usage)
+        "public_email": payload.email,  # what the user sees / logs in with (unique)
         "name": payload.name,
         "email": email_to_store,
         "phone": payload.phone,
@@ -917,7 +906,9 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
     delivery_enabled = site.get("delivery_charge_enabled", True)
     delivery_charge = site.get("delivery_charge", 49) if delivery_enabled else 0
     free_threshold = site.get("free_shipping_threshold", 999)
-    gst_percent_default = site.get("gst_percent", 5)
+    gst_percent_default = site.get("gst_percent", 5) if site.get("gst_enabled", True) else 0
+    # Extra charges (packing, handling, service, insurance, etc.) — configured by admin
+    extra_charges_config = [c for c in (site.get("extra_charges") or []) if c.get("enabled")]
 
     order_items = []
     subtotal = 0
@@ -940,7 +931,8 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         if user.get("is_joining_paid", False) and p.get("is_hamper", False):
             raise HTTPException(status_code=400, detail="You have already purchased the joining kit.")
         line = p["price"] * it.quantity
-        item_gst = line * p.get("gst_percent", gst_percent_default) / 100
+        item_gst_pct = p.get("gst_percent", 5) if site.get("gst_enabled", True) else 0
+        item_gst = line * item_gst_pct / 100
         subtotal += line
         gst += item_gst
         order_items.append({
@@ -967,7 +959,18 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
                 discount = c["discount_amount"]
 
     shipping = 0 if subtotal >= free_threshold else delivery_charge
-    total = subtotal + gst + shipping - discount
+    # Compute extra charges — each entry: {key, label, type: 'flat'|'percent', value, enabled}
+    extras_total = 0
+    extras_breakdown = []
+    for cfg in extra_charges_config:
+        amt = float(cfg.get("value", 0) or 0)
+        if cfg.get("type") == "percent":
+            amt = round(subtotal * amt / 100, 2)
+        else:
+            amt = round(amt, 2)
+        extras_total += amt
+        extras_breakdown.append({"key": cfg.get("key"), "label": cfg.get("label"), "amount": amt})
+    total = subtotal + gst + shipping + extras_total - discount
 
     order = {
         "id": str(uuid.uuid4()),
@@ -980,6 +983,8 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         "discount": round(discount, 2),
         "gst": round(gst, 2),
         "shipping": shipping,
+        "extras": extras_breakdown,
+        "extras_total": round(extras_total, 2),
         "total": round(total, 2),
         "address": payload.address,
         "coupon_code": payload.coupon_code,
@@ -2073,6 +2078,12 @@ async def admin_get_settings(_=Depends(require_admin)):
     return {"site": site or {}, "mlm": mlm or {}}
 
 
+@api.get("/admin/settings/site")
+async def admin_get_site(_=Depends(require_admin)):
+    doc = await db.settings.find_one({"_key": "site"}, {"_id": 0}) or {}
+    return doc
+
+
 @api.put("/admin/settings/site")
 async def admin_update_site(payload: dict, admin=Depends(require_super_admin)):
     payload.pop("_key", None)
@@ -2369,11 +2380,14 @@ async def get_terms():
 async def get_delivery_config():
     s = await db.settings.find_one({"_key": "site"}, {"_id": 0})
     enabled = s.get("delivery_charge_enabled", True) if s else True
+    gst_enabled = s.get("gst_enabled", True) if s else True
     return {
         "delivery_charge": (s.get("delivery_charge", 49) if s else 49) if enabled else 0,
         "delivery_charge_enabled": enabled,
         "free_shipping_threshold": s.get("free_shipping_threshold", 999) if s else 999,
-        "gst_percent": s.get("gst_percent", 5) if s else 5,
+        "gst_percent": (s.get("gst_percent", 5) if s else 5) if gst_enabled else 0,
+        "gst_enabled": gst_enabled,
+        "extra_charges": [c for c in (s.get("extra_charges") or []) if c.get("enabled")] if s else [],
     }
 
 
