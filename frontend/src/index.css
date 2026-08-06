@@ -1,3 +1,36 @@
+/* ============== ADMIN DARK-SCOPE OVERRIDES ============== */
+.admin-dark-scope { color: rgb(226 232 240); }
+.admin-dark-scope h1, .admin-dark-scope h2, .admin-dark-scope h3, .admin-dark-scope h4 { color: rgb(241 245 249) !important; }
+.admin-dark-scope .card-soft {
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.10);
+  backdrop-filter: blur(12px);
+  color: rgb(226 232 240);
+}
+.admin-dark-scope .card-soft .text-\[\#064E3B\] { color: rgb(226 232 240) !important; }
+.admin-dark-scope .card-soft .text-\[\#334155\] { color: rgb(203 213 225) !important; }
+.admin-dark-scope .card-soft .text-\[\#64748B\] { color: rgb(148 163 184) !important; }
+.admin-dark-scope .card-soft .text-\[\#94A3B8\] { color: rgb(100 116 139) !important; }
+.admin-dark-scope .bg-\[\#F1F5F9\], .admin-dark-scope .bg-\[\#FAFAF9\] { background: rgba(15,23,42,0.5) !important; }
+.admin-dark-scope .border-\[\#E2E8F0\], .admin-dark-scope .border-\[\#F1F5F9\] { border-color: rgba(51,65,85,0.5) !important; }
+.admin-dark-scope table { color: rgb(203 213 225); }
+.admin-dark-scope table thead { background: rgba(15,23,42,0.7) !important; color: rgb(148 163 184); }
+.admin-dark-scope table tr { border-color: rgba(51,65,85,0.4) !important; }
+.admin-dark-scope table tr:hover { background: rgba(30,41,59,0.4) !important; }
+.admin-dark-scope .input-soft {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(71, 85, 105, 0.5);
+  color: rgb(226 232 240);
+}
+.admin-dark-scope .input-soft::placeholder { color: rgb(100 116 139); }
+.admin-dark-scope .btn-outline {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(132, 204, 22, 0.4);
+  color: rgb(190 242 100);
+}
+.admin-dark-scope .btn-outline:hover { background: rgba(132, 204, 22, 0.15); }
+
+
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 @tailwind base;

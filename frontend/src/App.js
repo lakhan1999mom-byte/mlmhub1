@@ -38,6 +38,9 @@ import Withdrawals from "@/pages/user/Withdrawals";
 import KycPage from "@/pages/user/KycPage";
 import Orders from "@/pages/user/Orders";
 import OrderDetail from "@/pages/user/OrderDetail";
+import Businesses from "@/pages/user/Businesses";
+import BusinessDetail from "@/pages/user/BusinessDetail";
+import DirectCheckout from "@/pages/user/DirectCheckout";
 import Profile from "@/pages/user/Profile";
 import NotificationsPage from "@/pages/user/NotificationsPage";
 import Referral from "@/pages/user/Referral";
@@ -131,6 +134,9 @@ export default function App() {
               <Route path="/kyc" element={<KycPage />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/:id" element={<OrderDetail />} />
+              <Route path="/dashboard/businesses" element={<Businesses />} />
+              <Route path="/dashboard/businesses/:id" element={<BusinessDetail />} />
+              <Route path="/checkout/direct/:orderId" element={<DirectCheckout />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/referral" element={<Referral />} />

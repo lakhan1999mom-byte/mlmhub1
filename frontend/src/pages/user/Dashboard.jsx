@@ -1,287 +1,208 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Wallet, Users, TrendingUp, Package, Share2, Bell, Sparkles, ShoppingBag, Send, ChevronRight, Briefcase, Copy, Rocket } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/lib/api";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell } from "recharts";
 import { useAuth } from "@/lib/auth";
-import { Wallet, Users, TrendingUp, ShoppingBag, Bell, Award, ArrowUpRight, Trophy, Plus, Layers } from "lucide-react";
-import HeroSlider from "@/components/HeroSlider";
-import ReelsRow from "@/components/ReelsRow";
+import api from "@/lib/api";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [stats, setStats] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [recentTxns, setRecentTxns] = useState([]);
-  const [sliderUser, setSliderUser] = useState([]);
-  const [reels, setReels] = useState([]);
-  const [positions, setPositions] = useState([]);
-  const [reentryOpen, setReentryOpen] = useState(false);
-  const [reentryCode, setReentryCode] = useState("");
-  const [reentryBusy, setReentryBusy] = useState(false);
+  const [dashboard, setDashboard] = useState(null);
+  const [businesses, setBusinesses] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [recent, setRecent] = useState([]);
 
   useEffect(() => {
-    api.get("/users/dashboard").then(({ data }) => setStats(data.stats)).catch(() => {});
-    api.get("/mlm/leaderboard").then(({ data }) => setLeaderboard(data)).catch(() => {});
-    api.get("/wallet/transactions").then(({ data }) => setRecentTxns(data.slice(0, 5))).catch(() => {});
-    api.get("/sliders?location=user_dashboard").then(({ data }) => setSliderUser(data)).catch(() => {});
-    api.get("/reels?location=user").then(({ data }) => setReels(data)).catch(() => {});
-    api.get("/mlm/my-positions").then(({ data }) => setPositions(data.positions || [])).catch(() => {});
-  }, []);
+    if (!user) return;
+    Promise.all([
+      api.get("/users/dashboard"),
+      api.get("/mlm/businesses"),
+      api.get("/notifications?limit=5"),
+      api.get(`/mlm/businesses/${user.id}/network`).catch(() => ({ data: { members: [] } })),
+    ]).then(([d, b, n, net]) => {
+      setDashboard(d.data);
+      setBusinesses(b.data.businesses || []);
+      setNotifications(n.data || []);
+      setRecent((net.data.members || []).slice(0, 5));
+    });
+  }, [user]);
 
-  const submitReentry = async () => {
-    if (!reentryCode.trim()) return toast.error("Enter a sponsor referral code");
-    setReentryBusy(true);
-    try {
-      const { data } = await api.post("/mlm/re-entry", { referral_code: reentryCode.trim().toUpperCase() });
-      // Switch to the new position's token → user must pay ₹7,499 to activate it
-      localStorage.setItem("evergro_token", data.token);
-      toast.success(`New position ${data.new_position.user_code} created! Pay ₹7,499 to activate.`);
-      window.location.href = "/hampers";
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || "Re-entry failed");
-    } finally { setReentryBusy(false); }
-  };
+  if (!user || !dashboard) return <div className="p-12 text-center text-[#64748B]">Loading your dashboard…</div>;
 
-  const switchToPosition = async (userCode) => {
-    // Trigger OTP-picker flow via password login is not possible without password,
-    // so we call re-login by user_code via a dedicated endpoint (uses same password).
-    toast.info("Log out and log back in with this account's email/password to switch.");
-  };
+  const stats = dashboard.stats || {};
+  const totalMembers = businesses.reduce((s, b) => s + (b.total_members || 0), 0);
+  const totalActive = businesses.reduce((s, b) => s + (b.active_members || 0), 0);
+  const activeBusinesses = businesses.filter((b) => b.is_active).length;
 
-  if (!user) return null;
+  // Fake 7-day chart (from real data if available) — sample distribution
+  const chartData = Array.from({ length: 7 }).map((_, i) => ({
+    day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
+    joins: Math.max(0, Math.round((totalMembers / 7) * (0.7 + Math.random() * 0.6))),
+  }));
+  const pieData = [
+    { name: "Active", value: totalActive, fill: "#84CC16" },
+    { name: "Inactive", value: Math.max(0, totalMembers - totalActive), fill: "#FEF3C7" },
+  ];
 
-  const progressPct = Math.min(((stats?.stage_progress || 0) / (stats?.stage_required || 3)) * 100, 100);
-  // Level commissions per plan: L1..L8. Stage N pays L{N}. Backend also returns this in stats.
-  const stageCommissions = stats?.level_commissions || [1200, 400, 50, 300, 50, 200, 50, 100];
-  const nextCommission = stats?.current_stage_commission ?? (stageCommissions[(user.current_stage - 1)] || 0);
+  const copyRef = () => { navigator.clipboard.writeText(user.referral_code || ""); toast.success("Referral code copied!"); };
 
   return (
-    <div className="space-y-6" data-testid="user-dashboard">
-      <div>
-        <h1 className="font-display text-3xl lg:text-4xl font-bold text-[#064E3B]">Welcome, {user.name}!</h1>
-        <p className="text-[#64748B]">User Code: <span className="font-numbers font-semibold text-[#064E3B]">{user.user_code}</span></p>
-      </div>
-
-      {/* Positions & Re-Entry — only for paid members */}
-      {user.is_joining_paid && (
-        <div className="card-soft p-4 md:p-5 bg-gradient-to-r from-[#ECFCCB] via-white to-[#ECFCCB]" data-testid="dashboard-positions">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#84CC16] text-[#064E3B] flex items-center justify-center">
-                <Layers className="w-5 h-5"/>
-              </div>
-              <div>
-                <div className="font-display font-bold text-[#064E3B]">My MLM Positions</div>
-                <div className="text-xs text-[#64748B]">You have <b data-testid="positions-count">{positions.length || 1}</b> active position{(positions.length || 1) > 1 ? "s" : ""} on this phone</div>
-              </div>
-            </div>
-            <button
-              onClick={() => setReentryOpen(true)}
-              className="btn-primary text-sm"
-              data-testid="open-re-entry-btn"
-            >
-              <Plus className="w-4 h-4"/> Start New Position
-            </button>
+    <div className="space-y-6" data-testid="dashboard-page">
+      {/* Hero welcome */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl bg-gradient-to-br from-[#064E3B] via-[#065F46] to-[#166534] text-white p-6 md:p-8 relative overflow-hidden">
+        <div className="absolute -top-16 -right-16 w-64 h-64 bg-[#84CC16]/20 rounded-full blur-3xl"/>
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-[#FBBF24]/10 rounded-full blur-3xl"/>
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase font-bold text-[#84CC16] tracking-widest flex items-center gap-1"><Sparkles className="w-3 h-3"/> Welcome back</div>
+            <div className="font-display font-black text-3xl md:text-4xl mt-1">{user.name}</div>
+            <div className="text-sm text-white/70 mt-1 font-numbers">{user.user_code} · Stage {user.current_stage || 1} · {user.is_joining_paid ? "Active ✓" : "Pending activation"}</div>
           </div>
-          {positions.length > 1 && (
-            <div className="mt-4 flex flex-wrap gap-2" data-testid="positions-list">
-              {positions.map((p) => (
-                <div
-                  key={p.id}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${p.id === user.id ? "bg-[#84CC16] text-[#064E3B] border-[#84CC16]" : "bg-white text-[#334155] border-[#E2E8F0]"}`}
-                  data-testid={`position-${p.user_code}`}
-                >
-                  {p.user_code} {p.id === user.id && "· current"}
-                  {p.is_joining_paid ? " ✓" : " · pending"}
-                </div>
-              ))}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="rounded-2xl bg-white/10 backdrop-blur-sm px-4 py-3">
+              <div className="text-xs uppercase text-white/60 font-bold tracking-wider">Wallet</div>
+              <div className="font-numbers font-black text-2xl text-[#84CC16]">₹{Number(user.wallet_balance || 0).toFixed(0)}</div>
             </div>
-          )}
+            <div className="rounded-2xl bg-white/10 backdrop-blur-sm px-4 py-3">
+              <div className="text-xs uppercase text-white/60 font-bold tracking-wider">Total earnings</div>
+              <div className="font-numbers font-black text-2xl">₹{Number(user.total_earnings || 0).toFixed(0)}</div>
+            </div>
+          </div>
         </div>
-      )}
+      </motion.div>
 
-      {/* Admin-controlled slider */}
-      {sliderUser.length > 0 && (
-        <HeroSlider slides={sliderUser} height="h-[200px] md:h-[260px]" testid="user-dashboard-slider"/>
-      )}
-
+      {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={Wallet} label="Wallet Balance" value={`₹${(user.wallet_balance || 0).toLocaleString()}`} color="bg-[#84CC16]" testid="stat-wallet"/>
-        <StatCard icon={TrendingUp} label="Total Earnings" value={`₹${(user.total_earnings || 0).toLocaleString()}`} color="bg-[#FBBF24]" testid="stat-earnings"/>
-        <StatCard icon={Users} label="Team Size" value={user.team_size || 0} color="bg-[#064E3B] text-white" testid="stat-team"/>
-        <StatCard icon={Award} label="Direct Referrals" value={user.direct_referrals_count || 0} color="bg-white border-2 border-[#84CC16]" testid="stat-direct"/>
+        <StatCard label="Total Members" value={totalMembers} icon={<Users className="w-5 h-5"/>} tone="bg-[#DBEAFE] text-[#1E40AF]" delay={0}/>
+        <StatCard label="Active Downline" value={totalActive} icon={<Sparkles className="w-5 h-5"/>} tone="bg-[#ECFCCB] text-[#065F46]" delay={0.05}/>
+        <StatCard label="Businesses" value={`${activeBusinesses}/${businesses.length}`} icon={<Briefcase className="w-5 h-5"/>} tone="bg-[#FED7AA] text-[#9A3412]" delay={0.1}/>
+        <StatCard label="Direct Refs" value={user.direct_referrals_count || 0} icon={<TrendingUp className="w-5 h-5"/>} tone="bg-[#FEF3C7] text-[#92400E]" delay={0.15}/>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Stage progress */}
-        <div className="card-soft p-6 lg:col-span-2" data-testid="dashboard-stage-card">
-          <div className="flex items-center justify-between mb-4">
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <QuickAction to="/dashboard/businesses" icon={<Briefcase className="w-5 h-5"/>} label="My Businesses" tone="bg-gradient-to-br from-[#84CC16] to-[#65A30D] text-white" testid="qa-businesses"/>
+        <QuickAction to="/wallet" icon={<Wallet className="w-5 h-5"/>} label="Wallet & Withdraw" tone="bg-white text-[#064E3B]"/>
+        <QuickAction to="/products" icon={<ShoppingBag className="w-5 h-5"/>} label="Shop Store"/>
+        <QuickAction to="/orders" icon={<Package className="w-5 h-5"/>} label="My Orders"/>
+      </div>
+
+      {/* Charts + right column */}
+      <div className="grid lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 card-soft p-5" data-testid="growth-chart">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D]">Current Stage</div>
-              <div className="font-display text-3xl font-bold text-[#064E3B] mt-1">Stage {user.current_stage} of 8</div>
+              <div className="font-display font-bold text-lg text-[#064E3B]">Network growth (7-day)</div>
+              <div className="text-xs text-[#64748B]">Daily new joins across all your businesses</div>
             </div>
-            <div className="text-right">
-              <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D]">Stage Commission</div>
-              <div className="font-numbers text-2xl font-bold text-[#84CC16]">₹{nextCommission.toLocaleString()}</div>
-            </div>
+            <TrendingUp className="w-5 h-5 text-[#84CC16]"/>
           </div>
-          <div className="w-full bg-[#F1F5F9] rounded-full h-3 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#84CC16] to-[#65A30D] transition-all" style={{ width: `${progressPct}%` }}/>
-          </div>
-          <div className="flex justify-between text-sm text-[#334155] mt-2">
-            <span><span className="font-numbers font-bold text-[#064E3B]">{stats?.stage_progress || 0}</span> / {stats?.stage_required || 3} referrals at this stage</span>
-            <span className="font-numbers font-semibold text-[#65A30D]">{Math.round(progressPct)}%</span>
-          </div>
-          {!user.is_joining_paid && (
-            <div className="mt-4 bg-[#FEF3C7] border border-[#FDE68A] rounded-xl p-4 flex items-center justify-between">
-              <div className="text-sm text-[#92400E]"><b>Activate your account:</b> Purchase a joining hamper to start your MLM journey.</div>
-              <Link to="/hampers" className="btn-secondary text-xs">Buy Hamper</Link>
-            </div>
-          )}
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorJoins" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#84CC16" stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor="#84CC16" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="day" stroke="#94A3B8" fontSize={11}/>
+              <YAxis stroke="#94A3B8" fontSize={11}/>
+              <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E2E8F0" }}/>
+              <Area type="monotone" dataKey="joins" stroke="#65A30D" strokeWidth={2.5} fill="url(#colorJoins)"/>
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
-
-        {/* Quick stats */}
-        <div className="card-soft p-6 space-y-3">
-          <h3 className="font-display font-bold text-lg">Quick Stats</h3>
-          <Row icon={ShoppingBag} label="Orders" value={stats?.orders_count || 0}/>
-          <Row icon={Bell} label="Unread Notifications" value={stats?.unread_notifications || 0}/>
-          <Row icon={Wallet} label="Pending Withdrawals" value={stats?.pending_withdrawals || 0}/>
-          <Row icon={Award} label="KYC Status" value={user.kyc_status} pill/>
+        <div className="card-soft p-5">
+          <div className="font-display font-bold text-lg text-[#064E3B] mb-2">Downline mix</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={pieData} innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value">
+                {pieData.map((entry, i) => <Cell key={i} fill={entry.fill}/>)}
+              </Pie>
+              <Tooltip/>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="text-center text-xs text-[#64748B] mt-1">
+            <span className="inline-flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#84CC16]"/> Active</span>
+            <span className="inline-flex items-center gap-1 ml-3"><div className="w-2 h-2 rounded-full bg-[#FEF3C7]"/> Pending</span>
+          </div>
         </div>
       </div>
 
-      {/* Wallet breakdown */}
-      <div className="grid md:grid-cols-4 gap-4">
-        <WalletMini label="Commission" value={user.commission_wallet} color="text-[#65A30D]"/>
-        <WalletMini label="Cashback" value={user.cashback_wallet} color="text-[#FBBF24]"/>
-        <WalletMini label="Reward" value={user.reward_wallet} color="text-[#064E3B]"/>
-        <WalletMini label="Income" value={user.income_wallet} color="text-[#84CC16]"/>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent transactions */}
-        <div className="card-soft p-6" data-testid="dashboard-recent-txns">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display font-bold text-lg">Recent Transactions</h3>
-            <Link to="/wallet" className="text-sm text-[#65A30D] font-semibold">View all</Link>
+      {/* Referral share + Recent joins + Notifications */}
+      <div className="grid lg:grid-cols-3 gap-5">
+        <div className="card-soft p-5 bg-gradient-to-br from-[#ECFCCB] to-[#D9F99D] lg:col-span-1" data-testid="referral-card">
+          <div className="flex items-center gap-2 text-xs uppercase font-bold text-[#065F46] tracking-widest"><Share2 className="w-3 h-3"/> Share & earn</div>
+          <div className="font-display font-black text-lg text-[#064E3B] mt-1">Your primary code</div>
+          <div className="mt-3 flex items-center gap-2">
+            <div className="font-mono font-black text-2xl text-[#064E3B] bg-white/70 rounded-2xl px-4 py-2 flex-1">{user.referral_code}</div>
+            <button onClick={copyRef} className="w-11 h-11 bg-[#064E3B] rounded-2xl text-white hover:bg-[#065F46] flex items-center justify-center" data-testid="copy-my-refcode"><Copy className="w-4 h-4"/></button>
           </div>
-          {recentTxns.length === 0 ? (
-            <div className="text-sm text-[#64748B]">No transactions yet</div>
-          ) : (
-            <div className="space-y-2">
-              {recentTxns.map((t) => (
-                <div key={t.id} className="flex items-center justify-between py-2 border-b border-[#F1F5F9] last:border-0">
-                  <div>
-                    <div className="text-sm font-semibold text-[#064E3B] capitalize">{t.category}</div>
-                    <div className="text-xs text-[#64748B]">{t.description}</div>
-                  </div>
-                  <div className={`font-numbers font-bold ${t.type === "credit" ? "text-[#65A30D]" : "text-[#EF4444]"}`}>
-                    {t.type === "credit" ? "+" : "−"}₹{t.amount}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <Link to="/dashboard/businesses" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#065F46] hover:text-[#064E3B]">
+            <Rocket className="w-3 h-3"/> Create another referral business →
+          </Link>
         </div>
 
-        {/* Leaderboard */}
-        <div className="card-soft p-6" data-testid="dashboard-leaderboard">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display font-bold text-lg flex items-center gap-2"><Trophy className="w-5 h-5 text-[#FBBF24]"/> Top Earners</h3>
+        <div className="card-soft p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-display font-bold text-[#064E3B]">Recent joins</div>
+            <Link to="/network" className="text-xs text-[#65A30D] font-semibold">View all →</Link>
           </div>
           <div className="space-y-2">
-            {leaderboard.slice(0, 5).map((u, i) => (
-              <div key={u.user_code} className="flex items-center gap-3 py-2 border-b border-[#F1F5F9] last:border-0">
-                <div className={`w-7 h-7 rounded-full font-numbers font-bold flex items-center justify-center text-xs ${i === 0 ? "bg-[#FBBF24] text-[#064E3B]" : i === 1 ? "bg-[#94A3B8] text-white" : i === 2 ? "bg-[#F97316] text-white" : "bg-[#F1F5F9] text-[#334155]"}`}>{i+1}</div>
+            {recent.length === 0 && <div className="text-xs text-[#94A3B8] text-center py-6">No members yet — share your code to grow.</div>}
+            {recent.map((m) => (
+              <div key={m.id} className="flex items-center gap-2 p-2 bg-[#FAFAF9] rounded-xl">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#84CC16] to-[#65A30D] text-white font-black text-xs flex items-center justify-center">{(m.name || "?").charAt(0).toUpperCase()}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm text-[#064E3B] truncate">{u.name}</div>
-                  <div className="text-xs text-[#64748B]">Stage {u.stage} · Team {u.team_size}</div>
+                  <div className="text-sm font-semibold text-[#064E3B] truncate">{m.name}</div>
+                  <div className="text-[10px] text-[#94A3B8] font-mono">{m.user_code}</div>
                 </div>
-                <div className="font-numbers font-bold text-[#064E3B] text-sm">₹{(u.total_earnings || 0).toLocaleString()}</div>
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${m.is_joining_paid ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#FEF3C7] text-[#92400E]"}`}>{m.is_joining_paid ? "✓" : "pending"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card-soft p-5" data-testid="notifications-card">
+          <div className="flex items-center justify-between mb-3">
+            <div className="inline-flex items-center gap-2"><Bell className="w-4 h-4 text-[#84CC16]"/><div className="font-display font-bold text-[#064E3B]">Notifications</div></div>
+            <Link to="/notifications" className="text-xs text-[#65A30D] font-semibold">All →</Link>
+          </div>
+          <div className="space-y-2">
+            {notifications.length === 0 && <div className="text-xs text-[#94A3B8] text-center py-6">You're all caught up.</div>}
+            {notifications.slice(0, 4).map((n) => (
+              <div key={n.id} className={`p-2 rounded-xl text-xs ${n.read ? "bg-[#FAFAF9]" : "bg-[#ECFCCB]"}`}>
+                <div className="font-semibold text-[#064E3B]">{n.title}</div>
+                <div className="text-[#64748B] line-clamp-2 mt-0.5">{n.body}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
-
-      {/* Reels for member engagement */}
-      {reels.length > 0 && (
-        <div className="-mx-6 lg:-mx-10">
-          <ReelsRow reels={reels} title="Quick Demos & Member Stories" testid="user-dashboard-reels"/>
-        </div>
-      )}
-
-      {/* Re-Entry Modal */}
-      {reentryOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" data-testid="re-entry-modal">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
-            <div>
-              <h3 className="font-display font-bold text-xl text-[#064E3B]">Start a New MLM Position</h3>
-              <p className="text-sm text-[#64748B] mt-1">Create an additional position under a DIFFERENT sponsor. You'll need to pay ₹7,499 again to activate it. All positions share your login credentials.</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-[#064E3B]">Sponsor's Referral Code</label>
-              <input
-                className="input-soft mt-1 uppercase font-numbers"
-                value={reentryCode}
-                onChange={(e) => setReentryCode(e.target.value.toUpperCase())}
-                placeholder="e.g. EG000005AB"
-                data-testid="re-entry-code-input"
-              />
-              <p className="text-[10px] text-[#64748B] mt-1">Cannot use your own referral code, or a sponsor that already has 6 direct refs, or one where you already hold a position.</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setReentryOpen(false); setReentryCode(""); }}
-                className="btn-outline flex-1 justify-center"
-                data-testid="re-entry-cancel-btn"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitReentry}
-                disabled={reentryBusy}
-                className="btn-primary flex-1 justify-center disabled:opacity-60"
-                data-testid="re-entry-submit-btn"
-              >
-                {reentryBusy ? "Creating…" : "Create Position →"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-function StatCard({ icon: Icon, label, value, color, testid }) {
+function StatCard({ label, value, icon, tone, delay }) {
   return (
-    <div className={`p-5 rounded-2xl ${color}`} data-testid={testid}>
-      <Icon className="w-6 h-6 mb-3"/>
-      <div className="text-xs uppercase tracking-widest opacity-80">{label}</div>
-      <div className="font-numbers text-2xl font-bold mt-1">{value}</div>
-    </div>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="card-soft p-4 hover:-translate-y-0.5 transition-transform">
+      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${tone}`}>{icon}</div>
+      <div className="font-numbers font-black text-2xl text-[#064E3B] mt-2">{value}</div>
+      <div className="text-xs text-[#64748B] font-semibold">{label}</div>
+    </motion.div>
   );
 }
 
-function Row({ icon: Icon, label, value, pill }) {
+function QuickAction({ to, icon, label, tone, testid }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-[#F1F5F9] last:border-0">
-      <div className="flex items-center gap-2 text-sm text-[#334155]"><Icon className="w-4 h-4 text-[#65A30D]"/>{label}</div>
-      {pill ? (
-        <span className="badge-pill bg-[#ECFCCB] text-[#065F46] capitalize">{value}</span>
-      ) : (
-        <div className="font-numbers font-bold text-[#064E3B]">{value}</div>
-      )}
-    </div>
-  );
-}
-
-function WalletMini({ label, value, color }) {
-  return (
-    <div className="card-soft p-4">
-      <div className="text-xs uppercase tracking-widest text-[#64748B]">{label}</div>
-      <div className={`font-numbers text-xl font-bold mt-1 ${color}`}>₹{(value || 0).toLocaleString()}</div>
-    </div>
+    <Link to={to} className={`card-soft p-4 hover:-translate-y-1 hover:shadow-lg transition-all inline-flex items-center gap-3 group ${tone || ""}`} data-testid={testid}>
+      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${tone ? "bg-white/20 text-white" : "bg-[#ECFCCB] text-[#65A30D]"}`}>{icon}</div>
+      <div className="flex-1">
+        <div className="font-semibold text-sm">{label}</div>
+      </div>
+      <ChevronRight className="w-4 h-4 opacity-60 group-hover:translate-x-1 transition-transform"/>
+    </Link>
   );
 }

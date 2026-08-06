@@ -5,7 +5,7 @@ import uuid
 import logging
 import random
 import string
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Optional
 
@@ -663,6 +663,230 @@ async def my_positions(user=Depends(get_user)):
         {"_id": 0, "password_hash": 0},
     ).sort("created_at", 1).to_list(50)
     return {"positions": [public_user(a) for a in accts]}
+
+
+# ==================== MULTI REFERRAL BUSINESS (Iteration 16) ====================
+def _new_business_code():
+    # 8-char alphanumeric business code
+    import secrets, string
+    return "B" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(7))
+
+
+async def _build_business_stats(business: dict) -> dict:
+    """Compute member counts + activity for a business."""
+    code = business.get("referral_code")
+    now = datetime.now(timezone.utc)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today - timedelta(days=7)
+    month_start = today - timedelta(days=30)
+    q_all = {"sponsor_id": code}
+    total = await db.users.count_documents(q_all)
+    active = await db.users.count_documents({**q_all, "is_joining_paid": True})
+    today_j = await db.users.count_documents({**q_all, "created_at": {"$gte": today.isoformat()}})
+    week_j = await db.users.count_documents({**q_all, "created_at": {"$gte": week_start.isoformat()}})
+    month_j = await db.users.count_documents({**q_all, "created_at": {"$gte": month_start.isoformat()}})
+    return {
+        "total_members": total,
+        "active_members": active,
+        "inactive_members": total - active,
+        "today_joins": today_j,
+        "week_joins": week_j,
+        "month_joins": month_j,
+    }
+
+
+async def _list_businesses_for_user(user: dict) -> list:
+    """Primary user record is business #1. Additional businesses are in referral_businesses."""
+    out = []
+    # Primary (existing user record — always index 0)
+    prim_stats = await _build_business_stats({"referral_code": user["referral_code"]}) if user.get("referral_code") else {"total_members": 0, "active_members": 0, "inactive_members": 0, "today_joins": 0, "week_joins": 0, "month_joins": 0}
+    out.append({
+        "id": user["id"], "is_primary": True, "name": f"{user['name']} — Primary",
+        "business_code": user["user_code"], "referral_code": user.get("referral_code"),
+        "is_active": bool(user.get("is_joining_paid")),
+        "total_earnings": user.get("total_earnings", 0),
+        "created_at": user.get("created_at"), "activated_at": user.get("activated_at"),
+        **prim_stats,
+    })
+    # Additional businesses
+    extra = await db.referral_businesses.find({"owner_user_id": user["id"]}, {"_id": 0}).sort("created_at", 1).to_list(50)
+    for b in extra:
+        stats = await _build_business_stats(b)
+        out.append({**b, "is_primary": False, **stats})
+    return out
+
+
+@api.get("/mlm/businesses")
+async def list_businesses(user=Depends(get_user)):
+    """List all referral businesses owned by the logged-in user (primary + additional)."""
+    return {"businesses": await _list_businesses_for_user(user)}
+
+
+@api.get("/mlm/businesses/{business_id}")
+async def get_business(business_id: str, user=Depends(get_user)):
+    if business_id == user["id"]:
+        # Primary
+        stats = await _build_business_stats({"referral_code": user["referral_code"]}) if user.get("referral_code") else {}
+        return {
+            "id": user["id"], "is_primary": True, "name": f"{user['name']} — Primary",
+            "business_code": user["user_code"], "referral_code": user.get("referral_code"),
+            "is_active": bool(user.get("is_joining_paid")),
+            "total_earnings": user.get("total_earnings", 0),
+            "current_stage": user.get("current_stage", 1),
+            **stats,
+        }
+    b = await db.referral_businesses.find_one({"id": business_id, "owner_user_id": user["id"]}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Business not found")
+    return {**b, **(await _build_business_stats(b))}
+
+
+@api.get("/mlm/businesses/{business_id}/network")
+async def business_network(business_id: str, user=Depends(get_user)):
+    """Return the network members (up to 200) that joined under this business's referral_code."""
+    if business_id == user["id"]:
+        code = user.get("referral_code")
+    else:
+        b = await db.referral_businesses.find_one({"id": business_id, "owner_user_id": user["id"]}, {"_id": 0})
+        if not b:
+            raise HTTPException(status_code=404, detail="Business not found")
+        code = b.get("referral_code")
+    if not code:
+        return {"members": []}
+    members = await db.users.find(
+        {"sponsor_id": code},
+        {"_id": 0, "password_hash": 0}
+    ).sort("created_at", -1).to_list(200)
+    return {"members": [public_user(m) for m in members]}
+
+
+@api.post("/mlm/businesses/create")
+async def create_business(payload: dict, user=Depends(get_user)):
+    """Create a NEW referral business (pending) + an order for the ₹7,499 starter kit.
+    Payment on the kit activates the business.
+    Body: {name (optional label), referral_code (sponsor's code, required — different from primary)}
+    """
+    name = (payload.get("name") or "").strip() or f"Business #{await db.referral_businesses.count_documents({'owner_user_id': user['id']}) + 2}"
+    sponsor_code = (payload.get("referral_code") or "").strip().upper()
+    if not sponsor_code:
+        raise HTTPException(status_code=400, detail="Sponsor referral code is required for a new business")
+    if sponsor_code == user.get("referral_code"):
+        raise HTTPException(status_code=400, detail="You cannot sponsor your own new business — use a different referral code")
+
+    # Sponsor exists (either a user's own code OR another business's code)
+    sponsor_user = await db.users.find_one({"referral_code": sponsor_code}, {"_id": 0})
+    sponsor_business = await db.referral_businesses.find_one({"referral_code": sponsor_code}, {"_id": 0})
+    if not sponsor_user and not sponsor_business:
+        raise HTTPException(status_code=400, detail="Invalid sponsor referral code")
+
+    # Generate a UNIQUE referral code for the new business
+    for _ in range(10):
+        new_ref = "R" + str(uuid.uuid4().hex[:7]).upper()
+        if not await db.users.find_one({"referral_code": new_ref}) and not await db.referral_businesses.find_one({"referral_code": new_ref}):
+            break
+
+    business = {
+        "id": str(uuid.uuid4()),
+        "owner_user_id": user["id"],
+        "name": name,
+        "business_code": _new_business_code(),
+        "referral_code": new_ref,
+        "sponsor_referral_code": sponsor_code,
+        "is_active": False,
+        "is_joining_paid": False,
+        "current_stage": 1,
+        "total_earnings": 0,
+        "created_at": now_iso(),
+        "activated_at": None,
+    }
+    await db.referral_businesses.insert_one(business)
+    business.pop("_id", None)
+
+    # Create an order for the joining kit — payment activates the business
+    hamper = await db.products.find_one({"sku": "HMP-JOINING-7200"}, {"_id": 0})
+    if not hamper:
+        raise HTTPException(status_code=500, detail="Joining kit not configured")
+    order_id = str(uuid.uuid4())
+    order_code = "EG" + str(uuid.uuid4().hex[:8]).upper()
+    await db.orders.insert_one({
+        "id": order_id, "order_code": order_code, "user_id": user["id"],
+        "business_id": business["id"],  # links the order to this new business
+        "items": [{"product_id": hamper["id"], "name": hamper["name"], "price": hamper["price"], "quantity": 1, "line_total": hamper["price"], "image": (hamper.get("images") or [None])[0], "is_hamper": True, "gst_percent": hamper.get("gst_percent", 5)}],
+        "subtotal": hamper["price"], "discount": 0, "gst": round(hamper["price"] * hamper.get("gst_percent", 5) / 100, 2),
+        "shipping": 0, "extras": [], "extras_total": 0,
+        "total": round(hamper["price"] * (1 + hamper.get("gst_percent", 5) / 100), 2),
+        "coupon_code": None, "payment_method": "gateway",
+        "address": None, "payment_status": "pending", "payment_provider": None,
+        "status": "placed", "is_joining_order": True,
+        "tracking_no": None, "courier_name": None, "tracking_url": None,
+        "tracking_history": [{"at": now_iso(), "status": "placed", "label": "Business Order Placed", "note": f"New referral business '{name}' — awaiting kit payment.", "by": "System"}],
+        "created_at": now_iso(),
+    })
+    return {"business": {**business, "total_members": 0, "active_members": 0, "inactive_members": 0, "today_joins": 0, "week_joins": 0, "month_joins": 0}, "order_id": order_id, "order_code": order_code, "amount": round(hamper["price"] * (1 + hamper.get("gst_percent", 5) / 100), 2)}
+
+
+@api.delete("/mlm/businesses/{business_id}")
+async def delete_business(business_id: str, user=Depends(get_user)):
+    """Cancel a business (only PENDING/unpaid businesses can be removed)."""
+    b = await db.referral_businesses.find_one({"id": business_id, "owner_user_id": user["id"]}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Business not found")
+    if b.get("is_joining_paid"):
+        raise HTTPException(status_code=400, detail="Cannot delete an active (paid) business")
+    await db.referral_businesses.delete_one({"id": business_id})
+    return {"ok": True}
+
+
+# ==================== ADMIN CSV EXPORTS (Iteration 16 · Phase 4) ====================
+def _csv_response(rows: list, headers: list, filename: str):
+    """Utility — turn a list of dicts into a downloadable CSV Response."""
+    import io, csv
+    from fastapi.responses import StreamingResponse
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=headers, extrasaction="ignore")
+    writer.writeheader()
+    for r in rows:
+        writer.writerow({h: r.get(h, "") for h in headers})
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.read()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@api.get("/admin/export/users")
+async def export_users_csv(_=Depends(require_admin)):
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(10000)
+    for u in users:
+        u["is_joining_paid_str"] = "Yes" if u.get("is_joining_paid") else "No"
+    return _csv_response(
+        users,
+        ["user_code", "name", "username", "email", "phone", "sponsor_id", "referral_code", "is_joining_paid_str", "current_stage", "direct_referrals_count", "team_size", "total_earnings", "wallet_balance", "role", "created_at"],
+        f"users_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv",
+    )
+
+
+@api.get("/admin/export/orders")
+async def export_orders_csv(_=Depends(require_admin)):
+    orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    for o in orders:
+        o["items_summary"] = "; ".join(f"{i.get('name')} x{i.get('quantity')}" for i in (o.get("items") or []))
+    return _csv_response(
+        orders,
+        ["order_code", "user_id", "items_summary", "subtotal", "gst", "shipping", "extras_total", "total", "payment_status", "payment_provider", "status", "created_at", "paid_at"],
+        f"orders_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv",
+    )
+
+
+@api.get("/admin/export/withdrawals")
+async def export_withdrawals_csv(_=Depends(require_admin)):
+    rows = await db.withdrawals.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    return _csv_response(
+        rows,
+        ["id", "user_id", "user_code", "amount", "status", "bank_name", "account_number", "ifsc", "requested_at", "processed_at", "note"],
+        f"withdrawals_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv",
+    )
 
 
 @api.get("/auth/me")
@@ -1512,9 +1736,24 @@ async def cashfree_verify(payload: dict, user=Depends(get_user)):
         for item in order.get("items", []):
             await db.products.update_one({"id": item["product_id"]}, {"$inc": {"stock": -item["quantity"]}})
         if any(i.get("is_hamper") for i in order.get("items", [])):
-            u = await db.users.find_one({"id": order["user_id"]}, {"_id": 0})
-            if not u.get("is_joining_paid"):
-                await process_paid_joining(db, order["user_id"], order.get("order_code", order_id), order_id)
+            # If order belongs to an additional business, activate the business
+            if order.get("business_id"):
+                await db.referral_businesses.update_one(
+                    {"id": order["business_id"]},
+                    {"$set": {"is_active": True, "is_joining_paid": True, "activated_at": now_iso()}},
+                )
+                await db.notifications.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "user_id": order["user_id"],
+                    "title": "🚀 New Referral Business Activated",
+                    "body": "Your new referral business is live. Share the referral code from your dashboard to grow this position.",
+                    "type": "success", "event": "business_activated",
+                    "read": False, "created_at": now_iso(),
+                })
+            else:
+                u = await db.users.find_one({"id": order["user_id"]}, {"_id": 0})
+                if not u.get("is_joining_paid"):
+                    await process_paid_joining(db, order["user_id"], order.get("order_code", order_id), order_id)
     return {"paid": True, "order_id": order_id, "mock": bool(order.get("payment_mock"))}
 
 
