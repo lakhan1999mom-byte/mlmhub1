@@ -492,6 +492,38 @@ async def otp_pick_account(payload: dict, request: Request):
     return {"token": token, "user": public_user(user)}
 
 
+@api.post("/auth/forgot-password/start")
+async def forgot_password_start(payload: dict):
+    """SMS-independent forgot-password bootstrap.
+    - If the phone has NO account → returns {exists: false} so the client can jump to Join Now.
+    - If the phone HAS at least one account → generates a fresh 6-digit OTP, stores it in
+      db.otps, and returns it in the response so the client can show it in a popup.
+      (This bypasses Firebase/SMS entirely — used as a fallback while the SMS provider is
+      unavailable on production.)
+    """
+    phone = (payload.get("phone") or "").strip()
+    if len(phone) < 6:
+        raise HTTPException(status_code=400, detail="Enter a valid mobile number")
+
+    count = await db.users.count_documents({"phone": phone})
+    if count == 0:
+        return {"exists": False, "phone": phone}
+
+    otp = gen_otp()
+    now = int(time.time())
+    expires = now + 600  # 10 min for reset flow
+    await db.otps.update_one(
+        {"phone": phone},
+        {"$set": {
+            "phone": phone, "otp": otp, "expires_at": expires, "verified": False,
+            "last_sent_at": now, "created_at": now_iso(), "purpose": "reset",
+        }},
+        upsert=True,
+    )
+    logger.info(f"[FORGOT-PW] phone={phone} otp={otp} accounts={count}")
+    return {"exists": True, "otp": otp, "phone": phone, "accounts_count": count}
+
+
 @api.post("/auth/forgot-password/lookup")
 async def forgot_password_lookup(payload: dict):
     """After OTP is verified, list all accounts on that phone so the user can pick

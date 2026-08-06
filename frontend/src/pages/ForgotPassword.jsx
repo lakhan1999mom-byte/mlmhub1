@@ -1,26 +1,27 @@
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { Lock, ChevronRight, ArrowLeft, KeyRound } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Lock, ChevronRight, ArrowLeft, KeyRound, Copy, X, AlertTriangle } from "lucide-react";
 import api from "@/lib/api";
-import { sendFirebaseOtp, toIndianE164, isFirebaseHostAllowed } from "@/lib/firebase";
 import ResendOtpButton from "@/components/ResendOtpButton";
 
 /**
- * Forgot Password — 3 step flow:
- * 1. Enter phone → OTP (Firebase on prod, dev-OTP on preview)
- * 2. Enter OTP → verify
- *   • If ONE account → move to reset password
- *   • If MULTIPLE accounts → show picker → user selects → reset password for that account
- * 3. Enter new password → done → redirect to login
+ * Forgot Password — 3 step flow (SMS-independent):
+ * 1. Enter phone → server checks if account exists.
+ *    • If NOT exists → redirect to /join-now (offer signup).
+ *    • If exists → server returns a fresh 6-digit OTP that we show in a popup.
+ * 2. Enter OTP → verify.
+ *   • If ONE account → move to reset password.
+ *   • If MULTIPLE accounts → show picker → user selects → reset password for that account.
+ * 3. Enter new password → done → redirect to login.
  */
 export default function ForgotPassword() {
   const nav = useNavigate();
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [devOtp, setDevOtp] = useState("");
+  const [popupOtp, setPopupOtp] = useState("");
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState(null);
   const [chosen, setChosen] = useState(null);
@@ -28,60 +29,29 @@ export default function ForgotPassword() {
   const [confirmPw, setConfirmPw] = useState("");
   const confirmationRef = useRef(null);
 
-  const sendOtp = async () => {
-    if (phone.replace(/\D/g, "").length < 10) return toast.error("Enter valid 10-digit mobile");
+  const requestOtp = async () => {
+    if (phone.replace(/\D/g, "").length < 10) return toast.error("Enter a valid 10-digit mobile");
     setBusy(true);
     try {
-      await sendOtpForPhone();
+      const { data } = await api.post("/auth/forgot-password/start", { phone });
+      if (!data.exists) {
+        toast.info("This number is not registered — redirecting to sign up.");
+        setTimeout(() => nav(`/join-now?phone=${phone}`), 800);
+        return;
+      }
+      // Show the OTP popup so the user can read + type it in
+      setPopupOtp(data.otp);
       setStep(2);
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Could not send OTP");
+      toast.error(e?.response?.data?.detail || "Could not start reset");
     } finally { setBusy(false); }
-  };
-
-  const sendOtpForPhone = async () => {
-    let firebaseFailed = false;
-    if (isFirebaseHostAllowed()) {
-      try {
-        const conf = await sendFirebaseOtp(toIndianE164(phone));
-        confirmationRef.current = conf;
-        setDevOtp("");
-        toast.success("OTP sent to your mobile via SMS");
-        return;
-      } catch (err) {
-        firebaseFailed = true;
-        // eslint-disable-next-line no-console
-        console.warn("[Firebase] failed", err?.code, err?.message);
-      }
-    }
-    const { data } = await api.post("/auth/otp/send", { phone });
-    setDevOtp(data.dev_otp || "");
-    if (firebaseFailed) {
-      toast.warning("SMS provider temporarily unavailable — contact support if OTP does not arrive.", { duration: 6000 });
-    } else {
-      toast.success(data.dev_otp ? `OTP sent (${data.dev_otp})` : "OTP sent to your mobile");
-    }
   };
 
   const verifyOtp = async () => {
     if (otp.length < 4) return toast.error("Enter OTP");
     setBusy(true);
     try {
-      if (confirmationRef.current) {
-        await confirmationRef.current.confirm(otp);
-        // Firebase verified — also mark server-side OTP row verified via /auth/otp/send
-        // isn't right. Instead we hit /auth/firebase-verify equivalent isn't needed here —
-        // we just need the accounts list. Server needs an OTP record for /forgot-password
-        // to succeed, so ensure a matching OTP exists in dev fallback.
-        // Simplest: also issue a dev OTP send so the record exists for the lookup path.
-        // But actually — with Firebase, we should trust the client's confirmed OTP.
-        // Server-side we bypass by requiring the same OTP that was on our OTPs table.
-        // Since Firebase verification here validates the SMS OTP, we still need a matching
-        // record. If not present, /auth/otp/send will create one. We already sent it.
-      } else {
-        // Validates OTP; on success server sets verified=true on the OTPs row.
-        await api.post("/auth/otp/verify", { phone, otp });
-      }
+      await api.post("/auth/otp/verify", { phone, otp });
       const { data: lu } = await api.post("/auth/forgot-password/lookup", { phone, otp });
       if (lu.single) {
         setChosen(lu.accounts[0]);
@@ -111,8 +81,51 @@ export default function ForgotPassword() {
     } finally { setBusy(false); }
   };
 
+  const copyOtp = () => {
+    navigator.clipboard.writeText(popupOtp);
+    toast.success("OTP copied");
+  };
+
+  const useOtp = () => {
+    setOtp(popupOtp);
+    setPopupOtp("");
+    toast.success("OTP filled — tap Verify");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F8FAFC] via-white to-[#ECFCCB]/40 px-4 py-10" data-testid="forgot-password-page">
+      <AnimatePresence>
+        {popupOtp && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            data-testid="fp-otp-popup"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-sm rounded-3xl bg-white p-6 relative shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button onClick={() => setPopupOtp("")} className="absolute top-3 right-3 text-[#94A3B8] hover:text-[#334155]"><X className="w-5 h-5"/></button>
+              <div className="flex items-center gap-2 mb-3 text-amber-700">
+                <AlertTriangle className="w-4 h-4"/>
+                <div className="text-[10px] uppercase tracking-widest font-bold">SMS temporarily unavailable</div>
+              </div>
+              <h3 className="font-display font-black text-2xl text-[#064E3B]">Your reset OTP</h3>
+              <p className="text-xs text-[#64748B] mt-1">Copy this 6-digit code below and paste it in the next step. It expires in 10 minutes.</p>
+              <div className="mt-4 rounded-2xl bg-gradient-to-br from-[#ECFCCB] to-[#D9F99D] border-2 border-dashed border-[#84CC16]/60 p-5 text-center" data-testid="fp-popup-otp-value">
+                <div className="font-numbers font-black text-4xl tracking-[0.4em] text-[#064E3B]">{popupOtp}</div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button onClick={copyOtp} className="btn-outline justify-center text-sm" data-testid="fp-copy-otp"><Copy className="w-4 h-4"/> Copy</button>
+                <button onClick={useOtp} className="btn-primary justify-center text-sm" data-testid="fp-use-otp">Use this OTP →</button>
+              </div>
+              <div className="text-[10px] text-[#94A3B8] mt-3 text-center">This code is unique to <b className="font-numbers text-[#065F46]">{phone}</b></div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-md card-soft p-6 md:p-8">
         <Link to="/login" className="inline-flex items-center gap-1 text-sm text-[#64748B] hover:text-[#065F46] mb-4" data-testid="fp-back-link">
           <ArrowLeft className="w-4 h-4"/> Back to Login
@@ -144,20 +157,18 @@ export default function ForgotPassword() {
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
               data-testid="fp-phone-input"
             />
-            <button onClick={sendOtp} disabled={busy || phone.length < 10} className="btn-primary w-full justify-center" data-testid="fp-send-otp-btn">
-              {busy ? "Sending…" : "Send OTP"}
+            <button onClick={requestOtp} disabled={busy || phone.length < 10} className="btn-primary w-full justify-center" data-testid="fp-send-otp-btn">
+              {busy ? "Checking…" : "Continue"}
             </button>
+            <div className="text-[10px] text-[#94A3B8] text-center">
+              If this number isn&apos;t registered, we&apos;ll take you to Sign Up.
+            </div>
           </motion.div>
         )}
 
         {step === 2 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <div className="text-sm text-[#64748B]">OTP sent to <span className="font-numbers font-semibold text-[#064E3B]">{phone}</span>. <button onClick={() => { setStep(1); confirmationRef.current = null; setDevOtp(""); }} className="text-[#84CC16] font-semibold">Change</button></div>
-            {devOtp && (
-              <div className="text-xs bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] rounded-lg p-3" data-testid="fp-dev-otp">
-                Preview — Your OTP: <b>{devOtp}</b>
-              </div>
-            )}
+            <div className="text-sm text-[#64748B]">OTP generated for <span className="font-numbers font-semibold text-[#064E3B]">{phone}</span>. <button onClick={() => { setStep(1); confirmationRef.current = null; setPopupOtp(""); setOtp(""); }} className="text-[#84CC16] font-semibold">Change</button></div>
             <input
               className="input-soft font-numbers tracking-widest text-center text-xl"
               placeholder="------"
@@ -170,11 +181,14 @@ export default function ForgotPassword() {
               {busy ? "Verifying…" : "Verify OTP"}
             </button>
             <div className="flex items-center justify-between pt-1">
-              <button onClick={() => { setStep(1); confirmationRef.current = null; setDevOtp(""); }} className="text-xs text-[#64748B] hover:text-[#065F46]" data-testid="fp-change-number-btn">
+              <button onClick={() => { setStep(1); confirmationRef.current = null; setPopupOtp(""); setOtp(""); }} className="text-xs text-[#64748B] hover:text-[#065F46]" data-testid="fp-change-number-btn">
                 Change number
               </button>
               <ResendOtpButton
-                onResend={sendOtpForPhone}
+                onResend={async () => {
+                  const { data } = await api.post("/auth/forgot-password/start", { phone });
+                  if (data.otp) { setPopupOtp(data.otp); setOtp(""); }
+                }}
                 testId="fp-resend-otp-btn"
               />
             </div>

@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Shield, TrendingUp, Check, X } from "lucide-react";
@@ -16,6 +16,7 @@ import ResendOtpButton from "@/components/ResendOtpButton";
  */
 export default function JoinNow() {
   const nav = useNavigate();
+  const [params] = useSearchParams();
   const [step, setStep] = useState(1); // 1: phone, 1.5: existing-choice, 2: otp, 3: details
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -27,6 +28,14 @@ export default function JoinNow() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [usernameOk, setUsernameOk] = useState(null);
+
+  // Pre-fill phone + referral code from query string (e.g. redirect from Forgot Password)
+  useEffect(() => {
+    const p = (params.get("phone") || "").replace(/\D/g, "").slice(0, 10);
+    const ref = (params.get("ref") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (p) setPhone(p);
+    if (ref) setForm((f) => ({ ...f, referral_code: ref }));
+  }, [params]);
 
   const sendOtp = async (skipExistingCheck = false) => {
     if (phone.replace(/\D/g, "").length < 10) return toast.error("Enter valid 10-digit mobile");
