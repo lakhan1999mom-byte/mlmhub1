@@ -128,7 +128,7 @@ export default function JoinNow() {
             One number.<br/>Many chances.<br/><span className="text-[#84CC16]">Unlimited income.</span>
           </h1>
           <p className="text-[#334155] mb-6 leading-relaxed">
-            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹7,499 to activate your first MLM position. Same phone can be used for multiple accounts.
+            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹7,499 to activate your account. One mobile = one account · create additional referral businesses from your dashboard later.
           </p>
           <div className="space-y-3">
             {[
@@ -198,27 +198,22 @@ export default function JoinNow() {
               <div className="space-y-3">
                 <button
                   onClick={() => nav(`/login?phone=${phone}`)}
-                  className="w-full text-left card-soft p-4 hover:border-[#84CC16] hover:-translate-y-0.5 transition-all flex items-center justify-between group"
+                  className="w-full text-left card-soft p-4 hover:border-[#84CC16] hover:-translate-y-0.5 transition-all flex items-center justify-between group border-2 border-[#84CC16]/40"
                   data-testid="join-choice-login"
                 >
                   <div>
-                    <div className="font-semibold text-[#064E3B]">Login to existing account</div>
-                    <div className="text-xs text-[#64748B]">Skip signup — go to your dashboard</div>
+                    <div className="font-semibold text-[#064E3B]">Login to your existing account</div>
+                    <div className="text-xs text-[#64748B]">Skip signup — go straight to your dashboard</div>
                   </div>
                   <div className="text-[#84CC16] group-hover:translate-x-1 transition-transform">→</div>
                 </button>
-                <button
-                  onClick={() => sendOtp(true)}
-                  disabled={busy}
-                  className="w-full text-left card-soft p-4 hover:border-[#84CC16] hover:-translate-y-0.5 transition-all flex items-center justify-between group border-2 border-[#84CC16]/40"
-                  data-testid="join-choice-reentry"
-                >
+                <div className="w-full card-soft p-4 flex items-center justify-between opacity-70" data-testid="join-choice-reentry">
                   <div>
-                    <div className="font-semibold text-[#064E3B]">Create a NEW re-entry account</div>
-                    <div className="text-xs text-[#64748B]">Same phone, new username, new sponsor · earn on multiple positions</div>
+                    <div className="font-semibold text-[#064E3B]">Add another referral business</div>
+                    <div className="text-xs text-[#64748B]">Once logged in, open <b>Create Referral Business</b> on your dashboard (each requires its own ₹7,499 kit).</div>
                   </div>
-                  <div className="text-[#84CC16] group-hover:translate-x-1 transition-transform">→</div>
-                </button>
+                  <div className="text-[10px] font-bold uppercase text-[#94A3B8]">soon</div>
+                </div>
                 <button onClick={() => { setStep(1); setExistingCount(0); }} className="text-sm text-[#64748B] hover:text-[#065F46] w-full text-center pt-2" data-testid="join-choice-back">
                   ← Use a different number
                 </button>

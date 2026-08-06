@@ -66,6 +66,15 @@ Build a production-ready MLM E-Commerce Platform "EverGro eMart" with Landing We
 - **Cloudinary**: LIVE (uploads working)
 - **OTP**: Dev mode fallback (returned in API response as `dev_otp`)
 
+## Iteration 15 (Feb 2026) — Phase 1: Simplified 2-Tab Auth + Admin Charges Control
+- **Login redesigned**: premium gradient card, 2 tabs only (Mobile + Email · both with password). Removed Username tab and all OTP-based login (OTP is only for /forgot-password + /join-now). Remember Me stores identifier in localStorage. Show/Hide password.
+- **Registration is strict**: One mobile = one account. Duplicate phone/email/username are all rejected with clear 409 messages. Old "email +reN suffix" hack removed.
+- **Admin Charges page** (`/admin/charges`): dedicated screen for GST toggle + delivery toggle + unlimited custom extra charges (packing, handling, service, insurance…). Each charge has type (flat ₹ / percent %), value, and ON/OFF toggle.
+- **Order calc now respects toggles**: When GST off → gst=0 on all line items. When delivery off → shipping=0. Every enabled extra charge appears in order.extras breakdown + adds to order.extras_total.
+- **Checkout UI**: displays each extra as a separate line on the summary (dynamic from admin config).
+- **Test report**: `/app/test_reports/iteration_15.json` — **12/12 backend + 100% frontend PASS**.
+- **Phase 2 next**: Multi Referral Business data model + switcher UI. Existing duplicate-phone users will be migrated (first account = main user, others become referral businesses).
+
 ## Iteration 13 (Feb 2026) — 3-Tab Login · Order Tracking · T&C Modal
 - **New Login flow (3 tabs)**: Mobile / Email / Username. Username tab is instant fast-path. Mobile+Email tabs go through identifier-lookup → single account = direct password prompt; multiple accounts = OTP → picker → password. **Password ALWAYS required.**
 - New backend endpoints: `POST /auth/identifier-lookup`, `GET /admin/tracking/steps`. `/auth/accounts-by-phone` now returns `username` + `is_joining_paid`.

@@ -116,7 +116,7 @@ export default function Register() {
             <div>
               <label className="text-sm font-medium text-[#064E3B]">Mobile</label>
               <input data-testid="register-phone-input" className="input-soft mt-1" value={form.phone} onChange={upd("phone")} required/>
-              <p className="text-[10px] text-[#65A30D] mt-1 font-medium">✓ Same phone + email can host multiple accounts (unique username each).</p>
+              <p className="text-[10px] text-[#65A30D] mt-1 font-medium">✓ One mobile = one account. Add more referral businesses from your dashboard later.</p>
             </div>
             <div>
               <label className="text-sm font-medium text-[#064E3B]">Password</label>
