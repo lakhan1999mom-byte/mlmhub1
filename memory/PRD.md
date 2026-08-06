@@ -1,14 +1,48 @@
 # EverGro eMart — Product Requirements
 
 ## Original Problem
-Build a production-ready MLM E-Commerce Platform "EverGro eMart" with Landing Website, User Panel, Sub Admin Panel, and Super Admin Panel. Users buy the ₹7,200 Joining Kit, get a referral link, build a downline across 8 levels, earn per-level commissions, and withdraw earnings.
+Build a production-ready MLM E-Commerce Platform "EverGro eMart" with Landing Website, User Panel, Sub Admin Panel, and Super Admin Panel. Users buy the ₹7,499 Starter Kit, get a referral link, build a downline across 8 levels, earn per-level commissions, and withdraw earnings.
 
 ## Tech Stack
-- React (CRA + craco) + Tailwind + Shadcn UI + framer-motion
+- React (CRA + craco) + Tailwind + Shadcn UI + framer-motion + Recharts
 - FastAPI + Motor (async MongoDB)
 - Cloudinary uploads (live)
 - **Cashfree Payments** (only provider) with legit mock mode (auto-succeeds when inactive)
 - JWT auth + Firebase Phone OTP (production only) + Dev OTP fallback (preview)
+
+## Iteration 17 (Feb 2026) — P0 Bug Fixes + Global Admin Search + Advanced User Reports
+- **P0 Fix — AdminDashboard Recent Joins was blank**: `/admin/dashboard` now returns a `stats` bag (backwards-compatible flat fields kept) + a proper `daily_stats` array `[{day,date,users,revenue,orders}]` + a `recent_joins` array (up to 8 latest members with `is_joining_paid` badge and time-since). AdminDashboard.jsx replaced the "Top-level counters" empty box with a live "Recent Joins" list (avatars, code, phone, Active/Pending pill, "just now / 40m ago").
+- **P0 Fix — Primary business missing Pay CTA**: `/mlm/businesses` now returns `pending_order_id` on every inactive business (primary + additional). New endpoint `POST /mlm/businesses/{business_id}/pay-kit` returns (or creates on-the-fly) a pending joining order for that specific business — supports BOTH the primary (business_id == user.id, order.business_id=None) and additional business paths. Businesses.jsx + BusinessDetail.jsx render an amber "Activation required · Pay Now" CTA on every inactive card.
+- **Global Admin Search** (Cmd/Ctrl-K palette): New `GET /admin/search?q=...` searches across `users` (name, username, email, phone, user_code, referral_code, sponsor_id) + `referral_businesses` (name, business_code, referral_code, sponsor_referral_code) + `orders` (order_code, tracking_no). AdminShell.jsx exposes a sidebar search widget + Cmd/Ctrl-K keyboard shortcut opening `AdminSearchPalette` with grouped Users/Businesses/Orders sections, live-search debounced (180ms), keyboard nav (Esc closes).
+- **Advanced Admin User Reports**: New page `/admin/users/:userId` (AdminUserDetail.jsx) with 3 tabs:
+  - **Overview** — profile hero, kit/active status toggle, counters strip (Orders, Direct Refs, Businesses, Withdrawals, Wallet), all additional referral businesses cards.
+  - **Login History** — table of the user's `login` events with parsed `IP` (respects `X-Forwarded-For`) + `Device` (Desktop/Mobile/Tablet) + `Browser · OS` (Chrome/Safari/Firefox/Edge · Windows/macOS/iOS/Android/Linux) inferred from the User-Agent header.
+  - **Activity Log** — full audit trail (login/register/payment/withdrawal_request/kyc_submit/role_change etc) with target + IP + JSON metadata.
+- **Login now records IP + User-Agent**: `log_audit` extended with `request: Request` shortcut. All 5 login endpoints (`/auth/login`, `/auth/login-with-code`, `/auth/otp/verify`, `/auth/otp/pick-account`, `/auth/firebase/verify`) now pass the request so IP + User-Agent land in `audit_logs`.
+- **Users list `q` search widened**: `/admin/users?q=` now matches on name, username, email/public_email, phone, user_code, referral_code, sponsor_id. AdminUsers.jsx adds a "Ref" column and a "View" button linking to the detail page.
+- **Test report**: `/app/test_reports/iteration_17.json` — **19/19 backend PASS on first run** (test file `/app/backend/tests/test_iteration17_admin_search_history.py`). Frontend verified via screenshots (palette, user detail, login history).
+
+## Iteration 16 (Feb 2026) — Massive Redesign Phases 1–4
+- **Phase 1** — Auth Redesign: strict 1 phone/email/username = 1 account. Multi-account paths removed.
+- **Phase 2** — Multiple Referral Businesses: single user account, multiple positions. Each additional business is gated by its own ₹7,499 kit order. `/mlm/businesses` CRUD + `/checkout/direct/{orderId}` flow.
+- **Phase 3** — User Dashboard: Recharts area/pie charts, referral-card, notifications, growth-mix.
+- **Phase 4** — Admin Panel Dark Theme: slate control-room aesthetic, CSV exports (`/admin/export/users|orders|withdrawals`), signup+revenue chart, system health strip.
+- Iteration 16 report: `/app/test_reports/iteration_16.json` — 12/12 backend + 100% frontend PASS.
+
+## Iteration 13 (Feb 2026) — Auth 3-Tab · Order Tracking · T&C Modal
+- New backend endpoints: `POST /auth/identifier-lookup`, `GET /admin/tracking/steps`. `/auth/accounts-by-phone` now returns `username` + `is_joining_paid`.
+- **Full order tracking system**: `orders.tracking_history[]` seeded on create ("Order Placed") + auto-appended on `cashfree/verify` ("Confirmed · Payment received"). Admin `PUT /admin/orders/{id}` extended with `courier_name`, `tracking_url`, `note` — every meaningful change appends an event and creates a customer notification on shipped/out_for_delivery/delivered.
+- **New pages**: `/orders/:id` (customer timeline with 6-step progress + full event log + copy-tracking + track-online button). `AdminOrders` fully rebuilt with per-order tracking modal (status buttons, courier, tracking no, tracking URL, free-text note, history preview).
+- **Terms & Conditions modal**: `/join-now` T&C link now opens a modal with the live terms HTML from `/site/settings`. "I Accept" auto-ticks the required checkbox. Reusable `TermsModal` component created for future use elsewhere.
+
+## Backlog / Upcoming
+- **P2 — Refactor server.py** (now ~2947 lines): split into `backend/routes/{auth,mlm,orders,admin,site}.py` modules for maintainability. Testing subagent flagged this again in Iteration 17.
+- **P2 — Admin CSV export filters**: current exports stream the entire collection in one chunk (no `?since=YYYY-MM-DD` filter). For scale, chunk row-by-row.
+- **P2 — MongoDB perf**: AdminDashboard uses N+1 count queries; consider aggregation pipeline. Add indexes on `orders (user_id, business_id, is_joining_order, payment_status)`.
+- **P3 — Business kit joining flow parity**: business-order creation bypasses `_compute_order_totals` (no delivery fee / extras). Route both through the same helper.
+- **P3 — Real-time updates**: recent joins list is polled on page load only; consider a lightweight websocket or SSE for live pushes.
+
+## Iteration 12 (Feb 2026) — Categories · Promo Codes · ₹7,499 · Delivery Toggle · Prod-gated OTP
 
 ## Phase 2 (Implemented 2026-02)
 - **8-Level MLM Engine** (mlm_engine.py) with fixed commissions L1=₹1200 · L2=₹400 · L3=₹50 · L4=₹300 · L5=₹50 · L6=₹200 · L7=₹50 · L8=₹100
