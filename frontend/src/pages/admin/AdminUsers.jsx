@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { Eye } from "lucide-react";
 import api from "@/lib/api";
 
 export default function AdminUsers() {
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
-  const load = () => api.get(`/admin/users?q=${q}`).then(({ data }) => setItems(data.items));
+  const load = () => api.get(`/admin/users?q=${encodeURIComponent(q)}`).then(({ data }) => setItems(data.items));
   useEffect(() => { load(); }, [q]);
 
   const toggle = async (u, field, val) => {
@@ -16,15 +18,18 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-6" data-testid="admin-users-page">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-bold">Users</h1>
-        <input className="input-soft max-w-xs" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} data-testid="admin-users-search"/>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Users</h1>
+          <p className="text-sm text-[#64748B]">Search by name, username, phone, email, code, or referral code.</p>
+        </div>
+        <input className="input-soft max-w-sm" placeholder="Search name / phone / email / code / ref…" value={q} onChange={(e) => setQ(e.target.value)} data-testid="admin-users-search"/>
       </div>
       <div className="card-soft overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[#F1F5F9] text-left text-xs uppercase">
             <tr>
-              <th className="p-3">Code</th><th>Name</th><th>Phone</th><th>Stage</th><th>Team</th><th>Earnings</th><th>KYC</th><th>Status</th><th>Actions</th>
+              <th className="p-3">Code</th><th>Name</th><th>Phone</th><th>Ref</th><th>Stage</th><th>Team</th><th>Earnings</th><th>KYC</th><th>Status</th><th>Role</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -36,6 +41,7 @@ export default function AdminUsers() {
                   <div className="text-xs text-[#64748B]">{u.email}</div>
                 </td>
                 <td className="p-3">{u.phone}</td>
+                <td className="p-3 font-mono text-xs text-[#065F46]">{u.referral_code || "—"}</td>
                 <td className="p-3 font-numbers">
                   <input type="number" min="1" max="8" defaultValue={u.current_stage} onBlur={(e) => {
                     const v = parseInt(e.target.value); if (v !== u.current_stage) toggle(u, 'current_stage', v);
@@ -56,8 +62,14 @@ export default function AdminUsers() {
                     <option value="super_admin">Super Admin</option>
                   </select>
                 </td>
+                <td className="p-3">
+                  <Link to={`/admin/users/${u.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-[#065F46] hover:text-[#064E3B] bg-[#ECFCCB] hover:bg-[#D9F99D] px-2 py-1 rounded-lg" data-testid={`view-user-${u.user_code}`}>
+                    <Eye className="w-3 h-3"/> View
+                  </Link>
+                </td>
               </tr>
             ))}
+            {items.length === 0 && <tr><td colSpan={11} className="p-12 text-center text-[#64748B]">No users found</td></tr>}
           </tbody>
         </table>
       </div>

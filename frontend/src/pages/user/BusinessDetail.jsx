@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Copy, Share2, Users, TrendingUp, Calendar, Sparkles } from "lucide-react";
+import { ArrowLeft, Copy, Share2, Users, TrendingUp, Calendar, Sparkles, Lock } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 
 export default function BusinessDetail() {
   const { id } = useParams();
+  const nav = useNavigate();
   const [biz, setBiz] = useState(null);
   const [network, setNetwork] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +20,16 @@ export default function BusinessDetail() {
   }, [id]);
 
   const copy = (v) => { navigator.clipboard.writeText(v); toast.success("Copied!"); };
+
+  const payKit = async () => {
+    try {
+      const { data } = await api.post(`/mlm/businesses/${id}/pay-kit`);
+      toast.success(`Redirecting to kit payment (₹${data.amount})`);
+      nav(`/checkout/direct/${data.order_id}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Unable to start kit payment");
+    }
+  };
 
   if (loading) return <div className="p-12 text-center text-[#64748B]">Loading business…</div>;
   if (!biz) return <div className="p-12 text-center">Business not found. <Link to="/dashboard/businesses" className="text-[#65A30D] font-semibold">← Back</Link></div>;
@@ -41,6 +52,17 @@ export default function BusinessDetail() {
           </button>
           <span className={`badge-pill ${biz.is_active ? "bg-[#84CC16] text-[#064E3B]" : "bg-[#FEF3C7] text-[#92400E]"}`}>{biz.is_active ? "✓ Active" : "Pending kit payment"}</span>
         </div>
+        {!biz.is_active && (
+          <div className="mt-5 rounded-2xl bg-white/10 backdrop-blur border border-[#84CC16]/30 p-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[10px] uppercase font-bold text-[#84CC16] tracking-widest">Activation required</div>
+              <div className="text-sm text-white/90 font-medium">Pay the ₹7,499 starter kit to unlock this referral code and start earning.</div>
+            </div>
+            <button onClick={payKit} className="btn-primary text-sm" data-testid="pay-kit-detail-btn">
+              <Lock className="w-4 h-4"/> Pay Kit ₹7,499
+            </button>
+          </div>
+        )}
       </motion.div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

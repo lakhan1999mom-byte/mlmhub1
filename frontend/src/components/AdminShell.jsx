@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText, Warehouse, Calculator, Award, MessageCircle, FolderTree, TicketPercent, Wallet } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText, Warehouse, Calculator, Award, MessageCircle, FolderTree, TicketPercent, Wallet, Search, Command } from "lucide-react";
+import AdminSearchPalette from "@/components/AdminSearchPalette";
 
 const items = [
   { to: "/admin", icon: LayoutDashboard, label: "Overview", perm: "*" },
@@ -28,12 +30,25 @@ const items = [
 export default function AdminShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const isSuper = user?.role === "super_admin";
   const perms = user?.permissions || [];
   const visible = items.filter(it => isSuper || it.perm === "*" || perms.includes(it.perm) || perms.includes("*"));
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100" data-admin-theme="dark">
+      <AdminSearchPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <aside className="hidden lg:flex flex-col fixed left-0 top-0 w-64 h-screen bg-slate-950/95 backdrop-blur-xl border-r border-slate-800 text-white p-6 overflow-y-auto" data-testid="admin-sidebar">
         <div className="mb-8">
           <div className="font-display font-black text-2xl leading-tight tracking-tight">
@@ -41,6 +56,15 @@ export default function AdminShell() {
           </div>
           <div className="text-[10px] uppercase tracking-widest text-[#84CC16] mt-1 inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#84CC16] animate-pulse"/>{isSuper ? "Super Admin" : "Sub Admin"}</div>
         </div>
+        <button
+          onClick={() => setPaletteOpen(true)}
+          className="mb-4 flex items-center gap-2 w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-[#84CC16]/40 text-slate-400 hover:text-slate-100 text-xs transition-all"
+          data-testid="admin-global-search-btn"
+        >
+          <Search className="w-3.5 h-3.5"/>
+          <span className="flex-1 text-left">Search users, businesses…</span>
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded px-1 py-0.5"><Command className="w-2.5 h-2.5"/>K</span>
+        </button>
         <nav className="space-y-1 flex-1">
           {visible.map((it) => (
             <NavLink
@@ -75,7 +99,10 @@ export default function AdminShell() {
             EverGro <span className="text-[#84CC16]">eMart</span>
             <span className="ml-2 text-[10px] uppercase tracking-widest text-[#84CC16]">{isSuper ? "Super" : "Sub"}</span>
           </div>
-          <button onClick={() => { logout(); navigate("/"); }} className="text-amber-400"><LogOut className="w-5 h-5"/></button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPaletteOpen(true)} className="text-slate-300 hover:text-[#84CC16]" data-testid="admin-global-search-mobile-btn"><Search className="w-5 h-5"/></button>
+            <button onClick={() => { logout(); navigate("/"); }} className="text-amber-400"><LogOut className="w-5 h-5"/></button>
+          </div>
         </div>
         <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
           {visible.map((it) => (

@@ -139,9 +139,19 @@ MIN_REFERRALS_FOR_WITHDRAWAL = MIN_DIRECT_PAID_FOR_INCOME
 
 async def log_audit(event: str, actor: Optional[dict] = None, target_id: Optional[str] = None,
                     target_label: Optional[str] = None, metadata: Optional[dict] = None,
-                    ip: Optional[str] = None):
-    """Insert audit log entry."""
+                    ip: Optional[str] = None, user_agent: Optional[str] = None,
+                    request: Optional[Request] = None):
+    """Insert audit log entry.
+    If `request` is provided, IP and User-Agent are pulled from it automatically.
+    """
     try:
+        if request is not None:
+            if ip is None:
+                # Respect X-Forwarded-For when running behind a proxy/ingress
+                xff = request.headers.get("x-forwarded-for")
+                ip = (xff.split(",")[0].strip() if xff else None) or (request.client.host if request.client else None)
+            if user_agent is None:
+                user_agent = request.headers.get("user-agent")
         await db.audit_logs.insert_one({
             "id": str(uuid.uuid4()),
             "actor_id": actor.get("id") if actor else None,
@@ -152,6 +162,7 @@ async def log_audit(event: str, actor: Optional[dict] = None, target_id: Optiona
             "target_label": target_label,
             "metadata": metadata or {},
             "ip": ip,
+            "user_agent": user_agent,
             "created_at": now_iso(),
         })
     except Exception as e:
@@ -291,7 +302,7 @@ async def register(payload: UserCreate, request: Request = None):
 
 
 @api.post("/auth/login")
-async def login(payload: UserLogin):
+async def login(payload: UserLogin, request: Request):
     """Login by email, phone, or username. All 3 accepted in `identifier` field."""
     ident = payload.identifier.strip()
     if "@" in ident:
@@ -331,7 +342,7 @@ async def login(payload: UserLogin):
             pass
     await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
     token = create_token(user["id"], user["role"])
-    await log_audit("login", actor=user, metadata={"method": "password"})
+    await log_audit("login", actor=user, metadata={"method": "password"}, request=request)
     return {"token": token, "user": public_user(user)}
 
 
@@ -376,7 +387,7 @@ async def identifier_lookup(payload: dict):
 
 
 @api.post("/auth/login-with-code")
-async def login_with_code(payload: dict):
+async def login_with_code(payload: dict, request: Request):
     user_code = payload.get("user_code")
     password = payload.get("password")
     if not user_code or not password:
@@ -388,7 +399,7 @@ async def login_with_code(payload: dict):
         raise HTTPException(status_code=403, detail="Account disabled")
     await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
     token = create_token(user["id"], user["role"])
-    await log_audit("login", actor=user, metadata={"method": "user_code"})
+    await log_audit("login", actor=user, metadata={"method": "user_code"}, request=request)
     return {"token": token, "user": public_user(user)}
 
 
@@ -437,7 +448,7 @@ async def send_otp(payload: OTPSendReq, request: Request):
 
 
 @api.post("/auth/otp/verify")
-async def verify_otp(payload: OTPVerifyReq):
+async def verify_otp(payload: OTPVerifyReq, request: Request):
     rec = await db.otps.find_one({"phone": payload.phone})
     if not rec or rec.get("otp") != payload.otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
@@ -455,7 +466,7 @@ async def verify_otp(payload: OTPVerifyReq):
             raise HTTPException(status_code=403, detail="Account disabled")
         await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
         token = create_token(user["id"], user["role"])
-        await log_audit("login", actor=user, metadata={"method": "otp"})
+        await log_audit("login", actor=user, metadata={"method": "otp"}, request=request)
         return {"verified": True, "token": token, "user": public_user(user), "new_user": False, "multiple": False}
     # Multiple accounts — return list for picker
     accounts = [{"user_code": u["user_code"], "name": u["name"], "email": u["email"], "username": u.get("username"), "id": u["id"], "role": u.get("role", "user"), "is_joining_paid": u.get("is_joining_paid", False)} for u in users]
@@ -463,7 +474,7 @@ async def verify_otp(payload: OTPVerifyReq):
 
 
 @api.post("/auth/otp/pick-account")
-async def otp_pick_account(payload: dict):
+async def otp_pick_account(payload: dict, request: Request):
     """After OTP verify with multiple accounts, user picks one to log into."""
     phone = payload.get("phone")
     user_code = payload.get("user_code")
@@ -477,7 +488,7 @@ async def otp_pick_account(payload: dict):
         raise HTTPException(status_code=403, detail="Account disabled")
     await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity_at": now_iso()}})
     token = create_token(user["id"], user["role"])
-    await log_audit("login", actor=user, metadata={"method": "otp_picker"})
+    await log_audit("login", actor=user, metadata={"method": "otp_picker"}, request=request)
     return {"token": token, "user": public_user(user)}
 
 
@@ -527,7 +538,7 @@ async def forgot_password(payload: ForgotPwReq):
 
 # ==================== FIREBASE PHONE AUTH ====================
 @api.post("/auth/firebase-verify")
-async def firebase_verify(payload: dict):
+async def firebase_verify(payload: dict, request: Request):
     """Verify a Firebase ID token (from client-side signInWithPhoneNumber) and log the user in.
     Body: {"id_token": "...", "user_code": "EG000123" (optional — if phone has multiple accounts)}
     """
@@ -565,7 +576,7 @@ async def firebase_verify(payload: dict):
             raise HTTPException(status_code=403, detail="Account disabled")
         await db.users.update_one({"id": acc["id"]}, {"$set": {"last_activity_at": now_iso()}})
         token = create_token(acc["id"], acc["role"])
-        await log_audit("login", actor=acc, metadata={"method": "firebase_otp"})
+        await log_audit("login", actor=acc, metadata={"method": "firebase_otp"}, request=request)
         return {"verified": True, "phone": normalized, "token": token, "user": public_user(acc)}
     # Multiple accounts — return picker
     return {
@@ -695,24 +706,40 @@ async def _build_business_stats(business: dict) -> dict:
     }
 
 
+async def _pending_kit_order_id(user_id: str, business_id: Optional[str]) -> Optional[str]:
+    """Return the ID of a pending joining-kit order for the given (user, business).
+    For the primary business, business_id is None (order has no business_id set)."""
+    q = {"user_id": user_id, "is_joining_order": True, "payment_status": "pending"}
+    if business_id:
+        q["business_id"] = business_id
+    else:
+        q["$or"] = [{"business_id": None}, {"business_id": {"$exists": False}}]
+    o = await db.orders.find_one(q, {"_id": 0, "id": 1}, sort=[("created_at", -1)])
+    return o["id"] if o else None
+
+
 async def _list_businesses_for_user(user: dict) -> list:
     """Primary user record is business #1. Additional businesses are in referral_businesses."""
     out = []
     # Primary (existing user record — always index 0)
     prim_stats = await _build_business_stats({"referral_code": user["referral_code"]}) if user.get("referral_code") else {"total_members": 0, "active_members": 0, "inactive_members": 0, "today_joins": 0, "week_joins": 0, "month_joins": 0}
+    prim_is_active = bool(user.get("is_joining_paid"))
+    prim_pending_order = None if prim_is_active else await _pending_kit_order_id(user["id"], None)
     out.append({
         "id": user["id"], "is_primary": True, "name": f"{user['name']} — Primary",
         "business_code": user["user_code"], "referral_code": user.get("referral_code"),
-        "is_active": bool(user.get("is_joining_paid")),
+        "is_active": prim_is_active,
         "total_earnings": user.get("total_earnings", 0),
         "created_at": user.get("created_at"), "activated_at": user.get("activated_at"),
+        "pending_order_id": prim_pending_order,
         **prim_stats,
     })
     # Additional businesses
     extra = await db.referral_businesses.find({"owner_user_id": user["id"]}, {"_id": 0}).sort("created_at", 1).to_list(50)
     for b in extra:
         stats = await _build_business_stats(b)
-        out.append({**b, "is_primary": False, **stats})
+        pending_id = None if b.get("is_active") else await _pending_kit_order_id(user["id"], b["id"])
+        out.append({**b, "is_primary": False, "pending_order_id": pending_id, **stats})
     return out
 
 
@@ -835,6 +862,57 @@ async def delete_business(business_id: str, user=Depends(get_user)):
         raise HTTPException(status_code=400, detail="Cannot delete an active (paid) business")
     await db.referral_businesses.delete_one({"id": business_id})
     return {"ok": True}
+
+
+@api.post("/mlm/businesses/{business_id}/pay-kit")
+async def pay_kit(business_id: str, user=Depends(get_user)):
+    """Return (or create) a pending joining-kit order for the specified business
+    and give the frontend its order_id so it can navigate to /checkout/direct/{orderId}.
+
+    - Primary business (business_id == user.id): looks for any pending joining order for
+      the user (business_id = None). If none exists, creates one for the ₹7,499 kit.
+    - Additional business: looks for a pending order linked to that business_id. If none
+      exists (e.g. paid then refunded), creates a fresh joining order for it.
+    """
+    is_primary = business_id == user["id"]
+    if not is_primary:
+        b = await db.referral_businesses.find_one({"id": business_id, "owner_user_id": user["id"]}, {"_id": 0})
+        if not b:
+            raise HTTPException(status_code=404, detail="Business not found")
+        if b.get("is_joining_paid") or b.get("is_active"):
+            raise HTTPException(status_code=400, detail="This business is already active")
+    else:
+        if user.get("is_joining_paid"):
+            raise HTTPException(status_code=400, detail="Primary business is already active")
+
+    existing_id = await _pending_kit_order_id(user["id"], None if is_primary else business_id)
+    if existing_id:
+        o = await db.orders.find_one({"id": existing_id}, {"_id": 0, "id": 1, "order_code": 1, "total": 1})
+        return {"order_id": o["id"], "order_code": o.get("order_code"), "amount": o.get("total"), "reused": True}
+
+    hamper = await db.products.find_one({"sku": "HMP-JOINING-7200"}, {"_id": 0})
+    if not hamper:
+        raise HTTPException(status_code=500, detail="Joining kit not configured")
+    order_id = str(uuid.uuid4())
+    order_code = "EG" + str(uuid.uuid4().hex[:8]).upper()
+    gst_p = hamper.get("gst_percent", 5)
+    total = round(hamper["price"] * (1 + gst_p / 100), 2)
+    biz_label = "Primary" if is_primary else b.get("name", "Business")
+    await db.orders.insert_one({
+        "id": order_id, "order_code": order_code, "user_id": user["id"],
+        "business_id": None if is_primary else business_id,
+        "items": [{"product_id": hamper["id"], "name": hamper["name"], "price": hamper["price"], "quantity": 1, "line_total": hamper["price"], "image": (hamper.get("images") or [None])[0], "is_hamper": True, "gst_percent": gst_p}],
+        "subtotal": hamper["price"], "discount": 0, "gst": round(hamper["price"] * gst_p / 100, 2),
+        "shipping": 0, "extras": [], "extras_total": 0,
+        "total": total,
+        "coupon_code": None, "payment_method": "gateway",
+        "address": None, "payment_status": "pending", "payment_provider": None,
+        "status": "placed", "is_joining_order": True,
+        "tracking_no": None, "courier_name": None, "tracking_url": None,
+        "tracking_history": [{"at": now_iso(), "status": "placed", "label": "Kit Order Placed", "note": f"Joining kit for '{biz_label}' — awaiting payment.", "by": "System"}],
+        "created_at": now_iso(),
+    })
+    return {"order_id": order_id, "order_code": order_code, "amount": total, "reused": False}
 
 
 # ==================== ADMIN CSV EXPORTS (Iteration 16 · Phase 4) ====================
@@ -1919,7 +1997,55 @@ async def admin_dashboard(_=Depends(require_admin)):
 
     total_commissions = sum(u.get("total_earnings", 0) for u in await db.users.find({"role": "user"}, {"_id": 0, "total_earnings": 1}).to_list(10000))
 
-    return {
+    # New users today / this week
+    today_iso = today.isoformat()
+    week_start = (today - timedelta(days=6)).isoformat()
+    new_users_today = await db.users.count_documents({"role": "user", "created_at": {"$regex": f"^{today_iso}"}})
+    new_users_week = await db.users.count_documents({"role": "user", "created_at": {"$gte": week_start}})
+
+    # New users per day (last 7 days) — used by the AdminDashboard chart
+    daily_users = []
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+        d_str = d.isoformat()
+        cnt = await db.users.count_documents({"role": "user", "created_at": {"$regex": f"^{d_str}"}})
+        daily_users.append(cnt)
+
+    # Combined 7d series (day label + users + revenue) for the AreaChart
+    day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    daily_stats = []
+    for i, d in enumerate(days):
+        try:
+            dow = datetime.fromisoformat(d["date"]).weekday()  # 0=Mon
+        except Exception:
+            dow = i % 7
+        daily_stats.append({"day": day_labels[dow], "date": d["date"], "users": daily_users[i], "revenue": d["revenue"], "orders": d["orders"]})
+
+    # Referral businesses (additional businesses table)
+    referral_businesses_total = await db.referral_businesses.count_documents({})
+    referral_businesses_active = await db.referral_businesses.count_documents({"is_active": True})
+
+    # Kit sales = paid joining orders (primary + additional)
+    kit_sales = await db.orders.count_documents({"is_joining_order": True, "payment_status": "paid"})
+
+    # Recent joins (last 8 new user registrations)
+    recent_docs = await db.users.find({"role": "user"}, {"_id": 0, "name": 1, "user_code": 1, "phone": 1, "email": 1, "avatar_url": 1, "sponsor_id": 1, "current_stage": 1, "is_joining_paid": 1, "created_at": 1}).sort("created_at", -1).limit(8).to_list(8)
+    recent_joins = [
+        {
+            "name": r.get("name"),
+            "user_code": r.get("user_code"),
+            "phone": r.get("phone"),
+            "email": r.get("email"),
+            "avatar_url": r.get("avatar_url"),
+            "sponsor_id": r.get("sponsor_id"),
+            "current_stage": r.get("current_stage", 1),
+            "is_joining_paid": bool(r.get("is_joining_paid")),
+            "created_at": r.get("created_at"),
+        }
+        for r in recent_docs
+    ]
+
+    stats = {
         "total_users": total_users,
         "active_users": active_users,
         "total_orders": total_orders,
@@ -1929,8 +2055,22 @@ async def admin_dashboard(_=Depends(require_admin)):
         "total_withdrawals": total_withdrawals,
         "pending_kyc": pending_kyc,
         "open_tickets": open_tickets,
+        "new_users_today": new_users_today,
+        "new_users_week": new_users_week,
+        "referral_businesses": referral_businesses_total,
+        "active_referral_businesses": referral_businesses_active,
+        "kit_sales": kit_sales,
+    }
+
+    return {
+        # Flat fields (backwards compatible with older callers)
+        **stats,
+        # Nested stats bag consumed by the redesigned AdminDashboard.jsx
+        "stats": stats,
         "daily_revenue": days,
+        "daily_stats": daily_stats,
         "stage_distribution": stage_dist,
+        "recent_joins": recent_joins,
     }
 
 
@@ -1940,14 +2080,151 @@ async def admin_list_users(_=Depends(require_admin), q: Optional[str] = None, pa
     if q:
         query["$or"] = [
             {"name": {"$regex": q, "$options": "i"}},
+            {"username": {"$regex": q, "$options": "i"}},
             {"email": {"$regex": q, "$options": "i"}},
+            {"public_email": {"$regex": q, "$options": "i"}},
             {"phone": {"$regex": q, "$options": "i"}},
             {"user_code": {"$regex": q, "$options": "i"}},
+            {"referral_code": {"$regex": q, "$options": "i"}},
+            {"sponsor_id": {"$regex": q, "$options": "i"}},
         ]
     total = await db.users.count_documents(query)
     skip = (page - 1) * limit
     items = await db.users.find(query, {"_id": 0, "password_hash": 0}).skip(skip).limit(limit).sort("created_at", -1).to_list(limit)
     return {"items": [public_user(u) for u in items], "total": total}
+
+
+@api.get("/admin/search")
+async def admin_global_search(_=Depends(require_admin), q: str = "", limit: int = 8):
+    """Global cross-collection search — used by the Cmd/Ctrl-K palette in the admin shell.
+    Matches on name, username, email, phone, user_code, referral_code, sponsor_id
+    across `users` and `referral_businesses`.
+    """
+    q = (q or "").strip()
+    if len(q) < 1:
+        return {"users": [], "businesses": [], "orders": [], "total": 0}
+
+    user_query = {"$or": [
+        {"name": {"$regex": q, "$options": "i"}},
+        {"username": {"$regex": q, "$options": "i"}},
+        {"email": {"$regex": q, "$options": "i"}},
+        {"public_email": {"$regex": q, "$options": "i"}},
+        {"phone": {"$regex": q, "$options": "i"}},
+        {"user_code": {"$regex": q, "$options": "i"}},
+        {"referral_code": {"$regex": q, "$options": "i"}},
+        {"sponsor_id": {"$regex": q, "$options": "i"}},
+    ]}
+    users = await db.users.find(
+        user_query,
+        {"_id": 0, "id": 1, "user_code": 1, "name": 1, "phone": 1, "email": 1, "username": 1, "referral_code": 1, "sponsor_id": 1, "role": 1, "is_joining_paid": 1, "current_stage": 1, "avatar_url": 1}
+    ).limit(limit).to_list(limit)
+
+    biz_query = {"$or": [
+        {"name": {"$regex": q, "$options": "i"}},
+        {"business_code": {"$regex": q, "$options": "i"}},
+        {"referral_code": {"$regex": q, "$options": "i"}},
+        {"sponsor_referral_code": {"$regex": q, "$options": "i"}},
+    ]}
+    biz_docs = await db.referral_businesses.find(biz_query, {"_id": 0}).limit(limit).to_list(limit)
+    # Enrich with owner details
+    businesses = []
+    for b in biz_docs:
+        owner = await db.users.find_one({"id": b.get("owner_user_id")}, {"_id": 0, "user_code": 1, "name": 1, "phone": 1, "email": 1})
+        businesses.append({
+            "id": b.get("id"),
+            "name": b.get("name"),
+            "business_code": b.get("business_code"),
+            "referral_code": b.get("referral_code"),
+            "sponsor_referral_code": b.get("sponsor_referral_code"),
+            "is_active": b.get("is_active", False),
+            "owner_user_id": b.get("owner_user_id"),
+            "created_at": b.get("created_at"),
+            "owner": owner or {},
+        })
+
+    order_query = {"$or": [
+        {"order_code": {"$regex": q, "$options": "i"}},
+        {"tracking_no": {"$regex": q, "$options": "i"}},
+    ]}
+    orders = await db.orders.find(
+        order_query,
+        {"_id": 0, "id": 1, "order_code": 1, "user_id": 1, "total": 1, "status": 1, "payment_status": 1, "tracking_no": 1, "created_at": 1}
+    ).limit(limit).to_list(limit)
+
+    return {
+        "users": [public_user(u) for u in users],
+        "businesses": businesses,
+        "orders": orders,
+        "total": len(users) + len(businesses) + len(orders),
+    }
+
+
+@api.get("/admin/users/{user_id}")
+async def admin_user_detail(user_id: str, _=Depends(require_admin)):
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Owner's additional referral businesses
+    biz = await db.referral_businesses.find({"owner_user_id": user_id}, {"_id": 0}).sort("created_at", 1).to_list(50)
+    # Counters
+    orders_total = await db.orders.count_documents({"user_id": user_id})
+    orders_paid = await db.orders.count_documents({"user_id": user_id, "payment_status": "paid"})
+    withdrawals_total = await db.withdrawals.count_documents({"user_id": user_id})
+    referrals_direct = await db.users.count_documents({"sponsor_id": u.get("referral_code")}) if u.get("referral_code") else 0
+    return {
+        "user": public_user(u),
+        "referral_businesses": biz,
+        "counters": {
+            "orders_total": orders_total,
+            "orders_paid": orders_paid,
+            "withdrawals_total": withdrawals_total,
+            "direct_referrals": referrals_direct,
+            "additional_businesses": len(biz),
+        },
+    }
+
+
+@api.get("/admin/users/{user_id}/login-history")
+async def admin_user_login_history(user_id: str, _=Depends(require_admin), limit: int = 50):
+    """Login events with IP + User-Agent, most recent first."""
+    logs = await db.audit_logs.find(
+        {"actor_id": user_id, "event": "login"},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    # Simple UA → device hints
+    def _device(ua: Optional[str]) -> dict:
+        ua_lower = (ua or "").lower()
+        os_ = "Unknown"
+        for kw, name in (("windows nt", "Windows"), ("mac os x", "macOS"), ("iphone", "iOS"), ("ipad", "iPadOS"), ("android", "Android"), ("linux", "Linux")):
+            if kw in ua_lower:
+                os_ = name; break
+        browser = "Unknown"
+        for kw, name in (("edg/", "Edge"), ("chrome/", "Chrome"), ("safari/", "Safari"), ("firefox/", "Firefox"), ("opr/", "Opera")):
+            if kw in ua_lower:
+                browser = name; break
+        kind = "Mobile" if any(k in ua_lower for k in ("iphone", "android", "mobile")) else ("Tablet" if "ipad" in ua_lower else "Desktop")
+        return {"os": os_, "browser": browser, "kind": kind}
+    return {"items": [
+        {
+            "id": l.get("id"),
+            "at": l.get("created_at"),
+            "ip": l.get("ip"),
+            "user_agent": l.get("user_agent"),
+            "device": _device(l.get("user_agent")),
+            "method": (l.get("metadata") or {}).get("method"),
+        }
+        for l in logs
+    ]}
+
+
+@api.get("/admin/users/{user_id}/activity")
+async def admin_user_activity(user_id: str, _=Depends(require_admin), limit: int = 100):
+    """Full activity log for a user — every event they triggered."""
+    logs = await db.audit_logs.find(
+        {"actor_id": user_id},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"items": logs, "total": len(logs)}
 
 
 @api.put("/admin/users/{user_id}")

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Briefcase, Copy, Share2, TrendingUp, Users, Sparkles, X, Save, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, Briefcase, Copy, Share2, TrendingUp, Users, Sparkles, X, Save, ChevronRight, Trash2, Lock } from "lucide-react";
 import api from "@/lib/api";
 
 /**
@@ -28,6 +28,16 @@ export default function Businesses() {
   useEffect(() => { load(); }, []);
 
   const copy = (v) => { navigator.clipboard.writeText(v); toast.success("Copied!"); };
+
+  const payKit = async (businessId, code) => {
+    try {
+      const { data } = await api.post(`/mlm/businesses/${businessId}/pay-kit`);
+      toast.success(`Redirecting to kit payment (₹${data.amount})`);
+      nav(`/checkout/direct/${data.order_id}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Unable to start kit payment");
+    }
+  };
 
   return (
     <div className="space-y-6" data-testid="businesses-page">
@@ -87,6 +97,21 @@ export default function Businesses() {
               </div>
               <span className={`badge-pill ${b.is_active ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#FEF3C7] text-[#92400E]"}`}>{b.is_active ? "✓ Active" : "Pending kit"}</span>
             </div>
+            {!b.is_active && (
+              <div className="mt-3 rounded-2xl bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] border border-[#F59E0B]/30 p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase font-bold text-[#92400E] tracking-widest">Activation required</div>
+                  <div className="text-xs text-[#78350F] font-medium truncate">Pay the ₹7,499 starter kit to unlock this referral code.</div>
+                </div>
+                <button
+                  onClick={() => payKit(b.id, b.business_code)}
+                  className="btn-primary text-xs shrink-0"
+                  data-testid={`pay-kit-${b.business_code}`}
+                >
+                  <Lock className="w-3 h-3"/> Pay Now
+                </button>
+              </div>
+            )}
             <div className="mt-3 flex gap-2">
               <Link to={`/dashboard/businesses/${b.id}`} className="btn-outline flex-1 justify-center text-xs" data-testid={`view-business-${b.business_code}`}>
                 <TrendingUp className="w-3 h-3"/> View

@@ -49,6 +49,7 @@ import Support from "@/pages/user/Support";
 import AdminShell from "@/components/AdminShell";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminUserDetail from "@/pages/admin/AdminUserDetail";
 import AdminProducts from "@/pages/admin/AdminProducts";
 import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminWithdrawals from "@/pages/admin/AdminWithdrawals";
@@ -146,6 +147,7 @@ export default function App() {
             <Route element={<RequireAuth role={["sub_admin","super_admin"]}><AdminShell /></RequireAuth>}>
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/users/:userId" element={<AdminUserDetail />} />
               <Route path="/admin/products" element={<AdminProducts />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />

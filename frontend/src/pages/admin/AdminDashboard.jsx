@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Users, ShoppingBag, Wallet, TrendingUp, Download, Briefcase, Activity, Zap } from "lucide-react";
+import { Users, ShoppingBag, Wallet, TrendingUp, Download, Briefcase, Activity, Zap, UserPlus, Sparkles } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, BarChart, Bar, CartesianGrid } from "recharts";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -26,13 +26,18 @@ export default function AdminDashboard() {
 
   if (!data) return <div className="text-center py-16 text-slate-400">Loading analytics…</div>;
 
-  const s = data.stats || {};
-  // Sample chart data (backend `overview` may already provide series)
-  const daily = data.daily_stats || Array.from({ length: 7 }).map((_, i) => ({
-    day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
-    users: Math.floor(Math.random() * 20) + 5,
-    revenue: Math.floor(Math.random() * 15000) + 3000,
-  }));
+  // Backend may serve either a flat payload OR wrap under `stats`. Support both.
+  const s = { ...(data || {}), ...(data.stats || {}) };
+  const daily = (data.daily_stats && data.daily_stats.length)
+    ? data.daily_stats
+    : (data.daily_revenue || []).map((d, i) => ({
+        day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i % 7],
+        date: d.date,
+        users: 0,
+        revenue: d.revenue,
+        orders: d.orders,
+      }));
+  const recent = Array.isArray(data.recent_joins) ? data.recent_joins : [];
 
   return (
     <div className="space-y-6" data-testid="admin-overview">
@@ -101,10 +106,18 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Bar chart + recent activity */}
+      {/* Bar chart + recent joins */}
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="card-soft p-5">
-          <div className="font-display font-bold text-lg mb-3">Weekly signup volume</div>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-display font-bold text-lg">Weekly signup volume</div>
+              <div className="text-xs text-slate-400">New user registrations per day (last 7d)</div>
+            </div>
+            <div className="badge-pill bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">
+              This week: <b className="text-[#84CC16] ml-1">{s.new_users_week || 0}</b>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={daily}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)"/>
@@ -114,19 +127,66 @@ export default function AdminDashboard() {
               <Bar dataKey="users" fill="#84CC16" radius={[8,8,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-        <div className="card-soft p-5">
-          <div className="font-display font-bold text-lg mb-3">Top-level counters</div>
-          <div className="grid grid-cols-2 gap-3">
-            <MiniCounter label="Referral Businesses" value={s.referral_businesses || 0} icon={<Briefcase className="w-4 h-4"/>}/>
-            <MiniCounter label="Kit Sales" value={s.kit_sales || 0} icon={<ShoppingBag className="w-4 h-4"/>}/>
-            <MiniCounter label="Users Today" value={s.new_users_today || 0} icon={<Users className="w-4 h-4"/>}/>
-            <MiniCounter label="Users This Week" value={s.new_users_week || 0} icon={<TrendingUp className="w-4 h-4"/>}/>
+          <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-slate-800">
+            <MiniCounter label="Businesses" value={s.referral_businesses || 0} icon={<Briefcase className="w-3 h-3"/>}/>
+            <MiniCounter label="Kit Sales" value={s.kit_sales || 0} icon={<ShoppingBag className="w-3 h-3"/>}/>
+            <MiniCounter label="Today" value={s.new_users_today || 0} icon={<Users className="w-3 h-3"/>}/>
+            <MiniCounter label="This Week" value={s.new_users_week || 0} icon={<TrendingUp className="w-3 h-3"/>}/>
           </div>
+        </div>
+        <div className="card-soft p-5" data-testid="recent-joins-card">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-display font-bold text-lg flex items-center gap-2"><UserPlus className="w-4 h-4 text-[#84CC16]"/> Recent Joins</div>
+              <div className="text-xs text-slate-400">Latest members that just signed up</div>
+            </div>
+            <span className="badge-pill bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">Live</span>
+          </div>
+          {recent.length === 0 ? (
+            <div className="text-center py-10 text-slate-500 text-sm">
+              <UserPlus className="w-8 h-8 mx-auto mb-2 opacity-40"/>
+              No new members yet.
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1" data-testid="recent-joins-list">
+              {recent.map((r) => (
+                <div key={r.user_code} className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-[#84CC16]/40 transition-colors" data-testid={`recent-join-${r.user_code}`}>
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#84CC16] to-[#65A30D] text-white flex items-center justify-center text-sm font-bold shadow-lg shrink-0">
+                    {(r.name || "?").slice(0,1).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-slate-100 truncate flex items-center gap-1.5">
+                      {r.name}
+                      {r.is_joining_paid && <Sparkles className="w-3 h-3 text-[#84CC16]" title="Kit purchased"/>}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono truncate">{r.user_code} · {r.phone || r.email}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={`badge-pill text-[9px] ${r.is_joining_paid ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30" : "bg-amber-950/60 text-amber-300 border border-amber-500/30"}`}>
+                      {r.is_joining_paid ? "Active" : "Pending"}
+                    </span>
+                    <div className="text-[9px] text-slate-500 mt-1">{formatWhen(r.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+function formatWhen(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  } catch { return ""; }
 }
 
 function DarkStatCard({ label, value, icon, accent, delta }) {
