@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download, FileImage, FileDown, Share2, Copy, MessageCircle } from "lucide-react";
+import { FileImage, Share2, Copy, MessageCircle } from "lucide-react";
 import {
   INCOME_LEVELS,
   TOTAL_POTENTIAL,
@@ -14,7 +14,7 @@ import {
 export default function CompensationPlan() {
   const [busy, setBusy] = useState(false);
 
-  const downloadJpeg = async () => {
+  const downloadImage = async () => {
     try {
       setBusy(true);
       const res = await fetch(COMPENSATION_INFOGRAPHIC_URL);
@@ -27,50 +27,10 @@ export default function CompensationPlan() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success("Infographic downloaded");
+      toast.success("Plan image downloaded");
     } catch (e) {
       // Fallback: open in new tab so user can right-click save
       window.open(COMPENSATION_INFOGRAPHIC_URL, "_blank");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const downloadPdf = async () => {
-    setBusy(true);
-    try {
-      const { jsPDF } = await import("jspdf");
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = COMPENSATION_INFOGRAPHIC_URL;
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-
-      // Draw to canvas → dataURL so jsPDF gets a JPEG source
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-
-      // Choose orientation based on image aspect
-      const orientation = img.naturalWidth > img.naturalHeight ? "landscape" : "portrait";
-      const pdf = new jsPDF({ orientation, unit: "pt", format: "a4" });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const ratio = Math.min(pageW / img.naturalWidth, pageH / img.naturalHeight);
-      const w = img.naturalWidth * ratio;
-      const h = img.naturalHeight * ratio;
-      const x = (pageW - w) / 2;
-      const y = (pageH - h) / 2;
-      pdf.addImage(dataUrl, "JPEG", x, y, w, h);
-      pdf.save("EverGro-eMart-8-Level-Plan.pdf");
-      toast.success("PDF downloaded");
-    } catch (e) {
-      toast.error("Couldn't build PDF — try Download JPEG instead");
     } finally {
       setBusy(false);
     }
@@ -115,7 +75,7 @@ export default function CompensationPlan() {
         <span className="text-[#84CC16]">₹{TOTAL_POTENTIAL.toLocaleString('en-IN')}</span>
       </h1>
       <p className="text-base md:text-lg text-[#334155] mb-6 max-w-3xl">
-        One-time ₹{KIT_PRICE.toLocaleString('en-IN')} purchasing kit. Every downline member's ₹7,499 purchase generates a fixed commission at each of 8 levels. Income starts when your {MIN_PAID_DIRECTS_FOR_INCOME}rd direct referral pays.
+        One-time ₹{KIT_PRICE.toLocaleString('en-IN')} purchasing kit. Every downline member&apos;s ₹7,499 purchase generates a fixed commission at each of 8 levels. Income starts when your {MIN_PAID_DIRECTS_FOR_INCOME}rd direct referral pays.
       </p>
 
       {/* Share / Download row */}
@@ -125,11 +85,8 @@ export default function CompensationPlan() {
           <div className="font-display font-bold text-[#064E3B]">Share this plan</div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={downloadJpeg} disabled={busy} className="btn-primary text-sm disabled:opacity-60" data-testid="download-jpeg-btn">
-            <FileImage className="w-4 h-4"/> Download JPEG
-          </button>
-          <button onClick={downloadPdf} disabled={busy} className="btn-outline text-sm disabled:opacity-60" data-testid="download-pdf-btn">
-            <FileDown className="w-4 h-4"/> Download PDF
+          <button onClick={downloadImage} disabled={busy} className="btn-primary text-sm disabled:opacity-60" data-testid="download-image-btn">
+            <FileImage className="w-4 h-4"/> Download Plan Image
           </button>
           <button onClick={shareWhatsApp} className="bg-[#25D366] hover:bg-[#1EBE5D] text-white font-semibold text-sm rounded-full px-4 py-2 inline-flex items-center gap-2" data-testid="share-whatsapp-btn">
             <MessageCircle className="w-4 h-4"/> Share on WhatsApp
@@ -205,7 +162,7 @@ export default function CompensationPlan() {
       </div>
 
       <p className="text-xs md:text-sm text-[#64748B] mt-6" data-testid="plan-disclaimer">
-        {TOTAL_POTENTIAL_WORDS}. Calculated on 6 members per level (theoretical maximum). Actual income depends on your team's growth and their ₹7,499 purchases. Withdrawals require KYC approval and minimum {MIN_PAID_DIRECTS_FOR_INCOME} paid direct referrals.
+        {TOTAL_POTENTIAL_WORDS}. Calculated on 6 members per level (theoretical maximum). Actual income depends on your team&apos;s growth and their ₹7,499 purchases. Withdrawals require KYC approval and minimum {MIN_PAID_DIRECTS_FOR_INCOME} paid direct referrals.
       </p>
     </div>
   );

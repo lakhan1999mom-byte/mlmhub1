@@ -41,4 +41,4 @@ export const MIN_PAID_DIRECTS_FOR_INCOME = 3;
  * by setting settings.compensation_infographic_url.
  */
 export const COMPENSATION_INFOGRAPHIC_URL =
-  "https://customer-assets.emergentagent.com/job_hamper-mlm-hub/artifacts/c6s9zlxp_WhatsApp%20Image%202026-06-23%20at%207.25.42%20PM%20%281%29.jpeg";
+  "https://customer-assets-jai6qajn.emergentagent.net/job_hamper-mlm-hub/artifacts/pkaac53c_WhatsApp%20Image%202026-08-15%20at%203.55.32%20PM%20%281%29.jpeg";

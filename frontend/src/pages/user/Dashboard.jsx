@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [businesses, setBusinesses] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [recent, setRecent] = useState([]);
+  const [breakdown, setBreakdown] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -21,11 +22,13 @@ export default function Dashboard() {
       api.get("/mlm/businesses"),
       api.get("/notifications?limit=5"),
       api.get(`/mlm/businesses/${user.id}/network`).catch(() => ({ data: { members: [] } })),
-    ]).then(([d, b, n, net]) => {
+      api.get("/mlm/commission-breakdown?limit=100").catch(() => ({ data: null })),
+    ]).then(([d, b, n, net, cb]) => {
       setDashboard(d.data);
       setBusinesses(b.data.businesses || []);
       setNotifications(n.data || []);
       setRecent((net.data.members || []).slice(0, 5));
+      setBreakdown(cb.data);
     });
   }, [user]);
 
@@ -88,6 +91,64 @@ export default function Dashboard() {
         <QuickAction to="/products" icon={<ShoppingBag className="w-5 h-5"/>} label="Shop Store"/>
         <QuickAction to="/orders" icon={<Package className="w-5 h-5"/>} label="My Orders"/>
       </div>
+
+      {/* Wallet breakdown — where each rupee came from */}
+      {breakdown && (
+        <div className="card-soft p-5" data-testid="wallet-breakdown-card">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div>
+              <div className="text-xs uppercase font-bold text-[#65A30D] tracking-widest flex items-center gap-1"><Sparkles className="w-3 h-3"/> Your wallet story</div>
+              <div className="font-display font-black text-xl text-[#064E3B]">You&apos;ve earned <span className="text-[#65A30D]">₹{Number(breakdown.totals.credited).toLocaleString("en-IN")}</span> from the network so far</div>
+              <div className="text-xs text-[#64748B] mt-1">
+                {breakdown.totals.transactions === 0
+                  ? "Refer 3 people to activate your income — then every downline purchase pays you across L1–L8."
+                  : `${breakdown.totals.transactions} events · ${breakdown.totals.held_entries} held (waiting for your 3rd paid referral to unlock)`}
+              </div>
+            </div>
+            <Link to="/wallet" className="btn-outline text-xs">View wallet <ChevronRight className="w-3 h-3"/></Link>
+          </div>
+          {(breakdown.by_level || []).length > 0 ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+                {[1,2,3,4,5,6,7,8].map((lv) => {
+                  const row = (breakdown.by_level || []).find((x) => x.level === lv);
+                  const earned = row?.credited || 0;
+                  return (
+                    <div key={lv} className={`rounded-2xl p-2 text-center border ${earned > 0 ? "bg-[#ECFCCB] border-[#84CC16]/40" : "bg-[#FAFAF9] border-[#E2E8F0]"}`} data-testid={`wallet-l${lv}`}>
+                      <div className="text-[9px] uppercase font-bold text-[#94A3B8] tracking-wider">L{lv}</div>
+                      <div className={`font-numbers font-black text-sm ${earned > 0 ? "text-[#065F46]" : "text-[#94A3B8]"}`}>₹{Number(earned).toLocaleString("en-IN")}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {(breakdown.recent || []).length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] uppercase font-bold text-[#94A3B8] tracking-widest">Most recent earnings</div>
+                  {(breakdown.recent || []).slice(0, 5).map((t) => (
+                    <div key={t.id} className="flex items-center gap-3 p-2 rounded-xl bg-[#FAFAF9] border border-[#F1F5F9]" data-testid={`wallet-txn-${t.id}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${t.category === "commission_held" ? "bg-amber-500" : "bg-gradient-to-br from-[#84CC16] to-[#65A30D]"}`}>L{t.level || "-"}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-[#064E3B] truncate">{t.description}</div>
+                        <div className="text-[10px] text-[#94A3B8]">{new Date(t.created_at).toLocaleString("en-IN")}</div>
+                      </div>
+                      <div className={`text-sm font-numbers font-bold ${t.category === "commission_held" ? "text-amber-600" : "text-[#065F46]"}`}>
+                        {t.category === "commission_held" ? "held" : `+₹${Number(t.amount).toLocaleString("en-IN")}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="rounded-2xl bg-gradient-to-br from-[#ECFCCB] to-[#D9F99D] border border-[#84CC16]/30 p-4 text-center">
+              <Rocket className="w-6 h-6 text-[#65A30D] mx-auto mb-2"/>
+              <div className="text-sm font-semibold text-[#064E3B]">Your wallet is empty — for now.</div>
+              <div className="text-xs text-[#65A30D] mt-1">Share your referral code. Every downline ₹7,499 purchase pays you fixed L1–L8 commissions.</div>
+              <Link to="/referral" className="inline-flex items-center gap-1 mt-2 btn-primary text-xs"><Share2 className="w-3 h-3"/> Share referral</Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Charts + right column */}
       <div className="grid lg:grid-cols-3 gap-5">
@@ -171,7 +232,7 @@ export default function Dashboard() {
             <Link to="/notifications" className="text-xs text-[#65A30D] font-semibold">All →</Link>
           </div>
           <div className="space-y-2">
-            {notifications.length === 0 && <div className="text-xs text-[#94A3B8] text-center py-6">You're all caught up.</div>}
+            {notifications.length === 0 && <div className="text-xs text-[#94A3B8] text-center py-6">You&apos;re all caught up.</div>}
             {notifications.slice(0, 4).map((n) => (
               <div key={n.id} className={`p-2 rounded-xl text-xs ${n.read ? "bg-[#FAFAF9]" : "bg-[#ECFCCB]"}`}>
                 <div className="font-semibold text-[#064E3B]">{n.title}</div>

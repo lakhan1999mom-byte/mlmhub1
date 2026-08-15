@@ -2275,6 +2275,156 @@ async def admin_update_user(user_id: str, payload: dict, admin=Depends(require_a
     return public_user(u)
 
 
+def _require_super_admin(admin: dict = Depends(require_admin)):
+    if admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only super admin can perform this action")
+    return admin
+
+
+@api.post("/auth/change-password")
+async def change_own_password(payload: dict, user=Depends(get_user)):
+    """Any logged-in user (including admins) can change their own password.
+    Body: {current_password, new_password}."""
+    current = payload.get("current_password") or ""
+    new_pw = payload.get("new_password") or ""
+    if len(new_pw) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    if not verify_password(current, fresh.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password_hash": hash_password(new_pw), "updated_at": now_iso()}})
+    await log_audit("password_change", actor=fresh, target_id=user["id"], target_label=fresh.get("user_code"))
+    return {"ok": True}
+
+
+@api.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_user_password(user_id: str, payload: dict, admin=Depends(_require_super_admin)):
+    """Super-admin only: force-reset another user's (or agent's) password.
+    Body: {new_password}."""
+    new_pw = (payload.get("new_password") or "").strip()
+    if len(new_pw) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    await db.users.update_one({"id": user_id}, {"$set": {"password_hash": hash_password(new_pw), "updated_at": now_iso()}})
+    await log_audit("admin_reset_password", actor=admin, target_id=user_id, target_label=target.get("user_code"),
+                    metadata={"target_role": target.get("role")})
+    return {"ok": True, "user_code": target.get("user_code")}
+
+
+@api.get("/mlm/commission-breakdown")
+async def my_commission_breakdown(user=Depends(get_user), limit: int = 200):
+    """Return commission ledger for the logged-in user grouped by level + recent items.
+    Used by user Dashboard + Wallet screens to show 'how much came from which level'."""
+    return await _commission_breakdown_for(user["id"], limit)
+
+
+@api.get("/admin/users/{user_id}/commission-breakdown")
+async def admin_user_commission_breakdown(user_id: str, _=Depends(require_admin), limit: int = 200):
+    """Admin view of a user's commission ledger — level totals + recent items."""
+    u = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    return await _commission_breakdown_for(user_id, limit)
+
+
+async def _commission_breakdown_for(user_id: str, limit: int = 200):
+    txns = await db.transactions.find(
+        {"user_id": user_id, "category": {"$in": ["commission", "commission_held", "cashback", "reward"]}},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    # Aggregate by level (only credited commissions count towards totals)
+    by_level = {}
+    total_credited = 0.0
+    total_held = 0.0
+    for t in txns:
+        lvl = int(t.get("level") or 0)
+        amt = float(t.get("amount") or 0)
+        cat = t.get("category")
+        row = by_level.setdefault(lvl, {"level": lvl, "credited": 0.0, "held_count": 0, "count": 0})
+        row["count"] += 1
+        if cat == "commission_held":
+            row["held_count"] += 1
+            total_held += 1  # count, not amount
+        else:
+            row["credited"] += amt
+            total_credited += amt
+    levels = sorted([v for k, v in by_level.items() if k > 0], key=lambda x: x["level"])
+    return {
+        "totals": {
+            "credited": round(total_credited, 2),
+            "held_entries": int(total_held),
+            "transactions": len(txns),
+        },
+        "by_level": levels,
+        "recent": txns[:50],
+    }
+
+
+@api.post("/admin/fresh-start")
+async def admin_fresh_start(payload: dict, admin=Depends(_require_super_admin)):
+    """DANGER — Hard-delete all non-admin user data. Preserves admin accounts, products,
+    categories, coupons, settings, banners, sliders, testimonials, reels, brands.
+
+    Body: {confirm: "RESET"} — required exactly to prevent accidents.
+    """
+    if (payload or {}).get("confirm") != "RESET":
+        raise HTTPException(status_code=400, detail='Confirmation required. Send {"confirm":"RESET"}')
+
+    # Collect admin ids so we do NOT touch their accounts / activity
+    admin_docs = await db.users.find({"role": {"$in": ["super_admin", "sub_admin"]}}, {"_id": 0, "id": 1}).to_list(50)
+    admin_ids = [a["id"] for a in admin_docs]
+
+    # Delete all non-admin users
+    users_del = (await db.users.delete_many({"role": {"$nin": ["super_admin", "sub_admin"]}})).deleted_count
+    # Nuke transactional collections wholesale
+    stats = {"users_deleted": users_del}
+    existing_cols = set(await db.list_collection_names())
+    for col in ["orders", "referral_businesses", "withdrawals", "kyc", "tickets", "notifications", "transactions", "otps", "cart"]:
+        if col in existing_cols:
+            stats[col] = (await db[col].delete_many({})).deleted_count
+    # Audit logs — keep only entries by/for admins, wipe the rest
+    if "audit_logs" in existing_cols:
+        stats["audit_logs"] = (await db.audit_logs.delete_many({"actor_id": {"$nin": admin_ids + [None]}})).deleted_count
+    # Zero any wallet references on admin accounts (they shouldn't have any but just in case)
+    await db.users.update_many(
+        {"role": {"$in": ["super_admin", "sub_admin"]}},
+        {"$set": {"wallet_balance": 0, "commission_wallet": 0, "cashback_wallet": 0,
+                  "reward_wallet": 0, "income_wallet": 0, "total_earnings": 0,
+                  "direct_referrals_count": 0, "team_size": 0, "current_stage": 1,
+                  "income_active": False}}
+    )
+    await log_audit("fresh_start", actor=admin, metadata=stats)
+    return {"ok": True, "stats": stats, "preserved": {"admins": len(admin_ids)}}
+
+
+@api.post("/admin/refresh-faqs")
+async def admin_refresh_faqs(admin=Depends(_require_super_admin)):
+    """Force-overwrite FAQs with the current master content from seed.py.
+    Use this after deploying to production to ensure old ₹2,999 / 3-stages copy is replaced."""
+    from seed import seed_all  # ensure module accessible
+    # Direct in-place replacement — always overwrite so admins don't need to redeploy for copy fixes
+    faqs_master = [
+        {"question": "What is EverGro eMart?", "answer": "EverGro eMart is a premium e-commerce platform combined with an 8-level MLM income plan. Purchase the ₹7,499 EverGro Kit, refer new members, and earn per-level commissions across your entire downline."},
+        {"question": "How does the MLM plan work?", "answer": "It's an 8-stage plan. You refer up to 6 direct members. Once 3 of them pay their ₹7,499 kit, your income activates. You then earn fixed level-wise commissions on EVERY paid member across 8 downline levels:\n\n• Level 1 — ₹1,200 × 6 members = ₹7,200\n• Level 2 — ₹400 × 36 members = ₹14,400\n• Level 3 — ₹50 × 216 members = ₹10,800\n• Level 4 — ₹300 × 1,296 members = ₹3,88,800\n• Level 5 — ₹50 × 7,776 members = ₹3,88,800\n• Level 6 — ₹200 × 46,656 members = ₹93,31,200\n• Level 7 — ₹50 × 2,79,936 members = ₹1,39,96,800\n• Level 8 — ₹100 × 16,79,616 members = ₹16,79,61,600\n\nTotal lifetime earning potential: ₹19,20,99,600."},
+        {"question": "How do I withdraw earnings?", "answer": "Minimum ₹100. Requires approved KYC and at least 3 paid direct referrals. Payouts processed to your registered bank account within 48 hours."},
+        {"question": "Is KYC required?", "answer": "Yes. To withdraw funds you must complete KYC (PAN + Aadhaar + bank details). Browsing and earning does not require KYC — only withdrawal does."},
+        {"question": "What is the joining amount?", "answer": "₹7,499 (one-time). Purchase the EverGro Purchasing Kit to activate your MLM account and unlock the referral link. This is a real-value grocery + wellness kit — not a fee."},
+        {"question": "Can one phone have multiple accounts?", "answer": "No. Each mobile number is tied to exactly ONE account. However, you can create multiple referral businesses from your dashboard — each with its own ₹7,499 kit and independent referral tree."},
+        {"question": "What if I'm inactive?", "answer": "Accounts inactive for 180+ days are auto-disabled. Contact support to reactivate."},
+    ]
+    for i, f in enumerate(faqs_master):
+        existing = await db.faqs.find_one({"question": f["question"]})
+        await db.faqs.update_one(
+            {"question": f["question"]},
+            {"$set": {**f, "sort_order": i, "is_active": True, "id": (existing or {}).get("id") or str(uuid.uuid4())}},
+            upsert=True,
+        )
+    await log_audit("faqs_refresh", actor=admin, metadata={"count": len(faqs_master)})
+    return {"ok": True, "count": len(faqs_master)}
+
+
 @api.post("/admin/products")
 async def admin_create_product(payload: ProductCreate, _=Depends(require_admin)):
     p = payload.model_dump()

@@ -142,7 +142,7 @@ function Stat({ label, value, icon }) {
 
 function CreateBusinessModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
-  const [refCode, setRefCode] = useState("");
+  const [refCode, setRefCode] = useState("ADMIN001");
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
@@ -180,7 +180,7 @@ function CreateBusinessModal({ onClose, onCreated }) {
           <div>
             <label className="text-xs font-bold uppercase text-[#94A3B8] tracking-wider">Sponsor referral code</label>
             <input className="input-soft mt-1 font-mono uppercase" placeholder="e.g. ADMIN001" value={refCode} onChange={(e) => setRefCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} data-testid="business-sponsor-input"/>
-            <div className="text-[10px] text-[#94A3B8] mt-1">Must be a different code than any of your existing businesses.</div>
+            <div className="text-[10px] text-[#94A3B8] mt-1">Default is <b className="text-[#065F46] font-mono">ADMIN001</b> (company). You can change it to any valid referral code — but not your own.</div>
           </div>
         </div>
         <div className="flex gap-2 mt-5">

@@ -103,7 +103,112 @@ export default function AdminSettings() {
         </div>
         <button onClick={saveMlm} disabled={busy} className="btn-primary" data-testid="save-mlm-settings">Save MLM Settings</button>
       </div>
+
+      <SelfPasswordCard/>
+
+      <DangerZoneCard/>
     </div>
+  );
+}
+
+function SelfPasswordCard() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (next.length < 6) return toast.error("New password must be at least 6 characters");
+    if (next !== confirm) return toast.error("Passwords do not match");
+    setBusy(true);
+    try {
+      await api.post("/auth/change-password", { current_password: current, new_password: next });
+      toast.success("Password updated");
+      setCurrent(""); setNext(""); setConfirm("");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Failed to update"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="card-soft p-6 space-y-3" data-testid="admin-self-password-card">
+      <h3 className="font-display font-bold text-lg">Change my password</h3>
+      <p className="text-xs text-[#64748B]">Sign yourself in again after saving.</p>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <Input label="Current password" type="password" v={current} on={(e) => setCurrent(e.target.value)} testid="admin-cur-pw"/>
+        <Input label="New password (min 6)" type="password" v={next} on={(e) => setNext(e.target.value)} testid="admin-new-pw"/>
+        <Input label="Confirm new password" type="password" v={confirm} on={(e) => setConfirm(e.target.value)} testid="admin-confirm-pw"/>
+      </div>
+      <button onClick={submit} disabled={busy} className="btn-primary" data-testid="admin-change-my-password">Update password</button>
+    </div>
+  );
+}
+
+function DangerZoneCard() {
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [lastResult, setLastResult] = useState(null);
+
+  const nuke = async () => {
+    if (confirmText !== "RESET") return toast.error("Type RESET (in caps) to confirm");
+    setBusy(true);
+    try {
+      const { data } = await api.post("/admin/fresh-start", { confirm: "RESET" });
+      setLastResult(data);
+      toast.success("Fresh start complete");
+      setOpen(false); setConfirmText("");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Fresh start failed"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="card-soft p-6 space-y-3 border-2 border-red-200 bg-gradient-to-br from-red-50 to-white" data-testid="admin-danger-zone">
+      <h3 className="font-display font-bold text-lg text-red-700">⚠ Danger Zone — Fresh Start</h3>
+      <p className="text-sm text-red-800">Hard-deletes every non-admin user + their orders, referral businesses, withdrawals, KYC, notifications and transactions. Admin accounts, products, categories, coupons, settings and site content are preserved. There is no undo.</p>
+      {lastResult && (
+        <div className="rounded-xl bg-white border border-red-200 p-3 text-xs text-red-800 font-mono" data-testid="fresh-start-result">
+          Last run: {JSON.stringify(lastResult.stats)}
+        </div>
+      )}
+      {!open ? (
+        <button onClick={() => setOpen(true)} className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full px-5 py-2 text-sm" data-testid="admin-fresh-start-open">
+          Reset production data…
+        </button>
+      ) : (
+        <div className="rounded-2xl bg-white border border-red-300 p-4 space-y-3">
+          <div className="text-sm text-red-800">Type <b className="font-mono">RESET</b> (in capital letters) to confirm.</div>
+          <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} className="input-soft font-mono border-red-300" placeholder="RESET" data-testid="admin-fresh-start-confirm-input"/>
+          <div className="flex gap-2">
+            <button onClick={() => { setOpen(false); setConfirmText(""); }} className="btn-outline text-sm">Cancel</button>
+            <button onClick={nuke} disabled={busy || confirmText !== "RESET"} className="bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white font-semibold rounded-full px-4 py-2 text-sm" data-testid="admin-fresh-start-confirm">
+              {busy ? "Wiping…" : "Wipe everything"}
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="pt-3 border-t border-red-100">
+        <h4 className="font-display font-bold text-red-700 text-sm">Refresh FAQ copy</h4>
+        <p className="text-xs text-red-800/80 mb-2">Overwrites the public FAQs with the current master text (fixes stale ₹2,999 / 3-stages copy in production).</p>
+        <RefreshFaqsButton/>
+      </div>
+    </div>
+  );
+}
+
+function RefreshFaqsButton() {
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.post("/admin/refresh-faqs");
+      toast.success(`${data.count} FAQs refreshed`);
+    } catch (e) { toast.error(e?.response?.data?.detail || "Failed"); }
+    finally { setBusy(false); }
+  };
+  return (
+    <button onClick={run} disabled={busy} className="bg-white border border-red-300 hover:border-red-500 text-red-700 font-semibold rounded-full px-4 py-1.5 text-xs" data-testid="admin-refresh-faqs-btn">
+      {busy ? "Refreshing…" : "Refresh FAQs now"}
+    </button>
   );
 }
 

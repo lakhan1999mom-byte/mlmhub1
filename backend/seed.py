@@ -336,10 +336,16 @@ async def seed_all(db):
     ]
     for i, f in enumerate(faqs_master):
         existing_faq = await db.faqs.find_one({"question": f["question"]})
+        existing_ans = (existing_faq.get("answer", "") or "") if existing_faq else ""
         stale = existing_faq and (
-            "7,200" in (existing_faq.get("answer", "") or "")
-            or "6 direct referrals per member" in (existing_faq.get("answer", "") or "")
-            or "Level 1: ₹1,200/member × 6 = ₹7,499" in (existing_faq.get("answer", "") or "")
+            "7,200" in existing_ans
+            or "6 direct referrals per member" in existing_ans
+            or "Level 1: ₹1,200/member × 6 = ₹7,499" in existing_ans
+            or "2,999" in existing_ans
+            or "2999" in existing_ans
+            or "Bronze Starter" in existing_ans
+            or "There are 8 stages. You need 3 referrals to complete each stage" in existing_ans
+            or "Stages 1, 3, 5, 7" in existing_ans
         )
         if not existing_faq or stale:
             await db.faqs.update_one(

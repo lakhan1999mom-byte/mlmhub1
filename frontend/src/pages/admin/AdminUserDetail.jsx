@@ -2,25 +2,32 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { ArrowLeft, Shield, Mail, Phone, User, Briefcase, ShoppingBag, Wallet, Users, Clock, Globe, Monitor, Smartphone, Tablet, Activity, TrendingUp } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { ArrowLeft, Shield, Mail, Phone, User, Briefcase, ShoppingBag, Wallet, Users, Clock, Globe, Monitor, Smartphone, Tablet, Activity, TrendingUp, KeyRound, Coins } from "lucide-react";
 
-/** Admin — Deep dive into a single user (profile, businesses, login history, activity). */
+/** Admin — Deep dive into a single user (profile, businesses, login history, activity, commissions). */
 export default function AdminUserDetail() {
   const { userId } = useParams();
+  const { user: adminUser } = useAuth();
+  const isSuper = adminUser?.role === "super_admin";
   const [data, setData] = useState(null);
   const [loginHist, setLoginHist] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [breakdown, setBreakdown] = useState(null);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [newPw, setNewPw] = useState("");
 
   useEffect(() => {
     Promise.all([
       api.get(`/admin/users/${userId}`),
       api.get(`/admin/users/${userId}/login-history?limit=50`),
       api.get(`/admin/users/${userId}/activity?limit=100`),
-    ]).then(([d, l, a]) => {
-      setData(d.data); setLoginHist(l.data.items || []); setActivity(a.data.items || []);
+      api.get(`/admin/users/${userId}/commission-breakdown?limit=200`),
+    ]).then(([d, l, a, cb]) => {
+      setData(d.data); setLoginHist(l.data.items || []); setActivity(a.data.items || []); setBreakdown(cb.data);
     }).catch(() => toast.error("Failed to load user"))
     .finally(() => setLoading(false));
   }, [userId]);
@@ -33,6 +40,15 @@ export default function AdminUserDetail() {
       setData({ ...data, user: updated });
       toast.success(updated.is_active ? "Account activated" : "Account disabled");
     } catch { toast.error("Update failed"); } finally { setSaving(false); }
+  };
+
+  const resetPassword = async () => {
+    if (newPw.length < 6) return toast.error("Password must be at least 6 characters");
+    try {
+      await api.post(`/admin/users/${userId}/reset-password`, { new_password: newPw });
+      toast.success("Password reset — share the new one with the user");
+      setResetOpen(false); setNewPw("");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Reset failed"); }
   };
 
   if (loading) return <div className="text-center py-16 text-slate-400">Loading user…</div>;
@@ -77,9 +93,37 @@ export default function AdminUserDetail() {
             <button onClick={toggleActive} disabled={saving} className="btn-outline text-xs" data-testid="admin-toggle-user-active">
               {u.is_active ? "Disable" : "Activate"}
             </button>
+            {isSuper && (
+              <button onClick={() => setResetOpen(true)} className="btn-outline text-xs" data-testid="admin-reset-password-btn">
+                <KeyRound className="w-3 h-3"/> Reset Password
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Reset password modal */}
+      {resetOpen && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setResetOpen(false)}>
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-700 p-6" onClick={(e) => e.stopPropagation()} data-testid="admin-reset-password-modal">
+            <div className="flex items-center gap-2 text-[#84CC16] text-xs uppercase font-bold tracking-widest mb-2"><KeyRound className="w-3 h-3"/> Super Admin Action</div>
+            <h3 className="font-display font-black text-xl text-slate-100">Reset password for {u.name}</h3>
+            <p className="text-xs text-slate-400 mt-1">Sets a new password immediately. Share the new password with the user — they can change it later themselves.</p>
+            <input
+              type="text"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="New password (min 6 chars)"
+              className="mt-4 w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-2.5 text-slate-100 placeholder:text-slate-500 outline-none focus:border-[#84CC16]"
+              data-testid="admin-new-password-input"
+            />
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <button onClick={() => setResetOpen(false)} className="btn-outline text-xs">Cancel</button>
+              <button onClick={resetPassword} disabled={newPw.length < 6} className="btn-primary text-xs" data-testid="admin-confirm-reset-password">Set new password</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Counters */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -91,16 +135,17 @@ export default function AdminUserDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800">
+      <div className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto">
         {[
           { id: "overview", label: "Overview", icon: <Briefcase className="w-3.5 h-3.5"/> },
+          { id: "commissions", label: `Commissions (₹${Number(breakdown?.totals?.credited || 0).toLocaleString("en-IN")})`, icon: <Coins className="w-3.5 h-3.5"/> },
           { id: "logins", label: `Login History (${loginHist.length})`, icon: <Globe className="w-3.5 h-3.5"/> },
           { id: "activity", label: `Activity Log (${activity.length})`, icon: <Activity className="w-3.5 h-3.5"/> },
         ].map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${tab === t.id ? "border-[#84CC16] text-[#84CC16]" : "border-transparent text-slate-400 hover:text-slate-200"}`}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${tab === t.id ? "border-[#84CC16] text-[#84CC16]" : "border-transparent text-slate-400 hover:text-slate-200"}`}
             data-testid={`admin-user-tab-${t.id}`}
           >
             {t.icon} {t.label}
@@ -123,6 +168,56 @@ export default function AdminUserDetail() {
                 <div className="text-[10px] text-slate-500 mt-1">Created {new Date(b.created_at).toLocaleDateString("en-IN")}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "commissions" && (
+        <div className="space-y-4" data-testid="admin-user-commissions">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MiniStat label="Wallet ₹" value={Number(u.wallet_balance || 0).toLocaleString("en-IN")} icon={<Wallet className="w-4 h-4"/>}/>
+            <MiniStat label="Total Earned ₹" value={Number(u.total_earnings || 0).toLocaleString("en-IN")} icon={<TrendingUp className="w-4 h-4"/>}/>
+            <MiniStat label="Credited (all-time)" value={`₹${Number(breakdown?.totals?.credited || 0).toLocaleString("en-IN")}`} icon={<Coins className="w-4 h-4"/>}/>
+            <MiniStat label="Held Entries" value={breakdown?.totals?.held_entries || 0} sub="need 3 paid direct refs" icon={<Shield className="w-4 h-4"/>}/>
+          </div>
+          <div className="card-soft p-5">
+            <div className="font-display font-bold text-lg text-slate-100 mb-3">Earnings by Level</div>
+            {(breakdown?.by_level || []).length === 0 ? (
+              <div className="text-center py-6 text-sm text-slate-500">No commissions credited yet.</div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(breakdown?.by_level || []).map((lv) => (
+                  <div key={lv.level} className="rounded-2xl bg-slate-900/60 border border-slate-800 p-3" data-testid={`commission-level-${lv.level}`}>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Level {lv.level}</div>
+                    <div className="font-numbers font-black text-2xl text-[#84CC16] mt-1">₹{Number(lv.credited).toLocaleString("en-IN")}</div>
+                    <div className="text-[10px] text-slate-500 mt-1">{lv.count} events{lv.held_count ? ` · ${lv.held_count} held` : ""}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="card-soft p-0 overflow-hidden">
+            <div className="p-4 border-b border-slate-800 font-display font-bold text-slate-100">Recent transactions</div>
+            {(breakdown?.recent || []).length === 0 ? (
+              <div className="text-center py-8 text-sm text-slate-500">No transactions yet.</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-slate-900/60 text-left text-[10px] uppercase tracking-widest text-slate-400">
+                  <tr><th className="p-3">Time</th><th className="p-3">Category</th><th className="p-3">Level</th><th className="p-3 text-right">Amount</th><th className="p-3">Description</th></tr>
+                </thead>
+                <tbody>
+                  {(breakdown?.recent || []).map((t) => (
+                    <tr key={t.id} className="border-t border-slate-800/70">
+                      <td className="p-3 whitespace-nowrap text-xs text-slate-300">{new Date(t.created_at).toLocaleString("en-IN")}</td>
+                      <td className="p-3"><span className="badge-pill text-[10px] bg-slate-800 text-slate-300 border border-slate-700">{t.category}</span></td>
+                      <td className="p-3 text-xs text-slate-400">L{t.level || "—"}</td>
+                      <td className={`p-3 text-right font-numbers font-bold ${t.category === "commission_held" ? "text-amber-400" : "text-[#84CC16]"}`}>₹{Number(t.amount).toLocaleString("en-IN")}</td>
+                      <td className="p-3 text-xs text-slate-400 truncate max-w-[300px]">{t.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}

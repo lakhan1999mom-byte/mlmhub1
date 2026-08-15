@@ -1,0 +1,23 @@
+{
+  "summary": "Iteration 18 backend testing: 23/23 tests passed. Covered new endpoints (change-password, admin reset-password, fresh-start guard, refresh-faqs, user + admin commission-breakdown) with success + error paths; verified fresh-start was NOT invoked with correct confirm string. FAQ content assertions confirm ₹7,499 joining amount and full MLM plan explanation with '₹19,20,99,600' lifetime total. Regression on login audit (ip+user_agent), admin dashboard, businesses.pending_order_id, admin search, login-history, activity all pass. Frontend RequireJoined wrapper verified via source read: admins bypass, non-paid users redirect to /hampers, applied to /dashboard, /network, /wallet, /withdrawals, /referral, /dashboard/businesses (+ /dashboard/businesses/:id).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration18_password_faqs_fresh.py",
+    "/app/test_reports/pytest/iteration18.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is 3128 lines — well over the 700-line guideline; consider splitting into routers (auth, admin, mlm, orders).",
+    "_commission_breakdown_for counts held ENTRIES not held AMOUNT (by design per code comment). Frontend must interpret held_count as number of pending txns, not rupees.",
+    "admin_fresh_start uses `await db.list_collection_names()` inside a loop — 8 network calls. Cache once outside the loop.",
+    "log_audit stores field `event` (not `action`) — keep tests/UI aligned with `event`."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration18_password_faqs_fresh.py"],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "Super admin: admin@evergroemart.com / Admin@123; Sub admin: subadmin@evergroemart.com / SubAdmin@123; User: test1_1785761123 / NewPass@123 (restored after test).",
+  "seed_data_creation": "None. Test rotates user password to 'Rotated@2026' and 'AdminReset@2026' then restores to NewPass@123.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New endpoints all live under /api. Fresh-start was ONLY exercised with wrong confirm (400 path) to preserve preview DB. Login audit uses `event` field name (not `action`). User test1_1785761123 password is verified restored to NewPass@123 at end of test."
+}

@@ -95,6 +95,20 @@ function RequireAuth({ role, children }) {
   return children;
 }
 
+/**
+ * Gate that redirects non-paid users to /hampers.
+ * Applied to income-related pages (dashboard, network, wallet, referral, businesses).
+ * Admins bypass the check entirely.
+ */
+function RequireJoined({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-10 text-center text-[#064E3B]">Loading…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === "super_admin" || user.role === "sub_admin") return children;
+  if (!user.is_joining_paid) return <Navigate to="/hampers" replace />;
+  return children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -128,19 +142,19 @@ export default function App() {
             <Route path="/join-now" element={<JoinNow />} />
 
             <Route element={<RequireAuth role={["user","sub_admin","super_admin"]}><UserShell /></RequireAuth>}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/network" element={<Network />} />
-              <Route path="/wallet" element={<Wallet />} />
-              <Route path="/withdrawals" element={<Withdrawals />} />
+              <Route path="/dashboard" element={<RequireJoined><Dashboard /></RequireJoined>} />
+              <Route path="/network" element={<RequireJoined><Network /></RequireJoined>} />
+              <Route path="/wallet" element={<RequireJoined><Wallet /></RequireJoined>} />
+              <Route path="/withdrawals" element={<RequireJoined><Withdrawals /></RequireJoined>} />
               <Route path="/kyc" element={<KycPage />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/:id" element={<OrderDetail />} />
-              <Route path="/dashboard/businesses" element={<Businesses />} />
-              <Route path="/dashboard/businesses/:id" element={<BusinessDetail />} />
+              <Route path="/dashboard/businesses" element={<RequireJoined><Businesses /></RequireJoined>} />
+              <Route path="/dashboard/businesses/:id" element={<RequireJoined><BusinessDetail /></RequireJoined>} />
               <Route path="/checkout/direct/:orderId" element={<DirectCheckout />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/referral" element={<Referral />} />
+              <Route path="/referral" element={<RequireJoined><Referral /></RequireJoined>} />
               <Route path="/support" element={<Support />} />
             </Route>
 
