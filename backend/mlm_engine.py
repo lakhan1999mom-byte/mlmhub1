@@ -128,6 +128,22 @@ async def _distribute_level_commissions(db, buyer_id: str, order_code: str, orde
                 "read": False,
                 "created_at": now_iso(),
             })
+            # Withdrawal nudge — fire once when wallet balance crosses ₹500 for the first time
+            new_balance = float(sponsor.get("wallet_balance", 0)) + amount
+            already_nudged = bool(sponsor.get("withdraw_nudge_sent"))
+            if new_balance >= 500 and not already_nudged:
+                await db.users.update_one({"id": sponsor["id"]}, {"$set": {"withdraw_nudge_sent": True}})
+                await db.notifications.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "user_id": sponsor["id"],
+                    "title": "🎉 Your wallet has crossed ₹500!",
+                    "body": f"You have ₹{round(new_balance)} ready to withdraw. Complete KYC (if pending) and cash out — payouts hit your bank in 48 hours.",
+                    "type": "success",
+                    "event": "withdraw_nudge",
+                    "action_url": "/wallet",
+                    "read": False,
+                    "created_at": now_iso(),
+                })
         else:
             # Held/skipped: log for admin visibility
             await db.transactions.insert_one({

@@ -3,9 +3,9 @@ import { useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { ArrowLeft, Shield, Mail, Phone, User, Briefcase, ShoppingBag, Wallet, Users, Clock, Globe, Monitor, Smartphone, Tablet, Activity, TrendingUp, KeyRound, Coins } from "lucide-react";
+import { ArrowLeft, Shield, Mail, Phone, User, Briefcase, ShoppingBag, Wallet, Users, Clock, Globe, Monitor, Smartphone, Tablet, Activity, TrendingUp, KeyRound, Coins, Network } from "lucide-react";
 
-/** Admin — Deep dive into a single user (profile, businesses, login history, activity, commissions). */
+/** Admin — Deep dive into a single user (profile, businesses, login history, activity, commissions, downline). */
 export default function AdminUserDetail() {
   const { userId } = useParams();
   const { user: adminUser } = useAuth();
@@ -14,6 +14,7 @@ export default function AdminUserDetail() {
   const [loginHist, setLoginHist] = useState([]);
   const [activity, setActivity] = useState([]);
   const [breakdown, setBreakdown] = useState(null);
+  const [downline, setDownline] = useState(null);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,8 +27,9 @@ export default function AdminUserDetail() {
       api.get(`/admin/users/${userId}/login-history?limit=50`),
       api.get(`/admin/users/${userId}/activity?limit=100`),
       api.get(`/admin/users/${userId}/commission-breakdown?limit=200`),
-    ]).then(([d, l, a, cb]) => {
-      setData(d.data); setLoginHist(l.data.items || []); setActivity(a.data.items || []); setBreakdown(cb.data);
+      api.get(`/admin/users/${userId}/downline-tree?max_depth=8`).catch(() => ({ data: null })),
+    ]).then(([d, l, a, cb, dt]) => {
+      setData(d.data); setLoginHist(l.data.items || []); setActivity(a.data.items || []); setBreakdown(cb.data); setDownline(dt.data);
     }).catch(() => toast.error("Failed to load user"))
     .finally(() => setLoading(false));
   }, [userId]);
@@ -138,6 +140,7 @@ export default function AdminUserDetail() {
       <div className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto">
         {[
           { id: "overview", label: "Overview", icon: <Briefcase className="w-3.5 h-3.5"/> },
+          { id: "downline", label: `Downline Tree (${downline?.totals?.members || 0})`, icon: <Network className="w-3.5 h-3.5"/> },
           { id: "commissions", label: `Commissions (₹${Number(breakdown?.totals?.credited || 0).toLocaleString("en-IN")})`, icon: <Coins className="w-3.5 h-3.5"/> },
           { id: "logins", label: `Login History (${loginHist.length})`, icon: <Globe className="w-3.5 h-3.5"/> },
           { id: "activity", label: `Activity Log (${activity.length})`, icon: <Activity className="w-3.5 h-3.5"/> },
@@ -169,6 +172,30 @@ export default function AdminUserDetail() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === "downline" && (
+        <div className="space-y-4" data-testid="admin-user-downline-tree">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MiniStat label="Total Downline" value={downline?.totals?.members || 0} icon={<Users className="w-4 h-4"/>}/>
+            <MiniStat label="Paid Members" value={downline?.totals?.paid || 0} sub={`of ${downline?.totals?.members || 0}`} icon={<Shield className="w-4 h-4"/>}/>
+            <MiniStat label="Levels Explored" value={downline?.totals?.levels || 0} sub="of 8 max" icon={<Network className="w-4 h-4"/>}/>
+            <MiniStat label="Referral Code" value={downline?.root?.referral_code || "—"} sub={downline?.root?.user_code} icon={<Briefcase className="w-4 h-4"/>}/>
+          </div>
+          {(downline?.levels || []).every((lv) => lv.count === 0) ? (
+            <div className="card-soft p-10 text-center">
+              <Network className="w-8 h-8 text-slate-500 mx-auto mb-2"/>
+              <div className="font-display font-bold text-slate-100">No downline yet</div>
+              <div className="text-sm text-slate-500">Nobody has joined under {downline?.root?.name || "this user"}&apos;s referral code.</div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(downline?.levels || []).map((lv) => (
+                <LevelBlock key={lv.level} lv={lv}/>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -306,4 +333,76 @@ function DeviceIcon({ kind }) {
   if (kind === "Mobile") return <Smartphone className="w-3.5 h-3.5 text-[#84CC16]"/>;
   if (kind === "Tablet") return <Tablet className="w-3.5 h-3.5 text-[#84CC16]"/>;
   return <Monitor className="w-3.5 h-3.5 text-[#84CC16]"/>;
+}
+
+function LevelBlock({ lv }) {
+  const [expanded, setExpanded] = useState(lv.level <= 2);
+  const paidPct = lv.count === 0 ? 0 : Math.round((lv.paid / lv.count) * 100);
+  return (
+    <div className="card-soft p-0 overflow-hidden" data-testid={`downline-level-${lv.level}`}>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-4 p-4 hover:bg-slate-900/40 transition-colors"
+      >
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#84CC16] to-[#65A30D] text-slate-950 flex items-center justify-center font-black text-sm shadow-lg shrink-0">
+          L{lv.level}
+        </div>
+        <div className="flex-1 text-left min-w-0">
+          <div className="font-display font-bold text-slate-100 flex items-center gap-2">
+            Level {lv.level}
+            <span className="badge-pill text-[10px] bg-slate-800 text-slate-300 border border-slate-700">{lv.count} members</span>
+            {lv.paid > 0 && <span className="badge-pill text-[10px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30">{lv.paid} paid · {paidPct}%</span>}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Team earnings: ₹{Number(lv.earnings || 0).toLocaleString("en-IN")}</div>
+        </div>
+        <div className="text-slate-500 text-xs shrink-0">{expanded ? "Hide" : "Show"} ▾</div>
+      </button>
+      {expanded && lv.count > 0 && (
+        <div className="border-t border-slate-800/70 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-900/40 text-left text-[10px] uppercase tracking-widest text-slate-500">
+              <tr>
+                <th className="p-3">Member</th>
+                <th className="p-3">Contact</th>
+                <th className="p-3">Ref Code</th>
+                <th className="p-3">Stage</th>
+                <th className="p-3">Direct Refs</th>
+                <th className="p-3 text-right">Earnings</th>
+                <th className="p-3">Status</th>
+                <th className="p-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lv.members.map((m, idx) => (
+                <tr key={m.id} className="border-t border-slate-800/40" data-testid={`downline-member-${lv.level}-${idx}`}>
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#84CC16] to-[#65A30D] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        {(m.name || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-slate-100 font-semibold truncate">{m.name}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{m.user_code}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-3 text-xs text-slate-400 whitespace-nowrap">{m.phone || m.email || "—"}</td>
+                  <td className="p-3 text-xs font-mono text-[#84CC16]">{m.referral_code || "—"}</td>
+                  <td className="p-3 text-xs text-slate-300">{m.current_stage || 1}</td>
+                  <td className="p-3 text-xs text-slate-300">{m.direct_referrals_count || 0}</td>
+                  <td className="p-3 text-right font-numbers font-bold text-[#84CC16]">₹{Number(m.total_earnings || 0).toLocaleString("en-IN")}</td>
+                  <td className="p-3">
+                    <span className={`badge-pill text-[10px] ${m.is_joining_paid ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30" : "bg-amber-950/60 text-amber-300 border border-amber-500/30"}`}>{m.is_joining_paid ? "Paid" : "Pending"}</span>
+                  </td>
+                  <td className="p-3">
+                    <Link to={`/admin/users/${m.id}`} className="text-[10px] text-[#84CC16] hover:underline">Open →</Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }

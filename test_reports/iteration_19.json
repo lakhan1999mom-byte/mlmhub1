@@ -1,0 +1,23 @@
+{
+  "summary": "Iteration 19 backend testing: 17/17 tests passed. Verified GET /api/admin/users/{id}/downline-tree (auth/403, 404 unknown user, max_depth clamp to [1..8], non-empty L1 for super admin EG000001, members sorted by total_earnings DESC, sub_admin allowed). Verified withdraw_nudge idempotency by directly invoking mlm_engine._distribute_level_commissions against a synthetic downstream buyer after setting admin wallet_balance=495 — exactly ONE notification with event='withdraw_nudge', action_url='/wallet', title mentioning ₹500 was inserted; withdraw_nudge_sent flag flipped True; second commission credit did NOT insert a second nudge. Regression on 10 previously-live endpoints (admin users list/detail, commission-breakdown x2, login-history, activity, search, change-password wrong-current reject, reset-password requires super_admin, fresh-start rejects without confirm) all pass. State fully restored after nudge test (buyer deleted, notifications/txns purged, admin balance/flags restored).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration19_downline_nudge.py",
+    "/app/test_reports/pytest/iteration19.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py admin_user_downline_tree: `max(1, min(int(max_depth or 8), 8))` treats max_depth=0 as falsy and defaults to 8 (not 1). Not a spec violation, but if intent is clamp-to-[1,8] then use `max(1, min(int(max_depth if max_depth is not None else 8), 8))`.",
+    "mlm_engine._distribute_level_commissions: nudge is computed from `new_balance = float(sponsor.get('wallet_balance', 0)) + amount` using the sponsor snapshot BEFORE the $inc. If multiple credits happen in the same order chain (unlikely in current code) or admin sends manual credits between reads, snapshot could drift. Consider re-reading the user after $inc to compute the real balance for the nudge threshold check.",
+    "mlm_engine.get_downline_tree traverses by `sponsor_user_id` (recursive tree) while the admin downline-tree endpoint traverses by `sponsor_id` (user_code, level-grouped). Two sources of truth for the same relationship — document the difference or unify.",
+    "Backend downline_tree fields projection omits `sponsor_id` from returned members; tests can't verify sponsor linkage from the response. Consider adding sponsor_id to the projected fields for transparency in the admin UI."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration19_downline_nudge.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "Super admin admin@evergroemart.com / Admin@123 · Sub admin subadmin@evergroemart.com / SubAdmin@123 · User test1_1785761123 / NewPass@123. Nothing rotated.",
+  "seed_data_creation": "During nudge test: temporarily inserted a synthetic buyer user (id TESTBUYER-<uuid>, user_code TESTBUYERC) with sponsor_user_id=super_admin and updated super_admin wallet_balance to 495, direct_referrals_count>=3, withdraw_nudge_sent=False. All artefacts cleaned up (buyer deleted, transactions with reference_id=test-order-id-1/2 purged, nudge notifications purged, admin fields restored to original) inside a finally block.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test file test_iteration19_downline_nudge.py uses --asyncio-mode=auto (pytest-asyncio 1.4.0 installed in this env). BASE_URL comes from /app/frontend/.env REACT_APP_BACKEND_URL. Admin fresh-start intentionally exercised ONLY the reject path. Two field-name conventions coexist: users.sponsor_user_id (mongo doc id) and users.sponsor_id (sponsor's user_code). Admin downline-tree endpoint uses sponsor_id; mlm_engine.get_downline_tree (used by /mlm/downline-tree for the user themselves at server.py:1036) uses sponsor_user_id — verify which one the frontend AdminUserDetail.jsx consumes."
+}

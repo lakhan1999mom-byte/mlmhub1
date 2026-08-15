@@ -2259,6 +2259,60 @@ async def admin_user_activity(user_id: str, _=Depends(require_admin), limit: int
     return {"items": logs, "total": len(logs)}
 
 
+@api.get("/admin/users/{user_id}/downline-tree")
+async def admin_user_downline_tree(user_id: str, _=Depends(require_admin), max_depth: int = 8):
+    """Return the user's downline grouped by level (1..max_depth).
+    Each level lists members with essential stats (user_code, name, phone, referral_code,
+    current_stage, is_joining_paid, direct_referrals_count, total_earnings) — sorted by
+    total_earnings DESC so top performers surface first at every level.
+    """
+    root = await db.users.find_one({"id": user_id}, {"_id": 0, "referral_code": 1, "name": 1, "user_code": 1})
+    if not root:
+        raise HTTPException(status_code=404, detail="User not found")
+    max_depth = max(1, min(int(max_depth or 8), 8))
+
+    fields = {"_id": 0, "id": 1, "user_code": 1, "name": 1, "phone": 1, "email": 1,
+              "referral_code": 1, "sponsor_id": 1, "current_stage": 1, "is_joining_paid": 1,
+              "is_active": 1, "direct_referrals_count": 1, "team_size": 1,
+              "total_earnings": 1, "wallet_balance": 1, "avatar_url": 1, "created_at": 1}
+
+    levels = []
+    # `sponsor_id` on users stores the SPONSOR'S user_code (see register: line 252).
+    # So we traverse the tree by user_code, not referral_code.
+    frontier_codes = [root.get("user_code")] if root.get("user_code") else []
+    total_members = 0
+    paid_members = 0
+
+    for depth in range(1, max_depth + 1):
+        if not frontier_codes:
+            levels.append({"level": depth, "count": 0, "paid": 0, "earnings": 0, "members": []})
+            continue
+        members = await db.users.find({"sponsor_id": {"$in": frontier_codes}}, fields).sort("total_earnings", -1).to_list(1000)
+        paid = sum(1 for m in members if m.get("is_joining_paid"))
+        earnings = sum(m.get("total_earnings", 0) for m in members)
+        total_members += len(members)
+        paid_members += paid
+        levels.append({
+            "level": depth,
+            "count": len(members),
+            "paid": paid,
+            "earnings": round(earnings, 2),
+            "members": members,
+        })
+        # Next frontier = user_codes of everyone found at this depth (children look up by sponsor_id=user_code)
+        frontier_codes = [m.get("user_code") for m in members if m.get("user_code")]
+
+    return {
+        "root": {"user_code": root.get("user_code"), "name": root.get("name"), "referral_code": root.get("referral_code")},
+        "totals": {
+            "levels": max_depth,
+            "members": total_members,
+            "paid": paid_members,
+        },
+        "levels": levels,
+    }
+
+
 @api.put("/admin/users/{user_id}")
 async def admin_update_user(user_id: str, payload: dict, admin=Depends(require_admin)):
     allowed = {"is_active", "current_stage", "wallet_balance", "permissions", "role", "kyc_status"}
