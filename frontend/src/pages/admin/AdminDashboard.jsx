@@ -92,7 +92,7 @@ export default function AdminDashboard() {
           <div className="space-y-2 text-sm">
             <HealthRow label="API" ok/>
             <HealthRow label="Database" ok/>
-            <HealthRow label="Cashfree" warn="Mock mode"/>
+            <HealthRow label="IMBPay" ok="Live"/>
             <HealthRow label="Firebase OTP" ok/>
           </div>
           <div className="mt-4 pt-4 border-t border-slate-800">

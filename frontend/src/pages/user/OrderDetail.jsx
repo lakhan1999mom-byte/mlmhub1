@@ -20,10 +20,20 @@ export default function OrderDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`/orders/${id}`)
-      .then(({ data }) => setOrder(data))
-      .catch(() => toast.error("Order not found"))
-      .finally(() => setLoading(false));
+    let alive = true;
+    const load = () => api.get(`/orders/${id}`).then(({ data }) => { if (alive) setOrder(data); }).catch(() => toast.error("Order not found")).finally(() => { if (alive) setLoading(false); });
+    // If user just returned from IMBPay hosted page, verify first then refresh
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("imbpay")) {
+      api.post("/payments/imbpay/verify", { order_id: id })
+        .then(({ data }) => {
+          if (data.paid) toast.success("Payment confirmed — order is now paid.");
+          else toast.info(`Payment pending — status: ${data.status || "PENDING"}. Refresh in a moment.`);
+        })
+        .catch((e) => toast.error(e?.response?.data?.detail || "Payment verification failed"))
+        .finally(load);
+    } else { load(); }
+    return () => { alive = false; };
   }, [id]);
 
   if (loading) return <div className="p-12 text-center text-[#64748B]">Loading…</div>;

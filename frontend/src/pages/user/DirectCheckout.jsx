@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Lock, Sparkles } from "lucide-react";
+import { Lock, Sparkles, ShieldCheck } from "lucide-react";
 import api from "@/lib/api";
 
-/** Direct checkout for a pre-created order (e.g. business kit order). Skips cart. */
+/** Direct checkout for a pre-created order (e.g. business kit order).
+ * Uses IMBPay: creates a live order, redirects to the hosted payment_url. */
 export default function DirectCheckout() {
   const { orderId } = useParams();
   const nav = useNavigate();
@@ -15,18 +16,32 @@ export default function DirectCheckout() {
     api.get(`/orders/${orderId}`).then(({ data }) => setOrder(data)).catch(() => toast.error("Order not found"));
   }, [orderId]);
 
+  // Auto-verify if we just came back from the IMBPay hosted page (?imbpay=1)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get("imbpay")) return;
+    (async () => {
+      try {
+        const { data } = await api.post("/payments/imbpay/verify", { order_id: orderId });
+        if (data.paid) {
+          toast.success("Payment successful! Order confirmed.");
+          nav("/dashboard/businesses");
+        } else {
+          toast.warning(`Payment not confirmed yet — status: ${data.status || "PENDING"}. Try again if you completed it.`);
+        }
+      } catch (e) { toast.error(e?.response?.data?.detail || "Verification failed"); }
+    })();
+  }, [orderId, nav]);
+
   const pay = async () => {
     setBusy(true);
     try {
-      const { data: cf } = await api.post("/payments/cashfree/initiate", { order_id: orderId });
-      if (cf.mock) {
-        toast.info("Mock payment — auto-approving…", { duration: 1500 });
-        await new Promise((r) => setTimeout(r, 900));
-        const { data } = await api.post("/payments/cashfree/verify", { order_id: orderId });
-        if (data.paid) { toast.success("Payment successful! Business activated."); nav("/dashboard/businesses"); }
+      const { data } = await api.post("/payments/imbpay/initiate", { order_id: orderId });
+      if (data.payment_url) {
+        toast.info("Redirecting to IMBPay…", { duration: 1200 });
+        window.location.href = data.payment_url;
       } else {
-        // Live SDK path (see Checkout.jsx for logic — kept brief here)
-        toast.info("Live Cashfree flow — opening…");
+        toast.error("Payment URL missing from gateway response");
       }
     } catch (e) { toast.error(e?.response?.data?.detail || "Payment failed"); }
     finally { setBusy(false); }
@@ -49,8 +64,11 @@ export default function DirectCheckout() {
         <div className="border-t pt-2 flex justify-between font-black text-xl text-[#064E3B]"><span>Total</span><span>₹{order.total}</span></div>
       </div>
       <button onClick={pay} disabled={busy || order.payment_status === "paid"} className="btn-primary w-full justify-center text-lg py-3" data-testid="direct-pay-btn">
-        {order.payment_status === "paid" ? "✓ Already paid" : busy ? "Processing…" : <><Lock className="w-4 h-4"/> Pay ₹{order.total} Securely</>}
+        {order.payment_status === "paid" ? "✓ Already paid" : busy ? "Redirecting…" : <><Lock className="w-4 h-4"/> Pay ₹{order.total} via IMBPay</>}
       </button>
+      <div className="flex items-center justify-center gap-2 text-xs text-[#64748B]">
+        <ShieldCheck className="w-3.5 h-3.5 text-[#65A30D]"/> Powered by IMBPay · Instant UPI · No transaction fee
+      </div>
     </div>
   );
 }

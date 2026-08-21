@@ -622,7 +622,7 @@ async def firebase_verify(payload: dict, request: Request):
     }
 
 
-# ==================== (Easebuzz removed — Cashfree only) ====================
+# ==================== (Legacy payment gateways removed — IMBPay only) ====================
 
 
 # ==================== MLM RE-ENTRY (Second Position) ====================
@@ -1346,7 +1346,7 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
 @api.post("/orders/verify-payment")
 async def verify_payment(payload: PaymentVerify, user=Depends(get_user)):
     """Legacy generic verify endpoint. Kept for backwards compat with any old client calls —
-    delegates to the Cashfree mock/live flow via /payments/cashfree/verify."""
+    delegates to the IMBPay verification flow."""
     order = await db.orders.find_one({"id": payload.order_id, "user_id": user["id"]}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -1702,61 +1702,32 @@ async def leaderboard():
     return combined[:10]
 
 
-# ==================== PAYMENT PROVIDER CONFIG (Admin editable) ====================
+# ==================== PAYMENT PROVIDER CONFIG ====================
 @api.get("/admin/payment-config")
 async def admin_get_payment_config(_=Depends(require_admin)):
-    doc = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {"_key": "payment_config"}
-    # Never send the secret in full — mask it for the admin UI
-    if doc.get("cashfree_secret_key"):
-        s = doc["cashfree_secret_key"]
-        doc["cashfree_secret_masked"] = ("*" * (len(s) - 4)) + s[-4:] if len(s) > 4 else "****"
-    # Strip any legacy easebuzz fields from the response
-    for k in list(doc.keys()):
-        if k.startswith("easebuzz"):
-            doc.pop(k, None)
-    doc["provider"] = "cashfree"
-    return doc
-
-
-@api.post("/admin/payment-config")
-async def admin_set_payment_config(payload: dict, admin=Depends(require_admin)):
-    """Set Cashfree credentials. Takes effect immediately (no redeploy).
-    If cashfree_active is False OR credentials are missing, the checkout runs in MOCK mode
-    (auto-succeeds so demos + testing work end-to-end).
-    """
-    update = {"_key": "payment_config", "provider": "cashfree"}
-    for k in ("cashfree_app_id", "cashfree_secret_key", "cashfree_env", "cashfree_active"):
-        if k in payload and payload[k] != "" and payload[k] is not None:
-            update[k] = payload[k]
-    await db.settings.update_one(
-        {"_key": "payment_config"},
-        {"$set": {**update, "updated_at": now_iso()}, "$unset": {"easebuzz_key": "", "easebuzz_salt": "", "easebuzz_env": "", "easebuzz_active": ""}},
-        upsert=True,
-    )
-    await log_audit("payment_config_update", actor=admin, metadata={"provider": "cashfree"})
-    safe_update = {k: v for k, v in update.items() if "secret" not in k.lower()}
-    return {"ok": True, "config": safe_update}
+    tok = os.environ.get("IMBPAY_TOKEN", "")
+    return {
+        "provider": "imbpay",
+        "imbpay_active": bool(tok),
+        "imbpay_token_masked": ("*" * (len(tok) - 4)) + tok[-4:] if len(tok) > 4 else "****",
+        "imbpay_base_url": os.environ.get("IMBPAY_BASE_URL", "https://api.imbpay.in"),
+    }
 
 
 @api.get("/site/payment-provider")
 async def site_active_payment_provider():
-    """Public endpoint — frontend needs to know if Cashfree is live or should use mock."""
-    doc = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {}
-    is_live = bool(doc.get("cashfree_active") and doc.get("cashfree_app_id") and doc.get("cashfree_secret_key"))
+    """Public endpoint — tells the frontend which gateway is live."""
     return {
-        "provider": "cashfree",
-        "cashfree_active": is_live,
-        "cashfree_env": doc.get("cashfree_env", "sandbox"),
-        "cashfree_app_id": doc.get("cashfree_app_id") if is_live else None,
-        "mock_mode": not is_live,  # frontend uses this to auto-approve payment on the client side
+        "provider": "imbpay",
+        "imbpay_active": bool(os.environ.get("IMBPAY_TOKEN")),
+        "mock_mode": False,
     }
 
 
-
-# ==================== CASHFREE PAYMENT ====================
-@api.post("/payments/cashfree/initiate")
-async def cashfree_initiate(payload: dict, user=Depends(get_user)):
-    import cashfree_utils as cf
+# ==================== IMBPAY PAYMENT ====================
+@api.post("/payments/imbpay/initiate")
+async def imbpay_initiate(payload: dict, user=Depends(get_user)):
+    import imbpay_utils as ib
     order_id = payload.get("order_id")
     if not order_id:
         raise HTTPException(status_code=400, detail="order_id required")
@@ -1765,49 +1736,44 @@ async def cashfree_initiate(payload: dict, user=Depends(get_user)):
         raise HTTPException(status_code=404, detail="Order not found")
     if order.get("payment_status") == "paid":
         raise HTTPException(status_code=400, detail="Order already paid")
-
-    # MOCK MODE — no real Cashfree keys configured OR active=false.
-    # Return a synthetic session_id and let the client call /verify to mark paid.
-    cfg = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {}
-    is_live = bool(cfg.get("cashfree_active") and cfg.get("cashfree_app_id") and cfg.get("cashfree_secret_key"))
-    if not is_live:
-        mock_session = f"mock_session_{uuid.uuid4().hex[:16]}"
-        await db.orders.update_one({"id": order_id}, {"$set": {
-            "payment_provider": "cashfree",
-            "payment_session_id": mock_session,
-            "payment_mock": True,
-        }})
-        return {
-            "mock": True,
-            "payment_session_id": mock_session,
-            "cf_order_id": order_id,
-            "env": cfg.get("cashfree_env", "sandbox"),
-            "app_id": None,
-            "message": "Mock mode — client should call /payments/cashfree/verify to auto-succeed.",
-        }
+    if float(order.get("total", 0)) < 1:
+        raise HTTPException(status_code=400, detail="Minimum order amount is ₹1")
 
     frontend_base = os.environ.get("PUBLIC_FRONTEND_URL", "").rstrip("/") or "https://evergroemart.com"
-    return_url = f"{frontend_base}/orders/{order_id}?cf_order_id={order_id}"
+    redirect_url = f"{frontend_base}/orders/{order_id}?imbpay=1"
+
     try:
-        cf_order = await cf.create_cashfree_order(
-            db, order_id=order_id, amount=order["total"],
-            customer={"id": user["id"], "name": user["name"], "email": user.get("email"), "phone": user.get("phone")},
-            return_url=return_url,
+        result = await ib.create_imbpay_order(
+            order_id=order_id,
+            amount=float(order["total"]),
+            customer_mobile=user.get("phone") or "",
+            redirect_url=redirect_url,
+            remark1=(user.get("email") or "")[:120],
+            remark2=(order.get("order_code") or "")[:120],
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Cashfree init failed: {e}")
+        # IMBPay merchant-side errors (transaction limit, invalid VPA etc.) should
+        # surface as 400 to the client — 5xx makes Cloudflare intercept with a generic page.
+        raise HTTPException(status_code=400, detail=f"IMBPay: {e}")
+
     await db.orders.update_one({"id": order_id}, {"$set": {
-        "payment_provider": "cashfree",
-        "payment_txnid": cf_order["cf_order_id"],
-        "payment_session_id": cf_order["payment_session_id"],
-        "payment_mock": False,
+        "payment_provider": "imbpay",
+        "payment_txnid": result.get("order_id"),
+        "payment_url": result.get("payment_url"),
     }})
-    return {**cf_order, "mock": False}
+    return {
+        "provider": "imbpay",
+        "order_id": order_id,
+        "payment_url": result["payment_url"],
+        "paytm_link": result.get("paytm_link"),
+        "phonepe_link": result.get("phonepe_link"),
+        "bhim_link": result.get("bhim_link"),
+    }
 
 
-@api.post("/payments/cashfree/verify")
-async def cashfree_verify(payload: dict, user=Depends(get_user)):
-    import cashfree_utils as cf
+@api.post("/payments/imbpay/verify")
+async def imbpay_verify(payload: dict, user=Depends(get_user)):
+    import imbpay_utils as ib
     order_id = payload.get("order_id")
     order = await db.orders.find_one({"id": order_id, "user_id": user["id"]}, {"_id": 0})
     if not order:
@@ -1815,25 +1781,19 @@ async def cashfree_verify(payload: dict, user=Depends(get_user)):
     if order.get("payment_status") == "paid":
         return {"paid": True, "already_processed": True}
 
-    # MOCK MODE — auto succeed (payment_mock flag on order OR settings say inactive)
-    cfg = await db.settings.find_one({"_key": "payment_config"}, {"_id": 0}) or {}
-    is_live_cfg = bool(cfg.get("cashfree_active") and cfg.get("cashfree_app_id") and cfg.get("cashfree_secret_key"))
-    if order.get("payment_mock") or not is_live_cfg:
-        paid = True
-    else:
-        try:
-            res = await cf.verify_cashfree_order(db, order_id)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Cashfree verify failed: {e}")
-        paid = res["paid"]
-        if not paid:
-            return {"paid": False, "order_status": res.get("order_status")}
+    try:
+        res = await ib.check_imbpay_order_status(order_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"IMBPay verify failed: {e}")
+
+    if not res["paid"]:
+        return {"paid": False, "status": res.get("status")}
 
     # Atomic paid-flag flip
     r = await db.orders.update_one(
         {"id": order_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"payment_status": "paid", "paid_at": now_iso(), "status": "confirmed",
-                  "payment_id": order.get("payment_session_id") or f"mock_{uuid.uuid4().hex[:10]}"},
+                  "payment_id": order.get("payment_txnid") or order_id},
          "$push": {"tracking_history": {
              "at": now_iso(),
              "status": "confirmed",
@@ -1864,7 +1824,7 @@ async def cashfree_verify(payload: dict, user=Depends(get_user)):
                 u = await db.users.find_one({"id": order["user_id"]}, {"_id": 0})
                 if not u.get("is_joining_paid"):
                     await process_paid_joining(db, order["user_id"], order.get("order_code", order_id), order_id)
-    return {"paid": True, "order_id": order_id, "mock": bool(order.get("payment_mock"))}
+    return {"paid": True, "order_id": order_id}
 
 
 # ==================== PURCHASE KIT CONTENT (admin editable) ====================
@@ -1902,7 +1862,7 @@ def _default_purchase_kit_content() -> dict:
             {"icon": "💰", "title": "₹500 Store Credit", "desc": "Instant credit for your next purchase"},
         ],
         "how_it_works": [
-            {"step": 1, "title": "Purchase Kit", "desc": "Order the ₹7,499 kit — pay via Cashfree/UPI/Card"},
+            {"step": 1, "title": "Purchase Kit", "desc": "Order the ₹7,499 kit — pay via IMBPay UPI (PhonePe / GPay / Paytm / BHIM)"},
             {"step": 2, "title": "Get Referral Code", "desc": "Unique code unlocks after payment confirms"},
             {"step": 3, "title": "Refer 6 Direct", "desc": "Share your code, hit 3 refs to activate income"},
             {"step": 4, "title": "Earn From 8 Levels", "desc": "Every downline purchase pays you L1–L8 commissions"},

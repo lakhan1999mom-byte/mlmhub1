@@ -14,7 +14,6 @@ export default function Checkout() {
   const [busy, setBusy] = useState(false);
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [provider, setProvider] = useState(null);
   const [addr, setAddr] = useState({
     full_name: user?.name || "",
     phone: user?.phone || "",
@@ -25,7 +24,7 @@ export default function Checkout() {
   });
 
   useEffect(() => {
-    api.get("/site/payment-provider").then(({ data }) => setProvider(data)).catch(() => {});
+    // no-op — provider is fixed to IMBPay
   }, []);
 
   const items = cart?.items || [];
@@ -63,50 +62,14 @@ export default function Checkout() {
     }
   };
 
-  const startCashfreePayment = async (orderId) => {
-    const { data: cf } = await api.post("/payments/cashfree/initiate", { order_id: orderId });
-
-    // MOCK MODE — auto-succeed
-    if (cf.mock) {
-      toast.info("Mock payment — auto-approving…", { duration: 1500 });
-      await new Promise((r) => setTimeout(r, 900));
-      const { data: verify } = await api.post("/payments/cashfree/verify", { order_id: orderId });
-      if (verify.paid) {
-        toast.success("Payment successful! Order confirmed.");
-        await fetchCart();
-        await refresh();
-        nav("/orders");
-      } else {
-        toast.error("Mock verification failed");
-      }
-      return;
+  const startImbpayPayment = async (orderId) => {
+    const { data: ib } = await api.post("/payments/imbpay/initiate", { order_id: orderId });
+    if (ib.payment_url) {
+      toast.info("Redirecting to IMBPay…", { duration: 1200 });
+      window.location.href = ib.payment_url;
+    } else {
+      toast.error("Payment URL missing from gateway response");
     }
-
-    // LIVE Cashfree flow — load SDK, open modal
-    await new Promise((resolve) => {
-      if (window.Cashfree) return resolve();
-      const s = document.createElement("script");
-      s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-      s.onload = resolve;
-      s.onerror = resolve;
-      document.body.appendChild(s);
-    });
-    const cashfree = window.Cashfree({ mode: cf.env === "prod" ? "production" : "sandbox" });
-    cashfree.checkout({ paymentSessionId: cf.payment_session_id, redirectTarget: "_modal" }).then(async () => {
-      try {
-        const { data: verify } = await api.post("/payments/cashfree/verify", { order_id: orderId });
-        if (verify.paid) {
-          toast.success("Payment successful! Order confirmed.");
-          await fetchCart();
-          await refresh();
-          nav("/orders");
-        } else {
-          toast.error("Payment not completed");
-        }
-      } catch (e) {
-        toast.error(e?.response?.data?.detail || "Verification failed");
-      }
-    });
   };
 
   const placeOrder = async () => {
@@ -123,7 +86,7 @@ export default function Checkout() {
         coupon_code: appliedCoupon?.code || null,
         payment_method: "gateway",
       });
-      await startCashfreePayment(createRes.order.id);
+      await startImbpayPayment(createRes.order.id);
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Checkout failed");
     } finally {
@@ -131,7 +94,7 @@ export default function Checkout() {
     }
   };
 
-  const mockMode = provider?.mock_mode;
+  // Real IMBPay only — no mock anywhere.
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12" data-testid="checkout-page">
@@ -142,7 +105,7 @@ export default function Checkout() {
           </div>
           <div>
             <h1 className="font-display text-4xl font-black text-[#064E3B] leading-none">Secure Checkout</h1>
-            <p className="text-sm text-[#64748B] mt-1">256-bit encrypted · Cashfree PG · Instant confirmation</p>
+            <p className="text-sm text-[#64748B] mt-1">256-bit encrypted · IMBPay UPI · Instant confirmation</p>
           </div>
         </div>
       </motion.div>
@@ -193,20 +156,14 @@ export default function Checkout() {
                   <ShieldCheck className="w-5 h-5 text-[#65A30D]"/>
                   <h3 className="font-display font-bold text-lg text-[#064E3B]">Payment Method</h3>
                 </div>
-                {mockMode ? (
-                  <span className="text-[10px] font-bold uppercase tracking-widest bg-[#FEF3C7] text-[#92400E] px-2 py-1 rounded-full" data-testid="cashfree-mock-badge">Mock Mode</span>
-                ) : (
-                  <span className="text-[10px] font-bold uppercase tracking-widest bg-[#ECFCCB] text-[#065F46] px-2 py-1 rounded-full">Live</span>
-                )}
+                <span className="text-[10px] font-bold uppercase tracking-widest bg-[#ECFCCB] text-[#065F46] px-2 py-1 rounded-full" data-testid="imbpay-live-badge">Live</span>
               </div>
-              <div className={`rounded-xl p-4 border-2 ${mockMode ? "border-[#FDE68A] bg-[#FEF3C7]" : "border-[#84CC16] bg-[#ECFCCB]"}`}>
+              <div className="rounded-xl p-4 border-2 border-[#84CC16] bg-[#ECFCCB]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-[#065F46]">CF</div>
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-[#065F46]">IMB</div>
                   <div className="flex-1">
-                    <div className={`font-bold text-sm ${mockMode ? "text-[#92400E]" : "text-[#065F46]"}`}>Cashfree Payments</div>
-                    <div className={`text-xs ${mockMode ? "text-[#92400E]" : "text-[#065F46]"}`}>
-                      {mockMode ? "Test mode — payment auto-approves." : "UPI · Cards · Netbanking · Wallets"}
-                    </div>
+                    <div className="font-bold text-sm text-[#065F46]">IMBPay</div>
+                    <div className="text-xs text-[#065F46]">UPI · PhonePe · GPay · Paytm · Instant settlement</div>
                   </div>
                 </div>
               </div>
