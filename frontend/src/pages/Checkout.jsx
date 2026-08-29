@@ -24,7 +24,7 @@ export default function Checkout() {
   });
 
   useEffect(() => {
-    // no-op — provider is fixed to IMBPay
+    // no-op — provider is fixed to UroPay
   }, []);
 
   const items = cart?.items || [];
@@ -62,14 +62,10 @@ export default function Checkout() {
     }
   };
 
-  const startImbpayPayment = async (orderId) => {
-    const { data: ib } = await api.post("/payments/imbpay/initiate", { order_id: orderId });
-    if (ib.payment_url) {
-      toast.info("Redirecting to IMBPay…", { duration: 1200 });
-      window.location.href = ib.payment_url;
-    } else {
-      toast.error("Payment URL missing from gateway response");
-    }
+  const startPayment = async (orderId) => {
+    // For the cart flow, hand off to the same UroPay QR + UTR screen used for kit checkout.
+    // We navigate to the direct checkout page which polls & finalises.
+    nav(`/checkout/direct/${orderId}`);
   };
 
   const placeOrder = async () => {
@@ -86,7 +82,7 @@ export default function Checkout() {
         coupon_code: appliedCoupon?.code || null,
         payment_method: "gateway",
       });
-      await startImbpayPayment(createRes.order.id);
+      await startPayment(createRes.order.id);
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Checkout failed");
     } finally {
@@ -94,7 +90,7 @@ export default function Checkout() {
     }
   };
 
-  // Real IMBPay only — no mock anywhere.
+  // Real UroPay only — no mock anywhere.
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12" data-testid="checkout-page">
@@ -105,7 +101,7 @@ export default function Checkout() {
           </div>
           <div>
             <h1 className="font-display text-4xl font-black text-[#064E3B] leading-none">Secure Checkout</h1>
-            <p className="text-sm text-[#64748B] mt-1">256-bit encrypted · IMBPay UPI · Instant confirmation</p>
+            <p className="text-sm text-[#64748B] mt-1">256-bit encrypted · UroPay UPI · Direct-to-bank</p>
           </div>
         </div>
       </motion.div>
@@ -156,14 +152,14 @@ export default function Checkout() {
                   <ShieldCheck className="w-5 h-5 text-[#65A30D]"/>
                   <h3 className="font-display font-bold text-lg text-[#064E3B]">Payment Method</h3>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest bg-[#ECFCCB] text-[#065F46] px-2 py-1 rounded-full" data-testid="imbpay-live-badge">Live</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest bg-[#ECFCCB] text-[#065F46] px-2 py-1 rounded-full" data-testid="uropay-live-badge">Live</span>
               </div>
               <div className="rounded-xl p-4 border-2 border-[#84CC16] bg-[#ECFCCB]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-[#065F46]">IMB</div>
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-[#065F46]">UPI</div>
                   <div className="flex-1">
-                    <div className="font-bold text-sm text-[#065F46]">IMBPay</div>
-                    <div className="text-xs text-[#065F46]">UPI · PhonePe · GPay · Paytm · Instant settlement</div>
+                    <div className="font-bold text-sm text-[#065F46]">UroPay UPI</div>
+                    <div className="text-xs text-[#065F46]">Scan QR · PhonePe / GPay / Paytm / any UPI app · Direct-to-bank</div>
                   </div>
                 </div>
               </div>

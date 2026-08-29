@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration 21 UroPay backend integration — 29/29 pytest tests PASSED against production UroPay upstream (api.uropay.me). Covered public + admin config, legacy imbpay/cashfree removal, /payments/uropay/initiate (validation + real create-order returning URPY... id + base64 QR + upi:// string + persisted on order), /payments/uropay/submit-utr (validation + real UroPay call), /payments/uropay/verify branches (NOT_INITIATED / CREATED / idempotent-paid), and /webhooks/uropay end-to-end (missing sig 401, bad sig 401, valid sig with unknown order returns matched:false, valid COMPLETED signature flips order to paid+confirmed with UroPay tracking event, idempotent replay). Regression on pay-kit → orders/{id} confirmed. Webhook HMAC signature was computed via sha512(secret) → HMAC-SHA256 of the compactly-JSON-serialized ordered payload per uropay_utils.verify_webhook_signature spec.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration21_uropay.py",
+    "/app/test_reports/pytest/iteration21.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is 3225 lines — should be split into routers per domain (payments, orders, mlm, admin, auth) for maintainability.",
+    "/payments/uropay/verify catches upstream exception and raises 400. If UroPay is transiently down this masks a 5xx-worthy scenario; consider distinguishing network/timeout from business errors (e.g., 502 vs 400).",
+    "_finalize_paid_uropay_order uses atomic $ne:'paid' guard for idempotency — good. However the stock decrement loop runs unconditionally inside the modified_count==1 branch which is correct, but the referral business activation still relies on a subsequent read of the (pre-update) order snapshot; consider re-reading the order after update to avoid stale is_hamper checks in edge cases where items are mutated concurrently.",
+    "Webhook handler returns 200 with matched:false for unknown orders — acceptable, but consider logging these for observability (currently silent).",
+    "verify_webhook_signature reconstructs the payload dict per event type instead of hashing the raw request body. This works but is fragile — any new UroPay event key ordering change requires code updates. Prefer hashing the raw body as-received (UroPay's actual signing input) if their docs allow."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration21_uropay.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "n/a (backend-only)"},
+  "test_credentials": "admin@evergroemart.com / Admin@123 ; test1_1785761123 / NewPass@123",
+  "seed_data_creation": "pay-kit produced a pending joining order for test1_1785761123 (order_id captured in fixture); after webhook COMPLETED test, that order is now marked paid and its business is activated. Next iteration should reset user or create fresh test user if they need an unpaid joining order.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test1_1785761123's primary business/joining kit order is now PAID via webhook simulation. To retest initiate flow, use a different secondary business (pay-kit against a non-primary business id) or use test2_1785761123. UroPay production keys in backend/.env are live — real orders (URPY...) are created with every initiate call. Duplicate UTRs are rejected by UroPay across TEST+LIVE."
+}

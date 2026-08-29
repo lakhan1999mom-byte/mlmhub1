@@ -2,6 +2,7 @@
 import os
 import time
 import uuid
+import json
 import logging
 import random
 import string
@@ -622,7 +623,7 @@ async def firebase_verify(payload: dict, request: Request):
     }
 
 
-# ==================== (Legacy payment gateways removed — IMBPay only) ====================
+# ==================== (Legacy payment gateways removed — UroPay only) ====================
 
 
 # ==================== MLM RE-ENTRY (Second Position) ====================
@@ -1096,6 +1097,7 @@ async def add_review(product_id: str, payload: dict, user=Depends(get_user)):
     all_revs = await db.reviews.find({"product_id": product_id}, {"_id": 0}).to_list(1000)
     avg = sum(r["rating"] for r in all_revs) / len(all_revs)
     await db.products.update_one({"id": product_id}, {"$set": {"rating": round(avg, 1), "review_count": len(all_revs)}})
+    rev.pop("_id", None)
     return rev
 
 
@@ -1346,7 +1348,7 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
 @api.post("/orders/verify-payment")
 async def verify_payment(payload: PaymentVerify, user=Depends(get_user)):
     """Legacy generic verify endpoint. Kept for backwards compat with any old client calls —
-    delegates to the IMBPay verification flow."""
+    delegates to the UroPay verification flow."""
     order = await db.orders.find_one({"id": payload.order_id, "user_id": user["id"]}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -1705,29 +1707,32 @@ async def leaderboard():
 # ==================== PAYMENT PROVIDER CONFIG ====================
 @api.get("/admin/payment-config")
 async def admin_get_payment_config(_=Depends(require_admin)):
-    tok = os.environ.get("IMBPAY_TOKEN", "")
+    key = os.environ.get("UROPAY_API_KEY", "")
+    secret = os.environ.get("UROPAY_API_SECRET", "")
     return {
-        "provider": "imbpay",
-        "imbpay_active": bool(tok),
-        "imbpay_token_masked": ("*" * (len(tok) - 4)) + tok[-4:] if len(tok) > 4 else "****",
-        "imbpay_base_url": os.environ.get("IMBPAY_BASE_URL", "https://api.imbpay.in"),
+        "provider": "uropay",
+        "uropay_active": bool(key and secret),
+        "uropay_key_masked": ("*" * max(0, len(key) - 4)) + key[-4:] if len(key) > 4 else "****",
+        "uropay_secret_masked": ("*" * max(0, len(secret) - 4)) + secret[-4:] if len(secret) > 4 else "****",
+        "uropay_api_url": os.environ.get("UROPAY_API_URL", "https://api.uropay.me"),
     }
 
 
 @api.get("/site/payment-provider")
 async def site_active_payment_provider():
-    """Public endpoint — tells the frontend which gateway is live."""
     return {
-        "provider": "imbpay",
-        "imbpay_active": bool(os.environ.get("IMBPAY_TOKEN")),
+        "provider": "uropay",
+        "uropay_active": bool(os.environ.get("UROPAY_API_KEY") and os.environ.get("UROPAY_API_SECRET")),
         "mock_mode": False,
     }
 
 
-# ==================== IMBPAY PAYMENT ====================
-@api.post("/payments/imbpay/initiate")
-async def imbpay_initiate(payload: dict, user=Depends(get_user)):
-    import imbpay_utils as ib
+# ==================== UROPAY PAYMENT (QR + UTR self-serve) ====================
+@api.post("/payments/uropay/initiate")
+async def uropay_initiate(payload: dict, user=Depends(get_user)):
+    """Generate a UroPay order for the given internal order. Returns the UPI QR + upi:// link
+    so the frontend can render them and let the customer pay via any UPI app."""
+    import uropay_utils as up
     order_id = payload.get("order_id")
     if not order_id:
         raise HTTPException(status_code=400, detail="order_id required")
@@ -1736,69 +1741,86 @@ async def imbpay_initiate(payload: dict, user=Depends(get_user)):
         raise HTTPException(status_code=404, detail="Order not found")
     if order.get("payment_status") == "paid":
         raise HTTPException(status_code=400, detail="Order already paid")
-    if float(order.get("total", 0)) < 1:
+    amount = float(order.get("total") or 0)
+    if amount < 1:
         raise HTTPException(status_code=400, detail="Minimum order amount is ₹1")
 
-    frontend_base = os.environ.get("PUBLIC_FRONTEND_URL", "").rstrip("/") or "https://evergroemart.com"
-    redirect_url = f"{frontend_base}/orders/{order_id}?imbpay=1"
-
     try:
-        result = await ib.create_imbpay_order(
-            order_id=order_id,
-            amount=float(order["total"]),
-            customer_mobile=user.get("phone") or "",
-            redirect_url=redirect_url,
-            remark1=(user.get("email") or "")[:120],
-            remark2=(order.get("order_code") or "")[:120],
+        res = await up.create_uropay_order(
+            merchant_order_id=order.get("order_code") or order_id[:20],
+            amount_rupees=amount,
+            customer_name=user.get("name") or "Customer",
+            customer_email=user.get("email") or "noreply@evergroemart.com",
+            transaction_note=(order.get("order_code") or "")[:60],
         )
     except Exception as e:
-        # IMBPay merchant-side errors (transaction limit, invalid VPA etc.) should
-        # surface as 400 to the client — 5xx makes Cloudflare intercept with a generic page.
-        raise HTTPException(status_code=400, detail=f"IMBPay: {e}")
+        raise HTTPException(status_code=400, detail=f"UroPay: {e}")
 
     await db.orders.update_one({"id": order_id}, {"$set": {
-        "payment_provider": "imbpay",
-        "payment_txnid": result.get("order_id"),
-        "payment_url": result.get("payment_url"),
+        "payment_provider": "uropay",
+        "payment_txnid": res.get("uroPayOrderId"),
+        "uropay_order_id": res.get("uroPayOrderId"),
+        "uropay_upi_string": res.get("upiString"),
+        "uropay_qr_code": res.get("qrCode"),
+        "uropay_status": res.get("orderStatus"),
     }})
     return {
-        "provider": "imbpay",
+        "provider": "uropay",
         "order_id": order_id,
-        "payment_url": result["payment_url"],
-        "paytm_link": result.get("paytm_link"),
-        "phonepe_link": result.get("phonepe_link"),
-        "bhim_link": result.get("bhim_link"),
+        "uro_pay_order_id": res.get("uroPayOrderId"),
+        "upi_string": res.get("upiString"),
+        "qr_code": res.get("qrCode"),
+        "amount": amount,
+        "amount_in_rupees": res.get("amountInRupees"),
+        "order_status": res.get("orderStatus"),
     }
 
 
-@api.post("/payments/imbpay/verify")
-async def imbpay_verify(payload: dict, user=Depends(get_user)):
-    import imbpay_utils as ib
+@api.post("/payments/uropay/submit-utr")
+async def uropay_submit_utr(payload: dict, user=Depends(get_user)):
+    """Customer submits their UPI Reference Number (UTR / transaction id) after paying."""
+    import uropay_utils as up
     order_id = payload.get("order_id")
+    utr = (payload.get("utr") or payload.get("reference_number") or "").strip()
+    if not order_id or not utr:
+        raise HTTPException(status_code=400, detail="order_id and utr required")
+    if len(utr) < 6:
+        raise HTTPException(status_code=400, detail="UTR looks too short — please enter the 12-digit UPI reference number")
+
     order = await db.orders.find_one({"id": order_id, "user_id": user["id"]}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    if not order.get("uropay_order_id"):
+        raise HTTPException(status_code=400, detail="Initiate payment first")
     if order.get("payment_status") == "paid":
         return {"paid": True, "already_processed": True}
 
     try:
-        res = await ib.check_imbpay_order_status(order_id)
+        res = await up.submit_uropay_utr(uro_pay_order_id=order["uropay_order_id"], reference_number=utr)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"IMBPay verify failed: {e}")
+        raise HTTPException(status_code=400, detail=f"UroPay: {e}")
 
-    if not res["paid"]:
-        return {"paid": False, "status": res.get("status")}
+    await db.orders.update_one({"id": order_id}, {"$set": {
+        "uropay_utr": utr,
+        "uropay_status": res.get("orderStatus"),
+        "utr_submitted_at": now_iso(),
+    }})
+    return {"ok": True, "order_status": res.get("orderStatus"), "message": "UTR submitted — awaiting confirmation"}
 
-    # Atomic paid-flag flip
+
+async def _finalize_paid_uropay_order(order: dict):
+    """Idempotent state transition when UroPay reports COMPLETED. Flips paid, decrements stock,
+    activates business or triggers joining commissions."""
+    order_id = order["id"]
     r = await db.orders.update_one(
         {"id": order_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"payment_status": "paid", "paid_at": now_iso(), "status": "confirmed",
-                  "payment_id": order.get("payment_txnid") or order_id},
+                  "payment_id": order.get("uropay_utr") or order.get("uropay_order_id") or order_id},
          "$push": {"tracking_history": {
              "at": now_iso(),
              "status": "confirmed",
              "label": "Confirmed",
-             "note": "Payment received. Preparing your order.",
+             "note": "Payment received via UroPay. Preparing your order.",
              "by": "System",
          }}},
     )
@@ -1806,7 +1828,6 @@ async def imbpay_verify(payload: dict, user=Depends(get_user)):
         for item in order.get("items", []):
             await db.products.update_one({"id": item["product_id"]}, {"$inc": {"stock": -item["quantity"]}})
         if any(i.get("is_hamper") for i in order.get("items", [])):
-            # If order belongs to an additional business, activate the business
             if order.get("business_id"):
                 await db.referral_businesses.update_one(
                     {"id": order["business_id"]},
@@ -1816,15 +1837,75 @@ async def imbpay_verify(payload: dict, user=Depends(get_user)):
                     "id": str(uuid.uuid4()),
                     "user_id": order["user_id"],
                     "title": "🚀 New Referral Business Activated",
-                    "body": "Your new referral business is live. Share the referral code from your dashboard to grow this position.",
+                    "body": "Your new referral business is live. Share the referral code to start earning.",
                     "type": "success", "event": "business_activated",
                     "read": False, "created_at": now_iso(),
                 })
             else:
                 u = await db.users.find_one({"id": order["user_id"]}, {"_id": 0})
-                if not u.get("is_joining_paid"):
+                if u and not u.get("is_joining_paid"):
                     await process_paid_joining(db, order["user_id"], order.get("order_code", order_id), order_id)
-    return {"paid": True, "order_id": order_id}
+
+
+@api.post("/payments/uropay/verify")
+async def uropay_verify(payload: dict, user=Depends(get_user)):
+    """Polling verification endpoint — checks UroPay's /order/status/:id and marks paid if COMPLETED."""
+    import uropay_utils as up
+    order_id = payload.get("order_id")
+    order = await db.orders.find_one({"id": order_id, "user_id": user["id"]}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.get("payment_status") == "paid":
+        return {"paid": True, "already_processed": True, "status": "COMPLETED"}
+    if not order.get("uropay_order_id"):
+        return {"paid": False, "status": "NOT_INITIATED"}
+
+    try:
+        res = await up.get_uropay_status(order["uropay_order_id"])
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"UroPay verify: {e}")
+    status = str(res.get("orderStatus") or "").upper()
+    await db.orders.update_one({"id": order_id}, {"$set": {"uropay_status": status}})
+    if status == "COMPLETED":
+        await _finalize_paid_uropay_order(order)
+        return {"paid": True, "status": status}
+    return {"paid": False, "status": status}
+
+
+@api.post("/webhooks/uropay")
+async def uropay_webhook(request: Request):
+    """Receives UroPay webhooks. Verifies HMAC-SHA256 signature and finalises paid orders."""
+    import uropay_utils as up
+    raw = await request.body()
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    sig = request.headers.get("X-Uropay-Signature") or request.headers.get("x-uropay-signature") or ""
+    if not up.verify_webhook_signature(payload, sig):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    uro_id = payload.get("uroPayOrderId")
+    merchant_order_id = payload.get("merchantOrderId")
+    event = payload.get("event", "")
+    order = None
+    if uro_id:
+        order = await db.orders.find_one({"uropay_order_id": uro_id}, {"_id": 0})
+    if not order and merchant_order_id:
+        order = await db.orders.find_one({"order_code": merchant_order_id}, {"_id": 0})
+    if not order:
+        return {"ok": True, "matched": False}
+
+    # Update last known status snapshot
+    status = str(payload.get("orderStatus") or "").upper()
+    if status:
+        await db.orders.update_one({"id": order["id"]}, {"$set": {"uropay_status": status, "uropay_last_webhook_at": now_iso()}})
+
+    # Finalize on any signal that means money arrived: SMS webhook (companion.sms.data)
+    # or status changed to COMPLETED.
+    if event == "companion.sms.data" or status == "COMPLETED":
+        await _finalize_paid_uropay_order(order)
+    return {"ok": True, "matched": True, "event": event, "status": status}
 
 
 # ==================== PURCHASE KIT CONTENT (admin editable) ====================
@@ -1862,7 +1943,7 @@ def _default_purchase_kit_content() -> dict:
             {"icon": "💰", "title": "₹500 Store Credit", "desc": "Instant credit for your next purchase"},
         ],
         "how_it_works": [
-            {"step": 1, "title": "Purchase Kit", "desc": "Order the ₹7,499 kit — pay via IMBPay UPI (PhonePe / GPay / Paytm / BHIM)"},
+            {"step": 1, "title": "Purchase Kit", "desc": "Order the ₹7,499 kit — pay via UroPay UPI (PhonePe / GPay / Paytm / any UPI app)"},
             {"step": 2, "title": "Get Referral Code", "desc": "Unique code unlocks after payment confirms"},
             {"step": 3, "title": "Refer 6 Direct", "desc": "Share your code, hit 3 refs to activate income"},
             {"step": 4, "title": "Earn From 8 Levels", "desc": "Every downline purchase pays you L1–L8 commissions"},
@@ -1908,6 +1989,7 @@ async def create_ticket(payload: dict, user=Depends(get_user)):
         "created_at": now_iso(),
     }
     await db.tickets.insert_one(t)
+    t.pop("_id", None)
     return t
 
 

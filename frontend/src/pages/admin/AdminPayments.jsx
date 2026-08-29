@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import { CreditCard, Info, Zap, ShieldCheck } from "lucide-react";
 import api from "@/lib/api";
 
-/** Admin — Payment Gateway status.
- * IMBPay is the ONLY provider. Its API token is set via server .env (IMBPAY_TOKEN),
- * not editable from the admin UI to avoid accidentally shipping a bad key to production.
- * Contact the dev team to rotate. */
+/** Admin — Payment Gateway status. UroPay is the ONLY provider. Keys live in backend .env. */
 export default function AdminPayments() {
   const [cfg, setCfg] = useState(null);
 
@@ -14,13 +11,13 @@ export default function AdminPayments() {
   }, []);
 
   if (!cfg) return <div className="p-10 text-center text-[#64748B]">Loading…</div>;
-  const isLive = !!cfg.imbpay_active;
+  const isLive = !!cfg.uropay_active;
 
   return (
     <div className="space-y-6 max-w-3xl" data-testid="admin-payments-page">
       <div>
         <h1 className="font-display text-3xl font-bold text-[#064E3B]">Payment Gateway</h1>
-        <p className="text-sm text-[#64748B]">IMBPay is the only supported provider. All payments are real — no test/mock mode.</p>
+        <p className="text-sm text-[#64748B]">UroPay is the only supported provider. All payments are real — no test/mock mode.</p>
       </div>
 
       <div className={`card-soft p-6 flex items-center gap-4 ${isLive ? "border-[#84CC16] bg-[#ECFCCB]/40" : "border-red-200 bg-red-50/40"}`}>
@@ -29,21 +26,23 @@ export default function AdminPayments() {
         </div>
         <div className="flex-1">
           <div className="font-display font-black text-[#064E3B] text-lg">
-            {isLive ? "LIVE — Real payments captured via IMBPay" : "NOT CONFIGURED — Set IMBPAY_TOKEN in backend .env"}
+            {isLive ? "LIVE — Real UPI payments captured via UroPay" : "NOT CONFIGURED — Set UROPAY_API_KEY & UROPAY_API_SECRET in backend .env"}
           </div>
-          <div className="text-xs text-[#64748B]" data-testid="imbpay-status-text">
-            {isLive ? `Token ends in ${(cfg.imbpay_token_masked || "").slice(-4)} · Base: ${cfg.imbpay_base_url}` : "Contact dev team to configure the merchant API token."}
+          <div className="text-xs text-[#64748B]" data-testid="uropay-status-text">
+            {isLive
+              ? `Key ends in ${(cfg.uropay_key_masked || "").slice(-4)} · Base: ${cfg.uropay_api_url}`
+              : "Log in to your UroPay dashboard → API Keys → Regenerate, then update the backend .env and restart."}
           </div>
         </div>
       </div>
 
-      <div className="card-soft p-6" data-testid="pg-imbpay-config">
+      <div className="card-soft p-6" data-testid="pg-uropay-config">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-[#65A30D]"/>
-            <div className="font-display font-bold text-[#064E3B]">IMBPay v2 Configuration</div>
+            <div className="font-display font-bold text-[#064E3B]">UroPay Configuration</div>
           </div>
-          <div className={`text-xs font-semibold px-3 py-1 rounded-full ${isLive ? "bg-[#ECFCCB] text-[#65A30D]" : "bg-red-100 text-red-700"}`} data-testid="imb-status-badge">
+          <div className={`text-xs font-semibold px-3 py-1 rounded-full ${isLive ? "bg-[#ECFCCB] text-[#65A30D]" : "bg-red-100 text-red-700"}`} data-testid="up-status-badge">
             {isLive ? "✓ Live" : "Not configured"}
           </div>
         </div>
@@ -51,26 +50,26 @@ export default function AdminPayments() {
         <div className="p-3 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl text-xs text-[#1E40AF] flex gap-2 mb-4">
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5"/>
           <div>
-            The IMBPay merchant token is loaded from <code className="font-mono">backend/.env</code> (<span className="font-mono">IMBPAY_TOKEN</span>). Rotating the key requires a redeploy. Endpoint used: <span className="font-mono">POST {cfg.imbpay_base_url}/v2/create-order</span>.
+            UroPay uses a QR + UTR self-serve UPI flow. Keys load from <code className="font-mono">backend/.env</code> (<span className="font-mono">UROPAY_API_KEY</span>, <span className="font-mono">UROPAY_API_SECRET</span>). Auth is <span className="font-mono">Authorization: Bearer sha512(secret)</span>. Rotating keys requires a redeploy. Endpoint: <span className="font-mono">POST {cfg.uropay_api_url}/order/generate</span>.
           </div>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="rounded-2xl bg-[#FAFAF9] border border-[#E2E8F0] p-3">
             <div className="text-[10px] uppercase font-bold text-[#64748B] tracking-widest">Provider</div>
-            <div className="font-display font-bold text-[#064E3B]">IMBPay</div>
+            <div className="font-display font-bold text-[#064E3B]">UroPay</div>
           </div>
           <div className="rounded-2xl bg-[#FAFAF9] border border-[#E2E8F0] p-3">
-            <div className="text-[10px] uppercase font-bold text-[#64748B] tracking-widest">API Token</div>
-            <div className="font-mono text-sm text-[#064E3B]">{cfg.imbpay_token_masked || "—"}</div>
+            <div className="text-[10px] uppercase font-bold text-[#64748B] tracking-widest">API Key</div>
+            <div className="font-mono text-sm text-[#064E3B]">{cfg.uropay_key_masked || "—"}</div>
+          </div>
+          <div className="rounded-2xl bg-[#FAFAF9] border border-[#E2E8F0] p-3">
+            <div className="text-[10px] uppercase font-bold text-[#64748B] tracking-widest">API Secret</div>
+            <div className="font-mono text-sm text-[#064E3B]">{cfg.uropay_secret_masked || "—"}</div>
           </div>
           <div className="rounded-2xl bg-[#FAFAF9] border border-[#E2E8F0] p-3">
             <div className="text-[10px] uppercase font-bold text-[#64748B] tracking-widest">Base URL</div>
-            <div className="font-mono text-sm text-[#064E3B] break-all">{cfg.imbpay_base_url}</div>
-          </div>
-          <div className="rounded-2xl bg-[#FAFAF9] border border-[#E2E8F0] p-3">
-            <div className="text-[10px] uppercase font-bold text-[#64748B] tracking-widest">Mode</div>
-            <div className="font-display font-bold text-[#064E3B]">Production · Real payments</div>
+            <div className="font-mono text-sm text-[#064E3B] break-all">{cfg.uropay_api_url}</div>
           </div>
         </div>
       </div>
@@ -81,12 +80,19 @@ export default function AdminPayments() {
           <div className="font-display font-bold text-[#064E3B]">How the flow works</div>
         </div>
         <ol className="text-xs text-[#64748B] space-y-1 list-decimal list-inside">
-          <li>User places an order → backend creates it and calls <span className="font-mono">/v2/create-order</span>.</li>
-          <li>Backend returns the IMBPay hosted <span className="font-mono">payment_url</span>. Frontend redirects the user there.</li>
-          <li>User pays via UPI (PhonePe / GPay / Paytm / BHIM) on the IMBPay page.</li>
-          <li>IMBPay redirects to <span className="font-mono">/orders/&lt;id&gt;?imbpay=1</span>. Frontend calls <span className="font-mono">/payments/imbpay/verify</span> → backend confirms via <span className="font-mono">/v2/check-order-status</span>.</li>
-          <li>Order is marked paid, stock decremented, MLM commissions distributed (if joining kit).</li>
+          <li>Customer places an order → backend calls UroPay <span className="font-mono">/order/generate</span>.</li>
+          <li>UroPay returns a QR code + <span className="font-mono">upi://</span> deep-link. Frontend shows both.</li>
+          <li>Customer scans QR (or taps link on mobile) → pays via any UPI app.</li>
+          <li>Customer enters the 12-digit UPI Reference Number (UTR) shown in their UPI app.</li>
+          <li>Frontend calls <span className="font-mono">/payments/uropay/submit-utr</span> → backend calls UroPay <span className="font-mono">PATCH /order/update</span>.</li>
+          <li>UroPay Companion App on your admin phone reads the incoming SMS → hits <span className="font-mono">POST /webhooks/uropay</span> on our server. Frontend polls <span className="font-mono">/payments/uropay/verify</span> as a fallback.</li>
+          <li>Order flips to paid, stock decrements, MLM commissions distribute (if joining kit).</li>
         </ol>
+      </div>
+
+      <div className="card-soft p-6 bg-amber-50/60 border-amber-200">
+        <div className="font-display font-bold text-amber-900 text-sm">📱 UroPay Companion App required</div>
+        <p className="text-xs text-amber-800 mt-1">Install the UroPay Companion Android app on the phone that receives your UPI credit SMS. It reads the SMS and pushes the payment confirmation to UroPay. Without it, orders stay in <span className="font-mono">UTR_SUBMITTED</span> state until the manual review queue processes them.</p>
       </div>
     </div>
   );
