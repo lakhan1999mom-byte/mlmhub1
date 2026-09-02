@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Eye } from "lucide-react";
+import { Eye, Gift, Trash2 } from "lucide-react";
 import api from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 export default function AdminUsers() {
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
+  const { user: adminUser } = useAuth();
+  const isSuper = adminUser?.role === "super_admin";
   const load = () => api.get(`/admin/users?q=${encodeURIComponent(q)}`).then(({ data }) => setItems(data.items));
   useEffect(() => { load(); }, [q]);
 
@@ -14,6 +17,24 @@ export default function AdminUsers() {
     await api.put(`/admin/users/${u.id}`, { [field]: val });
     toast.success("Updated");
     load();
+  };
+
+  const markKitPaid = async (u) => {
+    if (!confirm(`Grant kit access to ${u.name} WITHOUT payment? Activates referral code + pays L1 commissions to sponsor.`)) return;
+    try {
+      const { data } = await api.post(`/admin/users/${u.id}/mark-kit-paid`);
+      toast.success(data.already_paid ? "Already active" : `${u.user_code} activated`);
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Failed"); }
+  };
+
+  const deleteUser = async (u) => {
+    if (!confirm(`DELETE ${u.name} (${u.user_code}) and every trace of them? Same phone/email/username will be able to sign up again immediately. There is no undo.`)) return;
+    try {
+      await api.delete(`/admin/users/${u.id}`);
+      toast.success(`${u.user_code} deleted`);
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Failed"); }
   };
 
   return (
@@ -63,9 +84,21 @@ export default function AdminUsers() {
                   </select>
                 </td>
                 <td className="p-3">
-                  <Link to={`/admin/users/${u.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-[#065F46] hover:text-[#064E3B] bg-[#ECFCCB] hover:bg-[#D9F99D] px-2 py-1 rounded-lg" data-testid={`view-user-${u.user_code}`}>
-                    <Eye className="w-3 h-3"/> View
-                  </Link>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Link to={`/admin/users/${u.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-[#065F46] hover:text-[#064E3B] bg-[#ECFCCB] hover:bg-[#D9F99D] px-2 py-1 rounded-lg" data-testid={`view-user-${u.user_code}`}>
+                      <Eye className="w-3 h-3"/> View
+                    </Link>
+                    {isSuper && !u.is_joining_paid && (
+                      <button onClick={() => markKitPaid(u)} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-lg" data-testid={`grant-kit-${u.user_code}`}>
+                        <Gift className="w-3 h-3"/> Grant
+                      </button>
+                    )}
+                    {isSuper && u.role === "user" && (
+                      <button onClick={() => deleteUser(u)} className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 px-2 py-1 rounded-lg" data-testid={`delete-user-${u.user_code}`}>
+                        <Trash2 className="w-3 h-3"/>
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

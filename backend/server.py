@@ -2409,6 +2409,111 @@ async def admin_reset_user_password(user_id: str, payload: dict, admin=Depends(_
     return {"ok": True, "user_code": target.get("user_code")}
 
 
+@api.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, admin=Depends(_require_super_admin)):
+    """Super-admin only: HARD-DELETE a single user and every trace of them so the same
+    phone/email/username can register fresh. Admin accounts cannot be deleted this way."""
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.get("role") in ("super_admin", "sub_admin"):
+        raise HTTPException(status_code=400, detail="Cannot delete admin accounts")
+    stats = {"user_code": target.get("user_code")}
+    stats["orders"] = (await db.orders.delete_many({"user_id": user_id})).deleted_count
+    stats["referral_businesses"] = (await db.referral_businesses.delete_many({"owner_user_id": user_id})).deleted_count
+    stats["withdrawals"] = (await db.withdrawals.delete_many({"user_id": user_id})).deleted_count
+    stats["transactions"] = (await db.transactions.delete_many({"user_id": user_id})).deleted_count
+    stats["notifications"] = (await db.notifications.delete_many({"user_id": user_id})).deleted_count
+    stats["kyc"] = (await db.kyc.delete_many({"user_id": user_id})).deleted_count
+    stats["tickets"] = (await db.tickets.delete_many({"user_id": user_id})).deleted_count
+    stats["cart"] = (await db.cart.delete_many({"user_id": user_id})).deleted_count
+    stats["audit_logs"] = (await db.audit_logs.delete_many({"actor_id": user_id})).deleted_count
+    await db.users.delete_one({"id": user_id})
+    await log_audit("admin_delete_user", actor=admin, target_id=user_id,
+                    target_label=target.get("user_code"), metadata=stats)
+    return {"ok": True, "stats": stats}
+
+
+@api.post("/admin/users/{user_id}/mark-kit-paid")
+async def admin_mark_kit_paid(user_id: str, payload: dict = None, admin=Depends(_require_super_admin)):
+    """Super-admin only: grant kit access to a user WITHOUT taking a payment.
+    Flips is_joining_paid on the primary account, activates their referral code, and
+    distributes L1 commissions to their sponsor (same as a real payment would).
+    Also marks any pending primary joining order as paid so the audit trail is consistent.
+
+    Optional body: {business_id: '<uuid>'} — to activate an additional business instead."""
+    payload = payload or {}
+    business_id = payload.get("business_id")
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if business_id:
+        # Additional business path
+        biz = await db.referral_businesses.find_one({"id": business_id, "owner_user_id": user_id}, {"_id": 0})
+        if not biz:
+            raise HTTPException(status_code=404, detail="Business not found")
+        if biz.get("is_active"):
+            return {"ok": True, "already_active": True}
+        await db.referral_businesses.update_one(
+            {"id": business_id},
+            {"$set": {"is_active": True, "is_joining_paid": True, "activated_at": now_iso(),
+                      "activated_by": "admin_grant", "admin_granted_by": admin.get("user_code")}},
+        )
+        # Mark any pending joining order for this business as paid
+        pending = await db.orders.find_one({"user_id": user_id, "business_id": business_id, "is_joining_order": True, "payment_status": "pending"}, {"_id": 0})
+        if pending:
+            await db.orders.update_one({"id": pending["id"]}, {"$set": {
+                "payment_status": "paid", "paid_at": now_iso(), "status": "confirmed",
+                "payment_id": f"ADMIN_GRANT_{admin.get('user_code')}",
+                "payment_provider": "admin_grant",
+            }, "$push": {"tracking_history": {
+                "at": now_iso(), "status": "confirmed", "label": "Confirmed by Admin",
+                "note": f"Kit activated by super-admin {admin.get('user_code')} without payment.",
+                "by": "Super Admin",
+            }}})
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user_id,
+            "title": "🎁 Business activated by admin",
+            "body": "Your additional referral business is now live — no kit purchase required. Start sharing your referral code.",
+            "type": "success", "event": "admin_granted_business", "read": False, "created_at": now_iso(),
+        })
+        await log_audit("admin_grant_business", actor=admin, target_id=user_id,
+                        target_label=target.get("user_code"), metadata={"business_id": business_id})
+        return {"ok": True, "business_id": business_id, "activated": True}
+
+    # Primary account path
+    if target.get("is_joining_paid"):
+        return {"ok": True, "already_paid": True}
+    order_code = f"ADMIN-{admin.get('user_code','A')}-{uuid.uuid4().hex[:6].upper()}"
+    # Mark any pending primary joining order as paid (there may be one from pay-kit)
+    pending = await db.orders.find_one({"user_id": user_id, "is_joining_order": True, "payment_status": "pending", "$or": [{"business_id": None}, {"business_id": {"$exists": False}}]}, {"_id": 0})
+    if pending:
+        order_id_final = pending["id"]
+        order_code = pending.get("order_code", order_code)
+        await db.orders.update_one({"id": pending["id"]}, {"$set": {
+            "payment_status": "paid", "paid_at": now_iso(), "status": "confirmed",
+            "payment_id": f"ADMIN_GRANT_{admin.get('user_code')}",
+            "payment_provider": "admin_grant",
+        }, "$push": {"tracking_history": {
+            "at": now_iso(), "status": "confirmed", "label": "Confirmed by Admin",
+            "note": f"Kit activated by super-admin {admin.get('user_code')} without payment.",
+            "by": "Super Admin",
+        }}})
+    else:
+        order_id_final = str(uuid.uuid4())
+    # Trigger the same downstream side-effects a real payment would
+    await process_paid_joining(db, user_id, order_code, order_id_final)
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user_id,
+        "title": "🎁 Welcome kit activated by admin",
+        "body": "You've been granted direct entry — no kit purchase required. Your referral link is now active.",
+        "type": "success", "event": "admin_granted_kit", "read": False, "created_at": now_iso(),
+    })
+    await log_audit("admin_grant_kit", actor=admin, target_id=user_id, target_label=target.get("user_code"))
+    return {"ok": True, "activated": True, "order_code": order_code}
+
+
 @api.get("/mlm/commission-breakdown")
 async def my_commission_breakdown(user=Depends(get_user), limit: int = 200):
     """Return commission ledger for the logged-in user grouped by level + recent items.

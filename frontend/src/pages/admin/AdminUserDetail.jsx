@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { ArrowLeft, Shield, Mail, Phone, User, Briefcase, ShoppingBag, Wallet, Users, Clock, Globe, Monitor, Smartphone, Tablet, Activity, TrendingUp, KeyRound, Coins, Network } from "lucide-react";
+import { ArrowLeft, Shield, Mail, Phone, User, Briefcase, ShoppingBag, Wallet, Users, Clock, Globe, Monitor, Smartphone, Tablet, Activity, TrendingUp, KeyRound, Coins, Network, Gift, Trash2 } from "lucide-react";
 
 /** Admin — Deep dive into a single user (profile, businesses, login history, activity, commissions, downline). */
 export default function AdminUserDetail() {
   const { userId } = useParams();
+  const nav = useNavigate();
   const { user: adminUser } = useAuth();
   const isSuper = adminUser?.role === "super_admin";
   const [data, setData] = useState(null);
@@ -20,6 +21,8 @@ export default function AdminUserDetail() {
   const [saving, setSaving] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [newPw, setNewPw] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -51,6 +54,27 @@ export default function AdminUserDetail() {
       toast.success("Password reset — share the new one with the user");
       setResetOpen(false); setNewPw("");
     } catch (e) { toast.error(e?.response?.data?.detail || "Reset failed"); }
+  };
+
+  const markKitPaid = async () => {
+    if (!confirm("Grant kit access to this user WITHOUT taking payment? This activates their referral code and pays L1 commissions to their sponsor.")) return;
+    try {
+      const { data: res } = await api.post(`/admin/users/${userId}/mark-kit-paid`);
+      if (res.already_paid) toast.info("Kit was already active");
+      else toast.success("Kit activated — user can now share their referral code");
+      // Refresh
+      const { data: refreshed } = await api.get(`/admin/users/${userId}`);
+      setData((d) => ({ ...(d || {}), user: refreshed.user, referral_businesses: refreshed.referral_businesses, counters: refreshed.counters }));
+    } catch (e) { toast.error(e?.response?.data?.detail || "Failed to activate"); }
+  };
+
+  const deleteUser = async () => {
+    if (deleteConfirm !== "DELETE") return toast.error("Type DELETE (in caps) to confirm");
+    try {
+      await api.delete(`/admin/users/${userId}`);
+      toast.success("User deleted — they can now sign up again with the same details");
+      nav("/admin/users");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Delete failed"); }
   };
 
   if (loading) return <div className="text-center py-16 text-slate-400">Loading user…</div>;
@@ -100,9 +124,43 @@ export default function AdminUserDetail() {
                 <KeyRound className="w-3 h-3"/> Reset Password
               </button>
             )}
+            {isSuper && !u.is_joining_paid && (
+              <button onClick={markKitPaid} className="btn-primary text-xs" data-testid="admin-mark-kit-paid-btn">
+                <Gift className="w-3 h-3"/> Mark Kit Paid
+              </button>
+            )}
+            {isSuper && u.role === "user" && (
+              <button onClick={() => setDeleteOpen(true)} className="text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-full px-3 py-1.5 inline-flex items-center gap-1" data-testid="admin-delete-user-btn">
+                <Trash2 className="w-3 h-3"/> Delete User
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Delete user modal */}
+      {deleteOpen && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDeleteOpen(false)}>
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-red-500/50 p-6" onClick={(e) => e.stopPropagation()} data-testid="admin-delete-user-modal">
+            <div className="flex items-center gap-2 text-red-400 text-xs uppercase font-bold tracking-widest mb-2"><Trash2 className="w-3 h-3"/> Destructive Action</div>
+            <h3 className="font-display font-black text-xl text-slate-100">Delete {u.name}?</h3>
+            <p className="text-xs text-slate-400 mt-1">This will hard-delete the user AND every trace of them (orders, businesses, withdrawals, KYC, notifications, transactions, cart, audit logs). The same phone, email or username can be used to sign up again immediately. There is no undo.</p>
+            <input
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder='Type "DELETE" to confirm'
+              className="mt-4 w-full bg-slate-800 border border-red-500/40 rounded-2xl px-4 py-2.5 text-slate-100 placeholder:text-slate-500 outline-none font-mono"
+              data-testid="admin-delete-confirm-input"
+            />
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <button onClick={() => { setDeleteOpen(false); setDeleteConfirm(""); }} className="btn-outline text-xs">Cancel</button>
+              <button onClick={deleteUser} disabled={deleteConfirm !== "DELETE"} className="text-xs font-semibold bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-full px-4 py-2" data-testid="admin-delete-confirm-btn">
+                Delete forever
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reset password modal */}
       {resetOpen && (
@@ -169,6 +227,23 @@ export default function AdminUserDetail() {
                 </div>
                 <div className="text-[11px] font-mono text-slate-400 mt-1">{b.business_code} · Ref {b.referral_code} · Sponsor {b.sponsor_referral_code}</div>
                 <div className="text-[10px] text-slate-500 mt-1">Created {new Date(b.created_at).toLocaleDateString("en-IN")}</div>
+                {isSuper && !b.is_active && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Grant this business (${b.name}) access WITHOUT payment?`)) return;
+                      try {
+                        await api.post(`/admin/users/${userId}/mark-kit-paid`, { business_id: b.id });
+                        toast.success(`${b.name} activated`);
+                        const { data: refreshed } = await api.get(`/admin/users/${userId}`);
+                        setData((d) => ({ ...(d || {}), referral_businesses: refreshed.referral_businesses }));
+                      } catch (e) { toast.error(e?.response?.data?.detail || "Failed"); }
+                    }}
+                    className="mt-2 text-[10px] font-semibold text-[#065F46] bg-[#ECFCCB] hover:bg-[#D9F99D] rounded-full px-2 py-1 inline-flex items-center gap-1"
+                    data-testid={`admin-grant-biz-${b.business_code}`}
+                  >
+                    <Gift className="w-3 h-3"/> Grant free access
+                  </button>
+                )}
               </div>
             ))}
           </div>

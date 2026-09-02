@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 22 backend tests: DELETE /api/admin/users/{id} and POST /api/admin/users/{id}/mark-kit-paid endpoints thoroughly tested including auth guards, idempotency, side effects (sponsor commission propagation via process_paid_joining), plus regression coverage of pre-existing admin endpoints. 13/13 tests passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration22_admin_delete_grant.py",
+    "/app/test_reports/pytest/iteration22.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 3329 lines — should be split into routers (admin, mlm, payments, auth) for maintainability.",
+    "admin_delete_user does NOT cascade-delete referral commissions/ledger entries already credited to that user's sponsors, nor does it decrement sponsor.direct_referrals_count. Re-registering the same phone triggers the sponsor's income eligibility to potentially double-count. Consider adjusting sponsor counters + reversing commissions on hard-delete, or documenting this as intentional.",
+    "admin_mark_kit_paid: pending order lookup uses $or with {business_id: None} + {business_id: {$exists:false}} — but new joining orders may set business_id explicitly to null already; works but fragile. Consider normalising joining orders to always store business_id=null.",
+    "audit_logs delete filter uses only actor_id=user_id — audit rows where the user is the TARGET (target_id=user_id) are NOT purged, so re-registered user inherits historic audit references to old id (dangling). Not a blocker but worth noting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration22_admin_delete_grant.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "not_tested"},
+  "test_credentials": "Super admin admin@evergroemart.com/Admin@123 and sub admin subadmin@evergroemart.com/SubAdmin@123 both work.",
+  "seed_data_creation": "Ephemeral TEST_ users are created (prefix TEST_ItGrant_/TEST_it22_) during test runs and hard-deleted at the end of each test via the new DELETE endpoint. No lingering seed rows.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 22 (admin delete + admin mark-kit-paid) fully green. Test file /app/backend/tests/test_iteration22_admin_delete_grant.py uses /auth/me (not /me), /auth/login with {identifier,password}, and reads REACT_APP_BACKEND_URL from env when invoking pytest. When registering fresh users, pick a sponsor via helper _pick_open_sponsor_code because ADMIN001 is full (already 6 direct refs). Frontend UI (AdminUsers, AdminUserDetail, DirectCheckout UroPay embed) is untested here — flagged as backend-only per request.",
+  "rca of the issue": "N/A — no functional issues found. Initial test failures were self-inflicted (used /me instead of /auth/me, used top-level fields instead of nested user object in /admin/users/{id} response, and picked a sponsor that was already at max 6 direct refs). All corrected."
+}
