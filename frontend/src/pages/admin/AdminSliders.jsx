@@ -62,11 +62,11 @@ export default function AdminSliders() {
                   {s.image_url && <img src={s.image_url} alt={s.title} className="w-full h-full object-cover"/>}
                 </div>
                 <div className="p-3">
-                  <div className="font-semibold text-sm text-[#064E3B] truncate">{s.title}</div>
+                  <div className="font-semibold text-sm text-[#7F1D1D] truncate">{s.title}</div>
                   <div className="text-xs text-[#64748B] truncate">{s.subtitle}</div>
-                  <div className="text-xs text-[#65A30D] font-numbers mt-1">Order: {s.sort_order} · {s.is_active ? "Active" : "Inactive"}</div>
+                  <div className="text-xs text-[#B91C1C] font-numbers mt-1">Order: {s.sort_order} · {s.is_active ? "Active" : "Inactive"}</div>
                   <div className="flex gap-2 mt-2">
-                    <button onClick={() => setEdit({ ...s })} className="text-xs bg-[#ECFCCB] text-[#064E3B] rounded-full px-3 py-1 font-semibold flex items-center gap-1"><Pencil className="w-3 h-3"/>Edit</button>
+                    <button onClick={() => setEdit({ ...s })} className="text-xs bg-[#FEE2E2] text-[#7F1D1D] rounded-full px-3 py-1 font-semibold flex items-center gap-1"><Pencil className="w-3 h-3"/>Edit</button>
                     <button onClick={() => del(s.id)} className="text-xs bg-red-50 text-red-600 rounded-full px-3 py-1 font-semibold flex items-center gap-1" data-testid={`del-slider-${s.id}`}><Trash2 className="w-3 h-3"/></button>
                   </div>
                 </div>
@@ -99,8 +99,8 @@ export default function AdminSliders() {
                   <button onClick={() => setEdit({...edit, image_url: ""})} className="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6">×</button>
                 </div>
               ) : (
-                <label className="block border-2 border-dashed border-[#E2E8F0] rounded-lg p-6 text-center cursor-pointer hover:border-[#84CC16]">
-                  <Upload className="w-5 h-5 mx-auto text-[#65A30D] mb-2"/>
+                <label className="block border-2 border-dashed border-[#E2E8F0] rounded-lg p-6 text-center cursor-pointer hover:border-[#DC2626]">
+                  <Upload className="w-5 h-5 mx-auto text-[#B91C1C] mb-2"/>
                   <div className="text-sm">Upload Image</div>
                   <input type="file" hidden accept="image/*" onChange={(e) => e.target.files[0] && uploadImg(e.target.files[0])}/>
                 </label>

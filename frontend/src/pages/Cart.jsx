@@ -28,7 +28,7 @@ export default function Cart() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-12" data-testid="cart-page">
       <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-        <h1 className="font-display text-4xl font-bold text-[#064E3B]">Your Cart</h1>
+        <h1 className="font-display text-4xl font-bold text-[#7F1D1D]">Your Cart</h1>
         {items.length > 0 && (
           <button
             onClick={() => { if (window.confirm("Remove all items from cart?")) clearCart(); }}
@@ -41,11 +41,11 @@ export default function Cart() {
       </div>
 
       {!isJoined && (
-        <div className="mb-6 p-4 bg-[#FEF3C7] border border-[#FDE68A] rounded-xl flex items-start gap-3" data-testid="cart-join-notice">
-          <Lock className="w-5 h-5 text-[#92400E] flex-shrink-0 mt-0.5"/>
-          <div className="text-sm text-[#92400E]">
+        <div className="mb-6 p-4 bg-[#FEF2F2] border border-[#FCA5A5] rounded-xl flex items-start gap-3" data-testid="cart-join-notice">
+          <Lock className="w-5 h-5 text-[#7F1D1D] flex-shrink-0 mt-0.5"/>
+          <div className="text-sm text-[#7F1D1D]">
             <div className="font-semibold mb-0.5">Joining Kit required</div>
-            Until you complete your ₹7,499 Joining Kit purchase, you can only add the joining hamper to cart. Regular product shopping unlocks after activation.
+            Until you complete your ₹9,999 Joining Kit purchase, you can only add the joining hamper to cart. Regular product shopping unlocks after activation.
           </div>
         </div>
       )}
@@ -81,10 +81,10 @@ export default function Cart() {
                     className="w-20 h-20 rounded-xl object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0 w-full">
-                    <div className="font-semibold text-[#064E3B] truncate" data-testid={`cart-item-name-${item.product.id}`}>
+                    <div className="font-semibold text-[#7F1D1D] truncate" data-testid={`cart-item-name-${item.product.id}`}>
                       {item.product.name}
                     </div>
-                    <div className="font-numbers text-sm text-[#65A30D]">₹{item.product.price.toLocaleString()}</div>
+                    <div className="font-numbers text-sm text-[#B91C1C]">₹{item.product.price.toLocaleString()}</div>
                     {(lowStock || outOfStock) && (
                       <div className={`text-xs mt-1 flex items-center gap-1 ${outOfStock ? "text-[#EF4444]" : "text-[#B45309]"}`} data-testid={`cart-stock-warning-${item.product.id}`}>
                         <AlertTriangle className="w-3 h-3"/>
@@ -95,18 +95,18 @@ export default function Cart() {
                   <div className="flex items-center gap-1 bg-[#F1F5F9] rounded-full">
                     <button
                       onClick={() => updateItem(item.product.id, item.quantity - 1)}
-                      className="px-3 py-1 font-bold text-[#064E3B]"
+                      className="px-3 py-1 font-bold text-[#7F1D1D]"
                       data-testid={`cart-decr-${item.product.id}`}
                     >−</button>
                     <span className="px-2 font-numbers min-w-[24px] text-center" data-testid={`cart-qty-${item.product.id}`}>{item.quantity}</span>
                     <button
                       onClick={() => updateItem(item.product.id, item.quantity + 1)}
-                      className="px-3 py-1 font-bold text-[#064E3B] disabled:opacity-30"
+                      className="px-3 py-1 font-bold text-[#7F1D1D] disabled:opacity-30"
                       disabled={item.quantity >= stock}
                       data-testid={`cart-incr-${item.product.id}`}
                     >+</button>
                   </div>
-                  <div className="font-numbers font-bold text-[#064E3B] w-20 text-right" data-testid={`cart-line-total-${item.product.id}`}>
+                  <div className="font-numbers font-bold text-[#7F1D1D] w-20 text-right" data-testid={`cart-line-total-${item.product.id}`}>
                     ₹{item.line_total.toLocaleString()}
                   </div>
                   <button
@@ -123,7 +123,7 @@ export default function Cart() {
 
             <button
               onClick={() => nav(isJoined ? "/products" : "/hampers")}
-              className="text-sm text-[#65A30D] font-semibold hover:underline mt-2"
+              className="text-sm text-[#B91C1C] font-semibold hover:underline mt-2"
               data-testid="cart-continue-shopping"
             >
               ← Continue shopping
@@ -141,14 +141,14 @@ export default function Cart() {
               </div>
               <div className="flex justify-between text-sm" data-testid="cart-shipping-row">
                 <span>Delivery</span>
-                <span>{shipping === 0 ? <span className="text-[#65A30D] font-semibold">FREE</span> : `₹${shipping}`}</span>
+                <span>{shipping === 0 ? <span className="text-[#B91C1C] font-semibold">FREE</span> : `₹${shipping}`}</span>
               </div>
               {subtotal < delivery.free_shipping_threshold && (
-                <div className="text-xs text-[#65A30D]">
+                <div className="text-xs text-[#B91C1C]">
                   Add ₹{(delivery.free_shipping_threshold - subtotal).toFixed(0)} more for FREE delivery
                 </div>
               )}
-              <div className="border-t border-[#E2E8F0] pt-2 mt-2 flex justify-between font-bold text-lg text-[#064E3B]" data-testid="cart-total-row">
+              <div className="border-t border-[#E2E8F0] pt-2 mt-2 flex justify-between font-bold text-lg text-[#7F1D1D]" data-testid="cart-total-row">
                 <span>Total</span><span>₹{total.toFixed(0)}</span>
               </div>
             </div>

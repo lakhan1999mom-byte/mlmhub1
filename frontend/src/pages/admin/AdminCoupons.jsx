@@ -49,7 +49,7 @@ export default function AdminCoupons() {
     <div className="space-y-6" data-testid="admin-coupons-page">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="font-display text-3xl font-bold text-[#064E3B]">Promo Codes</h1>
+          <h1 className="font-display text-3xl font-bold text-[#7F1D1D]">Promo Codes</h1>
           <p className="text-sm text-[#64748B]">Create discount codes with expiry and usage limits. Customers apply them at checkout.</p>
         </div>
         <button onClick={() => setEdit({ ...blank })} className="btn-primary" data-testid="add-coupon-btn"><Plus className="w-4 h-4"/>New Code</button>
@@ -57,8 +57,8 @@ export default function AdminCoupons() {
 
       {items.length === 0 && (
         <div className="card-soft p-12 text-center">
-          <TicketPercent className="w-14 h-14 text-[#84CC16] mx-auto mb-3"/>
-          <div className="font-display font-bold text-lg text-[#064E3B]">No promo codes yet</div>
+          <TicketPercent className="w-14 h-14 text-[#DC2626] mx-auto mb-3"/>
+          <div className="font-display font-bold text-lg text-[#7F1D1D]">No promo codes yet</div>
           <div className="text-sm text-[#64748B] mb-4">Create your first coupon (e.g. WELCOME10 for 10% off).</div>
           <button onClick={() => setEdit({ ...blank })} className="btn-primary mx-auto"><Plus className="w-4 h-4"/>Create first code</button>
         </div>
@@ -70,19 +70,19 @@ export default function AdminCoupons() {
           const used = c.usage_limit && c.used_count >= c.usage_limit;
           return (
             <div key={c.id} className="card-soft p-4 relative overflow-hidden" data-testid={`coupon-card-${c.code}`}>
-              <div className="absolute -top-8 -right-8 w-24 h-24 bg-[#84CC16]/10 rounded-full blur-xl"/>
+              <div className="absolute -top-8 -right-8 w-24 h-24 bg-[#DC2626]/10 rounded-full blur-xl"/>
               <div className="relative">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="inline-flex items-center gap-1 bg-[#064E3B] text-[#84CC16] font-mono font-black px-3 py-1.5 rounded-full text-sm tracking-wider">
+                  <div className="inline-flex items-center gap-1 bg-[#7F1D1D] text-[#DC2626] font-mono font-black px-3 py-1.5 rounded-full text-sm tracking-wider">
                     <TicketPercent className="w-3 h-3"/> {c.code}
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${c.is_active && !expired && !used ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#FEE2E2] text-[#991B1B]"}`}>
+                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${c.is_active && !expired && !used ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#FEE2E2] text-[#991B1B]"}`}>
                       {!c.is_active ? "Off" : expired ? "Expired" : used ? "Used up" : "Active"}
                     </span>
                   </div>
                 </div>
-                <div className="text-2xl font-display font-black text-[#064E3B]">
+                <div className="text-2xl font-display font-black text-[#7F1D1D]">
                   {c.discount_percent ? `${c.discount_percent}% OFF` : `₹${c.discount_amount} OFF`}
                 </div>
                 {c.description && <div className="text-xs text-[#334155] mt-1 line-clamp-2">{c.description}</div>}
@@ -93,7 +93,7 @@ export default function AdminCoupons() {
                   {c.expires_at && <div className="flex items-center gap-1"><Calendar className="w-3 h-3"/> Expires {new Date(c.expires_at).toLocaleDateString()}</div>}
                 </div>
                 <div className="flex gap-2 mt-3">
-                  <button onClick={() => setEdit({ ...c, expires_at: toISOInput(c.expires_at) })} className="text-xs bg-[#ECFCCB] text-[#065F46] rounded-full px-3 py-1.5 hover:bg-[#D9F99D] flex-1 justify-center inline-flex items-center gap-1" data-testid={`edit-coupon-${c.code}`}><Pencil className="w-3 h-3"/> Edit</button>
+                  <button onClick={() => setEdit({ ...c, expires_at: toISOInput(c.expires_at) })} className="text-xs bg-[#FEE2E2] text-[#991B1B] rounded-full px-3 py-1.5 hover:bg-[#FECACA] flex-1 justify-center inline-flex items-center gap-1" data-testid={`edit-coupon-${c.code}`}><Pencil className="w-3 h-3"/> Edit</button>
                   <button onClick={() => del(c.id, c.code)} className="text-xs bg-red-50 text-red-600 rounded-full px-3 py-1.5 hover:bg-red-100" data-testid={`del-coupon-${c.code}`}><Trash2 className="w-3 h-3"/></button>
                 </div>
               </div>
@@ -106,50 +106,50 @@ export default function AdminCoupons() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEdit(null)}>
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="coupon-edit-modal">
             <div className="flex items-center justify-between">
-              <h3 className="font-display font-bold text-xl text-[#064E3B]">{edit.id ? "Edit" : "New"} Promo Code</h3>
+              <h3 className="font-display font-bold text-xl text-[#7F1D1D]">{edit.id ? "Edit" : "New"} Promo Code</h3>
               <button onClick={() => setEdit(null)} className="text-[#94A3B8] hover:text-[#334155]"><X className="w-5 h-5"/></button>
             </div>
             <div>
-              <label className="text-sm font-semibold text-[#064E3B]">Code</label>
+              <label className="text-sm font-semibold text-[#7F1D1D]">Code</label>
               <input className="input-soft mt-1 font-mono uppercase" placeholder="e.g. WELCOME10" value={edit.code} onChange={(e) => setEdit({...edit, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "")})} data-testid="coupon-code-input"/>
             </div>
             <div>
-              <label className="text-sm font-semibold text-[#064E3B]">Description</label>
+              <label className="text-sm font-semibold text-[#7F1D1D]">Description</label>
               <input className="input-soft mt-1" placeholder="First order discount for new customers" value={edit.description} onChange={(e) => setEdit({...edit, description: e.target.value})}/>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-semibold text-[#064E3B]">Discount %</label>
+                <label className="text-sm font-semibold text-[#7F1D1D]">Discount %</label>
                 <input type="number" min="0" max="100" className="input-soft mt-1" value={edit.discount_percent} onChange={(e) => setEdit({...edit, discount_percent: +e.target.value, discount_amount: 0})} data-testid="coupon-percent-input"/>
               </div>
               <div>
-                <label className="text-sm font-semibold text-[#064E3B]">OR Flat ₹ off</label>
+                <label className="text-sm font-semibold text-[#7F1D1D]">OR Flat ₹ off</label>
                 <input type="number" min="0" className="input-soft mt-1" value={edit.discount_amount} onChange={(e) => setEdit({...edit, discount_amount: +e.target.value, discount_percent: 0})} data-testid="coupon-amount-input"/>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-semibold text-[#064E3B]">Min Order (₹)</label>
+                <label className="text-sm font-semibold text-[#7F1D1D]">Min Order (₹)</label>
                 <input type="number" min="0" className="input-soft mt-1" value={edit.min_order} onChange={(e) => setEdit({...edit, min_order: +e.target.value})}/>
               </div>
               <div>
-                <label className="text-sm font-semibold text-[#064E3B]">Max Discount (₹)</label>
+                <label className="text-sm font-semibold text-[#7F1D1D]">Max Discount (₹)</label>
                 <input type="number" min="0" className="input-soft mt-1" value={edit.max_discount} onChange={(e) => setEdit({...edit, max_discount: +e.target.value})}/>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-semibold text-[#064E3B]">Usage Limit <span className="text-xs text-[#94A3B8]">(0 = unlimited)</span></label>
+                <label className="text-sm font-semibold text-[#7F1D1D]">Usage Limit <span className="text-xs text-[#94A3B8]">(0 = unlimited)</span></label>
                 <input type="number" min="0" className="input-soft mt-1" value={edit.usage_limit} onChange={(e) => setEdit({...edit, usage_limit: +e.target.value})} data-testid="coupon-limit-input"/>
               </div>
               <div>
-                <label className="text-sm font-semibold text-[#064E3B]">Expires</label>
+                <label className="text-sm font-semibold text-[#7F1D1D]">Expires</label>
                 <input type="datetime-local" className="input-soft mt-1" value={edit.expires_at} onChange={(e) => setEdit({...edit, expires_at: e.target.value})} data-testid="coupon-expires-input"/>
               </div>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={edit.is_active} onChange={(e) => setEdit({...edit, is_active: e.target.checked})} className="accent-[#84CC16]" data-testid="coupon-active-toggle"/>
-              <span className="text-sm font-semibold text-[#064E3B]">Active</span>
+              <input type="checkbox" checked={edit.is_active} onChange={(e) => setEdit({...edit, is_active: e.target.checked})} className="accent-[#DC2626]" data-testid="coupon-active-toggle"/>
+              <span className="text-sm font-semibold text-[#7F1D1D]">Active</span>
             </label>
             <div className="flex gap-2 pt-2">
               <button onClick={() => setEdit(null)} className="btn-outline flex-1 justify-center">Cancel</button>

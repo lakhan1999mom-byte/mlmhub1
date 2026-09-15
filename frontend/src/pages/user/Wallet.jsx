@@ -29,16 +29,16 @@ export default function Wallet() {
             {txns.map((t) => (
               <div key={t.id} className="flex items-center justify-between py-3 border-b border-[#F1F5F9] last:border-0">
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${t.type === "credit" ? "bg-[#ECFCCB] text-[#65A30D]" : "bg-red-100 text-[#EF4444]"}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${t.type === "credit" ? "bg-[#FEE2E2] text-[#B91C1C]" : "bg-red-100 text-[#EF4444]"}`}>
                     {t.type === "credit" ? <ArrowDownRight className="w-4 h-4"/> : <ArrowUpRight className="w-4 h-4"/>}
                   </div>
                   <div>
-                    <div className="font-semibold text-sm text-[#064E3B] capitalize">{t.category}</div>
+                    <div className="font-semibold text-sm text-[#7F1D1D] capitalize">{t.category}</div>
                     <div className="text-xs text-[#64748B]">{t.description}</div>
                     <div className="text-xs text-[#94A3B8] font-numbers">{new Date(t.created_at).toLocaleString()}</div>
                   </div>
                 </div>
-                <div className={`font-numbers font-bold ${t.type === "credit" ? "text-[#65A30D]" : "text-[#EF4444]"}`}>
+                <div className={`font-numbers font-bold ${t.type === "credit" ? "text-[#B91C1C]" : "text-[#EF4444]"}`}>
                   {t.type === "credit" ? "+" : "−"}₹{t.amount}
                 </div>
               </div>
@@ -52,7 +52,7 @@ export default function Wallet() {
 
 function WalletBox({ label, value, primary }) {
   return (
-    <div className={`rounded-2xl p-5 ${primary ? "bg-gradient-to-br from-[#84CC16] to-[#65A30D] text-[#064E3B]" : "card-soft"}`}>
+    <div className={`rounded-2xl p-5 ${primary ? "bg-gradient-to-br from-[#DC2626] to-[#B91C1C] text-[#7F1D1D]" : "card-soft"}`}>
       <WalletIcon className="w-5 h-5 mb-3"/>
       <div className="text-xs uppercase tracking-widest opacity-80">{label}</div>
       <div className="font-numbers text-2xl font-bold mt-1">₹{(value || 0).toLocaleString()}</div>

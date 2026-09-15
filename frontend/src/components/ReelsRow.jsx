@@ -9,7 +9,7 @@ export default function ReelsRow({ reels, title = "Watch & Win", testid = "reels
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-end justify-between mb-6">
           <div>
-            <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D] mb-2">Stories • Demos • Success</div>
+            <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Stories • Demos • Success</div>
             <h2 className="font-display text-3xl lg:text-4xl font-bold">{title}</h2>
           </div>
         </div>
@@ -56,7 +56,7 @@ function ReelCard({ reel, onOpen, testid }) {
       {/* play overlay */}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="bg-white/90 rounded-full w-12 h-12 flex items-center justify-center">
-          {playing ? <Pause className="w-5 h-5 text-[#064E3B]"/> : <Play className="w-5 h-5 text-[#064E3B] ml-1"/>}
+          {playing ? <Pause className="w-5 h-5 text-[#7F1D1D]"/> : <Play className="w-5 h-5 text-[#7F1D1D] ml-1"/>}
         </div>
       </div>
       <div className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5" onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}>

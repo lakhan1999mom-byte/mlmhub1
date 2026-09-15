@@ -93,7 +93,7 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F8FAFC] via-white to-[#ECFCCB]/40 px-4 py-10" data-testid="forgot-password-page">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F8FAFC] via-white to-[#FEE2E2]/40 px-4 py-10" data-testid="forgot-password-page">
       <AnimatePresence>
         {popupOtp && (
           <motion.div
@@ -111,31 +111,31 @@ export default function ForgotPassword() {
                 <AlertTriangle className="w-4 h-4"/>
                 <div className="text-[10px] uppercase tracking-widest font-bold">SMS temporarily unavailable</div>
               </div>
-              <h3 className="font-display font-black text-2xl text-[#064E3B]">Your reset OTP</h3>
+              <h3 className="font-display font-black text-2xl text-[#7F1D1D]">Your reset OTP</h3>
               <p className="text-xs text-[#64748B] mt-1">Copy this 6-digit code below and paste it in the next step. It expires in 10 minutes.</p>
-              <div className="mt-4 rounded-2xl bg-gradient-to-br from-[#ECFCCB] to-[#D9F99D] border-2 border-dashed border-[#84CC16]/60 p-5 text-center" data-testid="fp-popup-otp-value">
-                <div className="font-numbers font-black text-4xl tracking-[0.4em] text-[#064E3B]">{popupOtp}</div>
+              <div className="mt-4 rounded-2xl bg-gradient-to-br from-[#FEE2E2] to-[#FECACA] border-2 border-dashed border-[#DC2626]/60 p-5 text-center" data-testid="fp-popup-otp-value">
+                <div className="font-numbers font-black text-4xl tracking-[0.4em] text-[#7F1D1D]">{popupOtp}</div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button onClick={copyOtp} className="btn-outline justify-center text-sm" data-testid="fp-copy-otp"><Copy className="w-4 h-4"/> Copy</button>
                 <button onClick={useOtp} className="btn-primary justify-center text-sm" data-testid="fp-use-otp">Use this OTP →</button>
               </div>
-              <div className="text-[10px] text-[#94A3B8] mt-3 text-center">This code is unique to <b className="font-numbers text-[#065F46]">{phone}</b></div>
+              <div className="text-[10px] text-[#94A3B8] mt-3 text-center">This code is unique to <b className="font-numbers text-[#991B1B]">{phone}</b></div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-md card-soft p-6 md:p-8">
-        <Link to="/login" className="inline-flex items-center gap-1 text-sm text-[#64748B] hover:text-[#065F46] mb-4" data-testid="fp-back-link">
+        <Link to="/login" className="inline-flex items-center gap-1 text-sm text-[#64748B] hover:text-[#991B1B] mb-4" data-testid="fp-back-link">
           <ArrowLeft className="w-4 h-4"/> Back to Login
         </Link>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-11 h-11 rounded-2xl bg-[#ECFCCB] flex items-center justify-center">
-            <KeyRound className="w-5 h-5 text-[#65A30D]"/>
+          <div className="w-11 h-11 rounded-2xl bg-[#FEE2E2] flex items-center justify-center">
+            <KeyRound className="w-5 h-5 text-[#B91C1C]"/>
           </div>
           <div>
-            <h1 className="font-display text-2xl font-black text-[#064E3B] leading-tight">Reset Password</h1>
+            <h1 className="font-display text-2xl font-black text-[#7F1D1D] leading-tight">Reset Password</h1>
             <p className="text-xs text-[#64748B]">Verify your mobile, pick the account, set a new password.</p>
           </div>
         </div>
@@ -143,13 +143,13 @@ export default function ForgotPassword() {
         {/* Stepper */}
         <div className="flex items-center gap-2 mb-6">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="flex-1 h-1 rounded-full transition-colors" style={{ background: step >= n ? "#84CC16" : "#E2E8F0" }}/>
+            <div key={n} className="flex-1 h-1 rounded-full transition-colors" style={{ background: step >= n ? "#DC2626" : "#E2E8F0" }}/>
           ))}
         </div>
 
         {step === 1 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <h2 className="font-display text-lg font-bold text-[#064E3B]">Enter your mobile</h2>
+            <h2 className="font-display text-lg font-bold text-[#7F1D1D]">Enter your mobile</h2>
             <input
               className="input-soft font-numbers text-lg"
               placeholder="10-digit mobile"
@@ -168,7 +168,7 @@ export default function ForgotPassword() {
 
         {step === 2 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <div className="text-sm text-[#64748B]">OTP generated for <span className="font-numbers font-semibold text-[#064E3B]">{phone}</span>. <button onClick={() => { setStep(1); confirmationRef.current = null; setPopupOtp(""); setOtp(""); }} className="text-[#84CC16] font-semibold">Change</button></div>
+            <div className="text-sm text-[#64748B]">OTP generated for <span className="font-numbers font-semibold text-[#7F1D1D]">{phone}</span>. <button onClick={() => { setStep(1); confirmationRef.current = null; setPopupOtp(""); setOtp(""); }} className="text-[#DC2626] font-semibold">Change</button></div>
             <input
               className="input-soft font-numbers tracking-widest text-center text-xl"
               placeholder="------"
@@ -181,7 +181,7 @@ export default function ForgotPassword() {
               {busy ? "Verifying…" : "Verify OTP"}
             </button>
             <div className="flex items-center justify-between pt-1">
-              <button onClick={() => { setStep(1); confirmationRef.current = null; setPopupOtp(""); setOtp(""); }} className="text-xs text-[#64748B] hover:text-[#065F46]" data-testid="fp-change-number-btn">
+              <button onClick={() => { setStep(1); confirmationRef.current = null; setPopupOtp(""); setOtp(""); }} className="text-xs text-[#64748B] hover:text-[#991B1B]" data-testid="fp-change-number-btn">
                 Change number
               </button>
               <ResendOtpButton
@@ -197,28 +197,28 @@ export default function ForgotPassword() {
 
         {step === 2.5 && accounts && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3" data-testid="fp-account-picker">
-            <div className="rounded-2xl bg-gradient-to-br from-[#064E3B] to-[#065F46] text-white p-4">
-              <div className="text-xs uppercase tracking-widest text-[#84CC16] font-bold mb-1">{accounts.length} accounts found</div>
+            <div className="rounded-2xl bg-gradient-to-br from-[#7F1D1D] to-[#991B1B] text-white p-4">
+              <div className="text-xs uppercase tracking-widest text-[#DC2626] font-bold mb-1">{accounts.length} accounts found</div>
               <div className="font-display font-black text-lg">Which one to reset?</div>
             </div>
             {accounts.map((a) => (
               <button
                 key={a.user_code}
                 onClick={() => { setChosen(a); setStep(3); }}
-                className="w-full text-left card-soft p-4 hover:border-[#84CC16] hover:-translate-y-0.5 transition-all flex items-center justify-between group"
+                className="w-full text-left card-soft p-4 hover:border-[#DC2626] hover:-translate-y-0.5 transition-all flex items-center justify-between group"
                 data-testid={`fp-pick-${a.user_code}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#84CC16] to-[#65A30D] flex items-center justify-center text-white font-black">
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#DC2626] to-[#B91C1C] flex items-center justify-center text-white font-black">
                     {(a.name || "?").charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="font-semibold text-[#064E3B]">{a.name}</div>
-                    {a.username && <div className="text-xs text-[#65A30D] font-semibold">@{a.username}</div>}
+                    <div className="font-semibold text-[#7F1D1D]">{a.name}</div>
+                    {a.username && <div className="text-xs text-[#B91C1C] font-semibold">@{a.username}</div>}
                     <div className="text-[10px] text-[#94A3B8] font-numbers">{a.user_code}</div>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-[#84CC16] group-hover:translate-x-1 transition-transform"/>
+                <ChevronRight className="w-5 h-5 text-[#DC2626] group-hover:translate-x-1 transition-transform"/>
               </button>
             ))}
           </motion.div>
@@ -227,19 +227,19 @@ export default function ForgotPassword() {
         {step === 3 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             {chosen && (
-              <div className="text-xs bg-[#ECFCCB] border border-[#84CC16]/30 text-[#065F46] rounded-lg p-3">
+              <div className="text-xs bg-[#FEE2E2] border border-[#DC2626]/30 text-[#991B1B] rounded-lg p-3">
                 Resetting password for <b>{chosen.name}</b> {chosen.username && <>(<span className="font-semibold">@{chosen.username}</span>)</>} — {chosen.user_code}
               </div>
             )}
             <div>
-              <label className="text-sm font-semibold text-[#064E3B]">New Password</label>
+              <label className="text-sm font-semibold text-[#7F1D1D]">New Password</label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]"/>
                 <input type="password" className="input-soft pl-10" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="min 6 characters" data-testid="fp-new-password"/>
               </div>
             </div>
             <div>
-              <label className="text-sm font-semibold text-[#064E3B]">Confirm Password</label>
+              <label className="text-sm font-semibold text-[#7F1D1D]">Confirm Password</label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]"/>
                 <input type="password" className="input-soft pl-10" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="repeat password" data-testid="fp-confirm-password"/>

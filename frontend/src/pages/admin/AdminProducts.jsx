@@ -60,7 +60,7 @@ export default function AdminProducts() {
           <div key={p.id} className="card-soft overflow-hidden" data-testid={`admin-product-${p.id}`}>
             <img src={p.images?.[0]} alt="" className="aspect-video w-full object-cover"/>
             <div className="p-4">
-              <div className="font-semibold text-[#064E3B] truncate">{p.name}</div>
+              <div className="font-semibold text-[#7F1D1D] truncate">{p.name}</div>
               <div className="text-xs text-[#64748B]">{p.category}{p.is_hamper && ` · ${p.hamper_tier}`}</div>
               <div className="flex items-center justify-between mt-2">
                 <div className="font-numbers font-bold">₹{p.price}</div>
@@ -109,12 +109,12 @@ export default function AdminProducts() {
                   <option value="">Select tier</option>
                   <option>Purchasing</option><option>Bronze</option><option>Silver</option><option>Gold</option><option>Platinum</option>
                 </select>
-                <div className="bg-[#ECFCCB] border border-[#D9F99D] rounded-xl p-3">
-                  <div className="text-sm font-semibold text-[#064E3B] mb-2">📦 Hamper Contents (shown to user)</div>
+                <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-xl p-3">
+                  <div className="text-sm font-semibold text-[#7F1D1D] mb-2">📦 Hamper Contents (shown to user)</div>
                   <div className="text-xs text-[#334155] mb-3">Add every item that ships inside this hamper. User can see this list on product page.</div>
                   <div className="flex flex-wrap gap-1.5 mb-2" data-testid="hamper-contents-list">
                     {(edit.contents || []).map((c, i) => (
-                      <div key={i} className="inline-flex items-center gap-1 bg-white border border-[#D9F99D] rounded-full px-3 py-1 text-xs" data-testid={`hamper-content-${i}`}>
+                      <div key={i} className="inline-flex items-center gap-1 bg-white border border-[#FECACA] rounded-full px-3 py-1 text-xs" data-testid={`hamper-content-${i}`}>
                         <span>{c}</span>
                         <button
                           type="button"
@@ -175,8 +175,8 @@ export default function AdminProducts() {
                     <button onClick={() => setEdit({...edit, images: edit.images.filter((_, j) => j !== i)})} className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-bl-md px-1">×</button>
                   </div>
                 ))}
-                <label className="w-20 h-20 border-2 border-dashed border-[#E2E8F0] rounded-lg flex items-center justify-center cursor-pointer hover:border-[#84CC16]">
-                  <Upload className="w-4 h-4 text-[#65A30D]"/>
+                <label className="w-20 h-20 border-2 border-dashed border-[#E2E8F0] rounded-lg flex items-center justify-center cursor-pointer hover:border-[#DC2626]">
+                  <Upload className="w-4 h-4 text-[#B91C1C]"/>
                   <input type="file" hidden accept="image/*" onChange={(e) => e.target.files[0] && uploadImg(e.target.files[0])}/>
                 </label>
               </div>

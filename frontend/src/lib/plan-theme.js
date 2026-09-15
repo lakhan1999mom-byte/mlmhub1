@@ -1,18 +1,18 @@
 /**
  * EverGro eMart — 8-Level Compensation Plan (single source of truth)
  * All landing, compensation-plan, and admin displays MUST import from here.
- * Colors are hand-picked for AA contrast on both dark (#064E3B) and light (#FAFAF9) backgrounds.
+ * Colors are hand-picked for AA contrast on both dark (#7F1D1D) and light (#FAFAF9) backgrounds.
  */
 
 export const LEVEL_COLORS = {
-  1: "#84CC16", // lime — brand primary
+  1: "#DC2626", // lime — brand primary
   2: "#22D3EE", // cyan
   3: "#60A5FA", // blue
   4: "#A78BFA", // violet
-  5: "#F59E0B", // amber
+  5: "#B91C1C", // amber
   6: "#EF4444", // red
   7: "#0EA5E9", // sky
-  8: "#FBBF24", // amber-yellow (readable on dark & light)
+  8: "#DC2626", // amber-yellow (readable on dark & light)
 };
 
 /** Full 8-level income table matching the infographic. */

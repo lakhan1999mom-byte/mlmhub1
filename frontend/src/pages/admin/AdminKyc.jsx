@@ -24,7 +24,7 @@ export default function AdminKyc() {
               <div className="font-display font-bold">{k.user_name || k.user_code}</div>
               <div className="text-xs font-numbers text-[#64748B]">{k.user_code} · Submitted: {new Date(k.submitted_at).toLocaleDateString()}</div>
             </div>
-            <span className={`badge-pill capitalize ${k.status === "approved" ? "bg-[#ECFCCB] text-[#065F46]" : k.status === "rejected" ? "bg-red-100 text-red-700" : "bg-[#FEF3C7] text-[#92400E]"}`}>{k.status}</span>
+            <span className={`badge-pill capitalize ${k.status === "approved" ? "bg-[#FEE2E2] text-[#991B1B]" : k.status === "rejected" ? "bg-red-100 text-red-700" : "bg-[#FEF2F2] text-[#7F1D1D]"}`}>{k.status}</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <Doc title="Aadhaar" url={k.aadhaar_doc} no={k.aadhaar_number}/>

@@ -35,8 +35,8 @@ export default function Profile() {
       <h1 className="font-display text-3xl font-bold">My Profile</h1>
       <div className="card-soft p-6 max-w-2xl">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#84CC16] to-[#65A30D] flex items-center justify-center overflow-hidden">
-            {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover"/> : <span className="text-3xl font-bold text-[#064E3B]">{user.name?.[0]}</span>}
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#DC2626] to-[#B91C1C] flex items-center justify-center overflow-hidden">
+            {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover"/> : <span className="text-3xl font-bold text-[#7F1D1D]">{user.name?.[0]}</span>}
           </div>
           <label className="btn-outline cursor-pointer text-sm">
             <Upload className="w-4 h-4"/> Upload Avatar

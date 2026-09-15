@@ -12,7 +12,7 @@ import ResendOtpButton from "@/components/ResendOtpButton";
  * JoinNow — phone-first onboarding.
  * Step 1: Enter phone → OTP (Firebase or dev fallback)
  * Step 2: Complete form (name, username, email, password, sponsor) → account created
- * Step 3: Redirect to /hampers to pay ₹7,499
+ * Step 3: Redirect to /hampers to pay ₹9,999
  */
 export default function JoinNow() {
   const nav = useNavigate();
@@ -119,7 +119,7 @@ export default function JoinNow() {
     try {
       const { data } = await api.post("/auth/register", { ...form, phone, terms_accepted: true });
       localStorage.setItem("evergro_token", data.token);
-      toast.success(`Welcome @${data.user.username}! Purchase the ₹7,499 kit anytime from your dashboard to activate.`);
+      toast.success(`Welcome @${data.user.username}! Purchase the ₹9,999 kit anytime from your dashboard to activate.`);
       // Land on dashboard — kit purchase is mandatory but not forced landing.
       nav("/dashboard");
     } catch (err) {
@@ -132,23 +132,23 @@ export default function JoinNow() {
       <div className="grid md:grid-cols-2 gap-8 items-start">
         {/* Left benefits */}
         <div className="hidden md:block">
-          <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D] mb-2">Join Now</div>
-          <h1 className="font-display text-4xl font-black text-[#064E3B] leading-tight mb-4">
-            One number.<br/>Many chances.<br/><span className="text-[#84CC16]">Unlimited income.</span>
+          <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Join Now</div>
+          <h1 className="font-display text-4xl font-black text-[#7F1D1D] leading-tight mb-4">
+            Premium hampers.<br/>Many gift bundles.<br/><span className="text-[#DC2626]">Delivered pan-India.</span>
           </h1>
           <p className="text-[#334155] mb-6 leading-relaxed">
-            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹7,499 to activate your account. One mobile = one account · create additional referral businesses from your dashboard later.
+            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹9,999 to activate your account. One mobile = one account · create additional referral businesses from your dashboard later.
           </p>
           <div className="space-y-3">
             {[
               { icon: Sparkles, title: "Instant activation", sub: "Account live in under 60 seconds" },
               { icon: Shield, title: "Real SMS OTP", sub: "Firebase-verified phone" },
-              { icon: TrendingUp, title: "8-Level Income", sub: "L1=₹1,200 · Total ₹19.2 Cr potential" },
+              { icon: TrendingUp, title: "Rewards", sub: "Unlock the referral rewards program" },
             ].map((b) => (
-              <div key={b.title} className="flex items-start gap-3 p-3 bg-[#ECFCCB] rounded-xl">
-                <b.icon className="w-5 h-5 text-[#65A30D] flex-shrink-0 mt-0.5"/>
+              <div key={b.title} className="flex items-start gap-3 p-3 bg-[#FEE2E2] rounded-xl">
+                <b.icon className="w-5 h-5 text-[#B91C1C] flex-shrink-0 mt-0.5"/>
                 <div>
-                  <div className="font-semibold text-[#064E3B] text-sm">{b.title}</div>
+                  <div className="font-semibold text-[#7F1D1D] text-sm">{b.title}</div>
                   <div className="text-xs text-[#64748B]">{b.sub}</div>
                 </div>
               </div>
@@ -158,7 +158,7 @@ export default function JoinNow() {
 
         {/* Right stepper */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="card-soft p-6 md:p-8 relative overflow-hidden">
-          <div className="absolute -top-16 -right-16 w-40 h-40 bg-[#84CC16]/10 rounded-full blur-2xl"/>
+          <div className="absolute -top-16 -right-16 w-40 h-40 bg-[#DC2626]/10 rounded-full blur-2xl"/>
           <div className="relative">
           <div className="flex items-center gap-2 mb-6" data-testid="join-stepper">
             {[1, 2, 3].map((n) => (
@@ -168,7 +168,7 @@ export default function JoinNow() {
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: step >= n ? 1 : 0 }}
                   transition={{ duration: 0.4 }}
-                  className="absolute inset-0 h-1 rounded-full bg-gradient-to-r from-[#84CC16] to-[#65A30D] origin-left"
+                  className="absolute inset-0 h-1 rounded-full bg-gradient-to-r from-[#DC2626] to-[#B91C1C] origin-left"
                 />
               </div>
             ))}
@@ -177,7 +177,7 @@ export default function JoinNow() {
           <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div key="s1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
-              <h2 className="font-display text-2xl font-bold text-[#064E3B] mb-1">Enter your mobile</h2>
+              <h2 className="font-display text-2xl font-bold text-[#7F1D1D] mb-1">Enter your mobile</h2>
               <p className="text-sm text-[#64748B] mb-5">We&apos;ll send a 6-digit OTP to verify.</p>
               <input
                 className="input-soft font-numbers text-lg"
@@ -199,31 +199,31 @@ export default function JoinNow() {
 
           {step === 1.5 && (
             <motion.div key="s15" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }} data-testid="join-existing-choice">
-              <div className="rounded-2xl bg-gradient-to-br from-[#FEF3C7] to-[#FED7AA] p-4 mb-4 border border-[#F59E0B]/30">
-                <div className="text-xs uppercase tracking-widest font-bold text-[#92400E] mb-1">Heads up</div>
+              <div className="rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2] p-4 mb-4 border border-[#B91C1C]/30">
+                <div className="text-xs uppercase tracking-widest font-bold text-[#7F1D1D] mb-1">Heads up</div>
                 <div className="font-display font-black text-[#7C2D12] text-lg leading-tight">This number already has {existingCount} account{existingCount > 1 ? "s" : ""}</div>
-                <div className="text-xs text-[#92400E] mt-1">You can either login to your existing account, or create a NEW re-entry position on the same number (must use a different sponsor code).</div>
+                <div className="text-xs text-[#7F1D1D] mt-1">You can either login to your existing account, or create a NEW re-entry position on the same number (must use a different referral code).</div>
               </div>
               <div className="space-y-3">
                 <button
                   onClick={() => nav(`/login?phone=${phone}`)}
-                  className="w-full text-left card-soft p-4 hover:border-[#84CC16] hover:-translate-y-0.5 transition-all flex items-center justify-between group border-2 border-[#84CC16]/40"
+                  className="w-full text-left card-soft p-4 hover:border-[#DC2626] hover:-translate-y-0.5 transition-all flex items-center justify-between group border-2 border-[#DC2626]/40"
                   data-testid="join-choice-login"
                 >
                   <div>
-                    <div className="font-semibold text-[#064E3B]">Login to your existing account</div>
+                    <div className="font-semibold text-[#7F1D1D]">Login to your existing account</div>
                     <div className="text-xs text-[#64748B]">Skip signup — go straight to your dashboard</div>
                   </div>
-                  <div className="text-[#84CC16] group-hover:translate-x-1 transition-transform">→</div>
+                  <div className="text-[#DC2626] group-hover:translate-x-1 transition-transform">→</div>
                 </button>
                 <div className="w-full card-soft p-4 flex items-center justify-between opacity-70" data-testid="join-choice-reentry">
                   <div>
-                    <div className="font-semibold text-[#064E3B]">Add another referral business</div>
-                    <div className="text-xs text-[#64748B]">Once logged in, open <b>Create Referral Business</b> on your dashboard (each requires its own ₹7,499 kit).</div>
+                    <div className="font-semibold text-[#7F1D1D]">Add another referral business</div>
+                    <div className="text-xs text-[#64748B]">Once logged in, open <b>Create Referral Business</b> on your dashboard (each requires its own ₹9,999 kit).</div>
                   </div>
                   <div className="text-[10px] font-bold uppercase text-[#94A3B8]">soon</div>
                 </div>
-                <button onClick={() => { setStep(1); setExistingCount(0); }} className="text-sm text-[#64748B] hover:text-[#065F46] w-full text-center pt-2" data-testid="join-choice-back">
+                <button onClick={() => { setStep(1); setExistingCount(0); }} className="text-sm text-[#64748B] hover:text-[#991B1B] w-full text-center pt-2" data-testid="join-choice-back">
                   ← Use a different number
                 </button>
               </div>
@@ -232,10 +232,10 @@ export default function JoinNow() {
 
           {step === 2 && (
             <motion.div key="s2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
-              <h2 className="font-display text-2xl font-bold text-[#064E3B] mb-1">Enter OTP</h2>
-              <p className="text-sm text-[#64748B] mb-5">Sent to {phone}. <button onClick={() => { setStep(1); confirmationRef.current = null; }} className="text-[#84CC16] font-semibold" data-testid="join-change-number">Change</button></p>
+              <h2 className="font-display text-2xl font-bold text-[#7F1D1D] mb-1">Enter OTP</h2>
+              <p className="text-sm text-[#64748B] mb-5">Sent to {phone}. <button onClick={() => { setStep(1); confirmationRef.current = null; }} className="text-[#DC2626] font-semibold" data-testid="join-change-number">Change</button></p>
               {devOtp && (
-                <div className="text-xs bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] rounded-lg p-3 mb-3" data-testid="join-dev-otp">
+                <div className="text-xs bg-[#FEF2F2] border border-[#FCA5A5] text-[#7F1D1D] rounded-lg p-3 mb-3" data-testid="join-dev-otp">
                   Preview — Your OTP: <b>{devOtp}</b>
                 </div>
               )}
@@ -251,7 +251,7 @@ export default function JoinNow() {
                 {busy ? "Verifying…" : "Verify & Continue"}
               </button>
               <div className="flex items-center justify-between pt-3">
-                <button onClick={() => { setStep(1); confirmationRef.current = null; }} className="text-xs text-[#64748B] hover:text-[#065F46]" data-testid="join-change-number-2">
+                <button onClick={() => { setStep(1); confirmationRef.current = null; }} className="text-xs text-[#64748B] hover:text-[#991B1B]" data-testid="join-change-number-2">
                   Change number
                 </button>
                 <ResendOtpButton
@@ -264,8 +264,8 @@ export default function JoinNow() {
 
           {step === 3 && (
             <motion.div key="s3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
-              <h2 className="font-display text-2xl font-bold text-[#064E3B] mb-1">Complete your profile</h2>
-              <p className="text-sm text-[#64748B] mb-5">Phone verified <Check className="w-4 h-4 inline text-[#65A30D]"/>. Just a few more details.</p>
+              <h2 className="font-display text-2xl font-bold text-[#7F1D1D] mb-1">Complete your profile</h2>
+              <p className="text-sm text-[#64748B] mb-5">Phone verified <Check className="w-4 h-4 inline text-[#B91C1C]"/>. Just a few more details.</p>
               <div className="space-y-3">
                 <input className="input-soft" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="join-name-input"/>
                 <div className="relative">
@@ -281,22 +281,22 @@ export default function JoinNow() {
                     data-testid="join-username-input"
                   />
                   {form.username && usernameOk !== null && (
-                    <div className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold flex items-center gap-1 ${usernameOk ? "text-[#65A30D]" : "text-[#EF4444]"}`} data-testid="join-username-status">
+                    <div className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold flex items-center gap-1 ${usernameOk ? "text-[#B91C1C]" : "text-[#EF4444]"}`} data-testid="join-username-status">
                       {usernameOk ? <><Check className="w-3 h-3"/> available</> : <><X className="w-3 h-3"/> taken</>}
                     </div>
                   )}
                 </div>
                 <input className="input-soft" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="join-email-input"/>
                 <input className="input-soft" type="password" placeholder="Password (min 6 chars)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} data-testid="join-password-input"/>
-                <input className="input-soft uppercase" placeholder="Sponsor code (optional)" value={form.referral_code} onChange={(e) => setForm({ ...form, referral_code: e.target.value.toUpperCase() })} data-testid="join-referral-input"/>
+                <input className="input-soft uppercase" placeholder="Referral code (optional)" value={form.referral_code} onChange={(e) => setForm({ ...form, referral_code: e.target.value.toUpperCase() })} data-testid="join-referral-input"/>
                 <label className="flex items-start gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-1 accent-[#84CC16]" data-testid="join-terms-checkbox"/>
+                  <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-1 accent-[#DC2626]" data-testid="join-terms-checkbox"/>
                   <span className="text-[#334155]">
                     I agree to the{" "}
                     <button
                       type="button"
                       onClick={() => setTermsModalOpen(true)}
-                      className="text-[#65A30D] underline font-semibold hover:text-[#4D7C0F]"
+                      className="text-[#B91C1C] underline font-semibold hover:text-[#4D7C0F]"
                       data-testid="join-terms-link"
                     >
                       Terms & Conditions

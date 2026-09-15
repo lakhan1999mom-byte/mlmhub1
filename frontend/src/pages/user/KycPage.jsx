@@ -34,7 +34,7 @@ export default function KycPage() {
     <div className="space-y-6" data-testid="kyc-page">
       <h1 className="font-display text-3xl font-bold">KYC Verification</h1>
       <div className="card-soft p-6">
-        <div className="text-sm mb-4">Current Status: <span className={`badge-pill capitalize ${user.kyc_status === "approved" ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#FEF3C7] text-[#92400E]"}`}>{user.kyc_status}</span></div>
+        <div className="text-sm mb-4">Current Status: <span className={`badge-pill capitalize ${user.kyc_status === "approved" ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#FEF2F2] text-[#7F1D1D]"}`}>{user.kyc_status}</span></div>
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-semibold">Aadhaar Number</label>
@@ -58,19 +58,19 @@ function UploadField({ label, url, onChange, testid }) {
   return (
     <div>
       <label className="text-sm font-semibold">{label}</label>
-      <div className="mt-1 border-2 border-dashed border-[#E2E8F0] rounded-xl p-4 text-center hover:border-[#84CC16] transition-colors">
+      <div className="mt-1 border-2 border-dashed border-[#E2E8F0] rounded-xl p-4 text-center hover:border-[#DC2626] transition-colors">
         {url ? (
           <div className="space-y-2">
             <img src={url} alt="" className="w-32 h-32 object-cover rounded-lg mx-auto"/>
-            <div className="text-xs text-[#65A30D] flex items-center justify-center gap-1"><CheckCircle2 className="w-3 h-3"/>Uploaded</div>
-            <label className="text-xs cursor-pointer text-[#65A30D] underline">
+            <div className="text-xs text-[#B91C1C] flex items-center justify-center gap-1"><CheckCircle2 className="w-3 h-3"/>Uploaded</div>
+            <label className="text-xs cursor-pointer text-[#B91C1C] underline">
               Replace
               <input type="file" hidden accept="image/*,.pdf" onChange={(e) => e.target.files[0] && onChange(e.target.files[0])} data-testid={testid}/>
             </label>
           </div>
         ) : (
           <label className="cursor-pointer block">
-            <Upload className="w-6 h-6 mx-auto text-[#65A30D] mb-2"/>
+            <Upload className="w-6 h-6 mx-auto text-[#B91C1C] mb-2"/>
             <div className="text-sm text-[#334155]">Click to upload</div>
             <input type="file" hidden accept="image/*,.pdf" onChange={(e) => e.target.files[0] && onChange(e.target.files[0])} data-testid={testid}/>
           </label>

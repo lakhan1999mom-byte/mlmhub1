@@ -65,10 +65,10 @@ export default function Login() {
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-10" data-testid="login-page">
       {/* Premium background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#064E3B] via-[#065F46] to-[#166534]"/>
+      <div className="absolute inset-0 bg-gradient-to-br from-[#7F1D1D] via-[#991B1B] to-[#7F1D1D]"/>
       <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#84CC16] rounded-full mix-blend-overlay blur-[100px] animate-pulse"/>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#FBBF24] rounded-full mix-blend-overlay blur-[100px] animate-pulse" style={{ animationDelay: "1s" }}/>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#DC2626] rounded-full mix-blend-overlay blur-[100px] animate-pulse"/>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#DC2626] rounded-full mix-blend-overlay blur-[100px] animate-pulse" style={{ animationDelay: "1s" }}/>
       </div>
       {/* Grain overlay */}
       <div className="absolute inset-0 opacity-[0.08]" style={{
@@ -86,11 +86,11 @@ export default function Login() {
         <div className="text-center mb-7">
           <motion.div
             initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
-            className="w-16 h-16 rounded-3xl bg-gradient-to-br from-[#84CC16] to-[#65A30D] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#84CC16]/30"
+            className="w-16 h-16 rounded-3xl bg-gradient-to-br from-[#DC2626] to-[#B91C1C] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#DC2626]/30"
           >
             <ShieldCheck className="w-8 h-8 text-white"/>
           </motion.div>
-          <h1 className="font-display text-3xl font-black text-[#064E3B] leading-tight">Welcome back</h1>
+          <h1 className="font-display text-3xl font-black text-[#7F1D1D] leading-tight">Welcome back</h1>
           <p className="text-sm text-[#64748B] mt-1">Sign in to continue to your dashboard</p>
         </div>
 
@@ -103,10 +103,10 @@ export default function Login() {
             animate={{ x: tab === "mobile" ? 0 : "100%" }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
           />
-          <button onClick={() => setTab("mobile")} className={`relative z-10 py-2 rounded-full text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${tab === "mobile" ? "text-[#064E3B]" : "text-[#64748B]"}`} data-testid="login-tab-mobile">
+          <button onClick={() => setTab("mobile")} className={`relative z-10 py-2 rounded-full text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${tab === "mobile" ? "text-[#7F1D1D]" : "text-[#64748B]"}`} data-testid="login-tab-mobile">
             <Phone className="w-3.5 h-3.5"/> Mobile
           </button>
-          <button onClick={() => setTab("email")} className={`relative z-10 py-2 rounded-full text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${tab === "email" ? "text-[#064E3B]" : "text-[#64748B]"}`} data-testid="login-tab-email">
+          <button onClick={() => setTab("email")} className={`relative z-10 py-2 rounded-full text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${tab === "email" ? "text-[#7F1D1D]" : "text-[#64748B]"}`} data-testid="login-tab-email">
             <Mail className="w-3.5 h-3.5"/> Email
           </button>
         </div>
@@ -120,7 +120,7 @@ export default function Login() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
-              <label className="text-xs font-bold text-[#064E3B] uppercase tracking-wider">{tab === "mobile" ? "Mobile Number" : "Email Address"}</label>
+              <label className="text-xs font-bold text-[#7F1D1D] uppercase tracking-wider">{tab === "mobile" ? "Mobile Number" : "Email Address"}</label>
               <div className="relative mt-1">
                 {tab === "mobile" ? <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]"/> : <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]"/>}
                 <input
@@ -138,8 +138,8 @@ export default function Login() {
 
           <div>
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-[#064E3B] uppercase tracking-wider">Password</label>
-              <Link to="/forgot-password" className="text-xs font-semibold text-[#65A30D] hover:text-[#4D7C0F]" data-testid="forgot-password-link">Forgot?</Link>
+              <label className="text-xs font-bold text-[#7F1D1D] uppercase tracking-wider">Password</label>
+              <Link to="/forgot-password" className="text-xs font-semibold text-[#B91C1C] hover:text-[#4D7C0F]" data-testid="forgot-password-link">Forgot?</Link>
             </div>
             <div className="relative mt-1">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]"/>
@@ -159,7 +159,7 @@ export default function Login() {
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="accent-[#84CC16]" data-testid="remember-me-checkbox"/>
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="accent-[#DC2626]" data-testid="remember-me-checkbox"/>
             <span className="text-sm text-[#334155]">Remember me on this device</span>
           </label>
 
@@ -185,7 +185,7 @@ export default function Login() {
           data-testid="join-now-link"
         >
           <UserPlus className="w-4 h-4 group-hover:rotate-12 transition-transform"/> Create free account
-          <Sparkles className="w-3 h-3 text-[#FBBF24]"/>
+          <Sparkles className="w-3 h-3 text-[#DC2626]"/>
         </Link>
 
         <p className="mt-5 text-[10px] text-center text-[#94A3B8] uppercase tracking-widest flex items-center justify-center gap-1">

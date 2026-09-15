@@ -7,14 +7,10 @@ import { CartProvider } from "@/lib/cart";
 import api from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import WhatsAppFab from "@/components/WhatsAppFab";
 
 // pages
 import Landing from "@/pages/Landing";
 import About from "@/pages/About";
-import BusinessPlan from "@/pages/BusinessPlan";
-import CompensationPlan from "@/pages/CompensationPlan";
-import Calculator from "@/pages/Calculator";
 import ProductsPage from "@/pages/ProductsPage";
 import HampersPage from "@/pages/HampersPage";
 import ProductDetail from "@/pages/ProductDetail";
@@ -76,12 +72,37 @@ function PublicLayout() {
   useEffect(() => {
     api.get("/site/settings").then(({ data }) => setSite(data)).catch(() => {});
   }, []);
+
+  // Meta Pixel injection — clears old script/noscript first, then re-injects when settings change.
+  useEffect(() => {
+    if (!site) return;
+    // Remove old pixel nodes
+    document.querySelectorAll('script[data-meta-pixel="1"], noscript[data-meta-pixel="1"]').forEach((n) => n.remove());
+    const pid = (site.meta_pixel_id || "").trim();
+    const custom = (site.meta_pixel_code || "").trim();
+    if (pid) {
+      const s = document.createElement("script");
+      s.setAttribute("data-meta-pixel", "1");
+      s.innerHTML = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${pid}');fbq('track','PageView');`;
+      document.head.appendChild(s);
+      const ns = document.createElement("noscript");
+      ns.setAttribute("data-meta-pixel", "1");
+      ns.innerHTML = `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${pid}&ev=PageView&noscript=1"/>`;
+      document.head.appendChild(ns);
+    } else if (custom) {
+      // Free-form custom pixel/tracking code (admin-controlled). Wrapped so we can wipe later.
+      const wrapper = document.createElement("script");
+      wrapper.setAttribute("data-meta-pixel", "1");
+      wrapper.innerHTML = custom.replace(/<\/?script[^>]*>/gi, "");
+      document.head.appendChild(wrapper);
+    }
+  }, [site?.meta_pixel_id, site?.meta_pixel_code]);
+
   return (
     <>
       <Navbar siteSettings={site} />
       <Outlet context={{ site }} />
       <Footer site={site} />
-      <WhatsAppFab phone={site?.whatsapp} />
     </>
   );
 }
@@ -89,7 +110,7 @@ function PublicLayout() {
 function RequireAuth({ role, children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="p-10 text-center text-[#064E3B]">Loading…</div>;
+  if (loading) return <div className="p-10 text-center text-[#7F1D1D]">Loading…</div>;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   if (role && !role.includes(user.role)) return <Navigate to="/" replace />;
   return children;
@@ -102,7 +123,7 @@ function RequireAuth({ role, children }) {
  */
 function RequireJoined({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="p-10 text-center text-[#064E3B]">Loading…</div>;
+  if (loading) return <div className="p-10 text-center text-[#7F1D1D]">Loading…</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === "super_admin" || user.role === "sub_admin") return children;
   if (!user.is_joining_paid) return <Navigate to="/hampers" replace />;
@@ -119,9 +140,6 @@ export default function App() {
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Landing />} />
               <Route path="/about" element={<About />} />
-              <Route path="/business-plan" element={<BusinessPlan />} />
-              <Route path="/compensation-plan" element={<CompensationPlan />} />
-              <Route path="/calculator" element={<Calculator />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/hampers" element={<HampersPage />} />
               <Route path="/products/:id" element={<ProductDetail />} />

@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 23 — validated new admin endpoints (DELETE with cascade, bulk-delete, bulk-update), Meta Pixel persistence, tagline/notification migration on /site/settings, plus core admin regression. Backend 15/15 pytest passed. Frontend: red/white theme applied on landing + admin sidebar + login; new admin UI (Meta Pixel card, bulk selection, Bulk Replace modal, cascade toggle) is wired with the expected data-testids. HOWEVER — public Landing page STILL renders MLM/8-Level/downline/'Calculate Earnings' copy sourced from DB-seeded content (sliders, testimonials, FAQs) that was not scrubbed. Also admin Overview page still uses a dark slate-950 hero and non-red (purple/emerald/orange) stat-card accents — the sed color swap did not fully cover those.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/site/settings", "issue": "terms_content HTML still explicitly references MLM/8-Level/downline. Legally OK, but if 'scrub public-facing legal-red-flag language' is strict, the T&C admin content also needs a rewrite."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing page — HeroSlider (landing_top)", "issue": "Slider #2 headline 'Start your MLM journey today' — from DB slider record. Renders visible MLM copy on / route.", "selector": "[data-testid='landing-slider-top']", "priority": "HIGH"},
+      {"component": "Landing page — HeroSlider (landing_mid)", "issue": "Sliders 'Build Your Wealth Network — 8 stages of earnings — Learn the Plan → /business-plan' and 'Become a Top Earner — Calculate Earnings → /calculator' still point to removed routes and display forbidden CTA text.", "selector": "sliders.location=landing_mid", "priority": "HIGH"},
+      {"component": "Landing page — Testimonials", "issue": "Seeded testimonials mention 'MLM plan is transparent', 'MLM that pays on time', '8-level downline in real time', '6 direct refs cap', 'downline joining'. Rendered from /api/site/testimonials.", "selector": "section testimonials", "priority": "HIGH"},
+      {"component": "Landing page — FAQs", "issue": "Seeded FAQ answers include: 'EverGro eMart is a premium e-commerce platform combined with an 8-level MLM income plan' and 'How does the MLM plan work?' from /api/site/faqs.", "selector": "section faq", "priority": "HIGH"},
+      {"component": "Admin Overview hero", "issue": "Dark slate-950 gradient hero (top strip 'REAL-TIME CONTROL ROOM / Admin Overview') is still visible — request said 'NO more dark slate-950 background'.", "selector": "admin overview hero card", "priority": "MEDIUM"},
+      {"component": "Admin Overview stat cards", "issue": "Icon-tile backgrounds on the four KPI cards still use purple, emerald, and orange gradients (Users / Revenue / Active Members). Task required strictly red+white.", "selector": ".admin-overview stat card icons", "priority": "MEDIUM"},
+      {"component": "Global (public)", "issue": "16 DOM elements still carry slate-950/bg-slate-900 classes on rendered admin pages — grep on /app/frontend/src still returns them.", "selector": "[class*='slate-950']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Overview", "issues": ["Hero band uses dark slate; conflicts with red/white brief.", "Stat cards mix purple/emerald/orange with red — palette not unified."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration23_bulk_admin_meta.py",
+    "/app/test_reports/pytest/iteration23.xml"
+  ],
+  "action_items": [
+    "Migrate seeded DB content to strip MLM/8-Level/downline/Calculate-Earnings copy: sliders (landing_top #2, all landing_mid entries), testimonials (multiple), FAQs. Add a startup migration in /app/backend/seed.py similar to the tagline/notification bar one, e.g. replace/rewrite records whose text matches forbidden keywords.",
+    "Fix admin Landing sliders that link to removed routes /business-plan and /calculator — either delete them or repoint to /shop / /hampers.",
+    "Rewrite admin Overview hero card (currently slate-950) to red/white per spec.",
+    "Recolor Overview KPI stat-card icon backgrounds from purple/emerald/orange to red family only.",
+    "Consider whether terms_content in site settings should also be scrubbed (currently still explicitly MLM/8-Level).",
+    "Optional: add regression test asserting /api/sliders, /api/site/testimonials, /api/site/faqs do NOT contain forbidden keywords."
+  ],
+  "critical_code_review_comments": [
+    "admin_bulk_delete_users duplicates the cascade+cleanup logic from admin_delete_user — extract a shared helper `_hard_delete_user_ids(ids)` to avoid drift (currently bulk-delete does NOT delete audit_logs while single-delete DOES).",
+    "server.py is now 3427 lines — split into routers.",
+    "PublicLayout meta-pixel injection reads from /api/site/settings — but there's no CSP nonce; injecting raw <script> from admin input is an XSS surface for anyone with super_admin token. Consider sanitization or restricting to Pixel ID only in production.",
+    "Frontend landing page copy scrub is JSX-only; seeded/managed DB content bypasses it entirely — recommend adding a startup migration + admin content-guard so admins can't reintroduce the forbidden phrases."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration23_bulk_admin_meta.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "60%"},
+  "test_credentials": "Super admin admin@evergroemart.com/Admin@123 works. Sub admin subadmin@evergroemart.com/SubAdmin@123 works.",
+  "seed_data_creation": "Ephemeral TEST_it23_* users created and hard-deleted via bulk-delete/DELETE endpoints within each test. No lingering rows.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints (bulk-delete, bulk-update, cascade delete, meta pixel persistence) all green — test file /app/backend/tests/test_iteration23_bulk_admin_meta.py. The forbidden MLM copy on the landing page is not in JSX but comes from DB: /api/sliders?location=landing_top,landing_mid, /api/site/testimonials, /api/site/faqs. Also site settings terms_content HTML still references MLM/8-Level for compliance — check if scope requires scrubbing that too. Admin frontend testids are all correctly in place: admin-meta-pixel-card, meta-pixel-id-input, meta-pixel-code-editor, save-meta-pixel, clear-meta-pixel, bulk-select-all, row-select-{code}, admin-bulk-bar, bulk-edit-btn, bulk-delete-btn, bulk-delete-cascade-btn, bulk-edit-modal, bulk-field-select, bulk-value-input, bulk-edit-submit. Admin cascade toggle on AdminUserDetail (admin-delete-cascade-toggle/label) was not manually opened but the delete-cascade backend query param works when invoked.",
+  "rca of the issue": "Landing page MLM/downline/'Calculate Earnings' text visible on / is not a JSX regression — Landing.jsx and related components are clean. The strings live in three DB collections (sliders, site.testimonials, site.faqs) that were seeded before the scrub. seed.py only migrates tagline + notification_bar_text — it needs an equivalent block that rewrites/removes forbidden phrases in these collections. Additionally, landing_mid sliders still link to /business-plan and /calculator which App.js redirects to / — so those slider CTAs no longer function meaningfully."
+}

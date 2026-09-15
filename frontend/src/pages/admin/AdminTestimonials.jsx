@@ -47,7 +47,7 @@ export default function AdminTestimonials() {
     <div className="space-y-6" data-testid="admin-testimonials-page">
       <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
-          <h1 className="font-display text-3xl font-bold text-[#064E3B]">Testimonials</h1>
+          <h1 className="font-display text-3xl font-bold text-[#7F1D1D]">Testimonials</h1>
           <div className="text-sm text-[#64748B]">Total: {items.length} · Shown on landing page as auto-scrolling slider</div>
         </div>
         <button onClick={() => setEdit({ ...blank })} className="btn-primary" data-testid="add-testimonial-btn">
@@ -63,10 +63,10 @@ export default function AdminTestimonials() {
             <div className="flex items-start gap-3">
               <img src={t.avatar || "https://i.pravatar.cc/100?img=1"} alt="" className="w-12 h-12 rounded-full object-cover flex-shrink-0"/>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-[#064E3B] truncate">{t.name}</div>
-                <div className="text-xs text-[#65A30D]">{t.role}</div>
+                <div className="font-semibold text-[#7F1D1D] truncate">{t.name}</div>
+                <div className="text-xs text-[#B91C1C]">{t.role}</div>
                 <div className="flex gap-0.5 mt-0.5">
-                  {[...Array(t.rating || 5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-[#FBBF24] text-[#FBBF24]"/>)}
+                  {[...Array(t.rating || 5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-[#DC2626] text-[#DC2626]"/>)}
                 </div>
               </div>
             </div>
@@ -95,21 +95,21 @@ export default function AdminTestimonials() {
             <input className="input-soft" placeholder="Role (e.g. Level 5 Member)" value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })} data-testid="t-role-input"/>
             <textarea className="input-soft min-h-[100px]" placeholder="Testimonial message" value={edit.message} onChange={(e) => setEdit({ ...edit, message: e.target.value })} data-testid="t-message-input"/>
             <div className="flex items-center gap-2">
-              <label className="text-sm font-semibold text-[#064E3B]">Rating:</label>
+              <label className="text-sm font-semibold text-[#7F1D1D]">Rating:</label>
               <select className="input-soft w-24" value={edit.rating} onChange={(e) => setEdit({ ...edit, rating: +e.target.value })}>
                 {[1,2,3,4,5].map((n) => <option key={n} value={n}>{n} ★</option>)}
               </select>
             </div>
             <div>
-              <div className="text-sm font-semibold mb-2 text-[#064E3B]">Photo</div>
+              <div className="text-sm font-semibold mb-2 text-[#7F1D1D]">Photo</div>
               {edit.avatar ? (
                 <div className="relative w-20 h-20 rounded-full overflow-hidden">
                   <img src={edit.avatar} alt="" className="w-full h-full object-cover"/>
                   <button onClick={() => setEdit({ ...edit, avatar: "" })} className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5">×</button>
                 </div>
               ) : (
-                <label className="w-20 h-20 border-2 border-dashed border-[#E2E8F0] rounded-full flex flex-col items-center justify-center cursor-pointer hover:border-[#84CC16]">
-                  <Upload className="w-4 h-4 text-[#65A30D]"/>
+                <label className="w-20 h-20 border-2 border-dashed border-[#E2E8F0] rounded-full flex flex-col items-center justify-center cursor-pointer hover:border-[#DC2626]">
+                  <Upload className="w-4 h-4 text-[#B91C1C]"/>
                   <input type="file" hidden accept="image/*" onChange={(e) => e.target.files[0] && upload(e.target.files[0])} data-testid="t-avatar-upload"/>
                 </label>
               )}

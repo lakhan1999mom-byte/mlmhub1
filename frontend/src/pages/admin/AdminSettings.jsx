@@ -57,17 +57,17 @@ export default function AdminSettings() {
 
       <div className="card-soft p-6 space-y-3">
         <h3 className="font-display font-bold text-lg">Delivery & GST</h3>
-        <label className="flex items-center gap-2 cursor-pointer p-3 bg-[#ECFCCB] border border-[#84CC16]/30 rounded-xl">
+        <label className="flex items-center gap-2 cursor-pointer p-3 bg-[#FEE2E2] border border-[#DC2626]/30 rounded-xl">
           <input
             type="checkbox"
             checked={site.delivery_charge_enabled !== false}
             onChange={(e) => setSite({...site, delivery_charge_enabled: e.target.checked})}
-            className="accent-[#84CC16] w-4 h-4"
+            className="accent-[#DC2626] w-4 h-4"
             data-testid="delivery-charge-enabled-toggle"
           />
           <div className="flex-1">
-            <div className="text-sm font-semibold text-[#064E3B]">Charge delivery fee to customers</div>
-            <div className="text-xs text-[#065F46]">When OFF, all orders get FREE shipping regardless of amount.</div>
+            <div className="text-sm font-semibold text-[#7F1D1D]">Charge delivery fee to customers</div>
+            <div className="text-xs text-[#991B1B]">When OFF, all orders get FREE shipping regardless of amount.</div>
           </div>
         </label>
         <div className="grid sm:grid-cols-3 gap-3">
@@ -87,11 +87,62 @@ export default function AdminSettings() {
         </div>
       </div>
 
+      {/* META PIXEL */}
+      <div className="card-soft p-6 space-y-3" data-testid="admin-meta-pixel-card">
+        <h3 className="font-display font-bold text-lg">Meta Pixel (Facebook)</h3>
+        <p className="text-xs text-[#64748B]">Paste your Facebook Pixel ID OR a custom pixel script below. Saving overwrites the previously injected code. Delete either field's content and Save to remove tracking entirely.</p>
+        <Input label="Meta Pixel ID (recommended)" v={site.meta_pixel_id || ""} on={upd("meta_pixel_id")} testid="meta-pixel-id-input"/>
+        <div>
+          <label className="text-sm font-semibold">Custom Pixel Script (optional — overrides ID)</label>
+          <textarea
+            className="input-soft mt-1 min-h-[160px] font-mono text-xs"
+            value={site.meta_pixel_code || ""}
+            onChange={upd("meta_pixel_code")}
+            placeholder="!function(...){...}(); fbq('init','000000');"
+            data-testid="meta-pixel-code-editor"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={saveSite} disabled={busy} className="btn-primary" data-testid="save-meta-pixel">Save Meta Pixel</button>
+          <button
+            onClick={() => {
+              setSite({...site, meta_pixel_id: "", meta_pixel_code: ""});
+              setTimeout(saveSite, 50);
+            }}
+            className="btn-outline"
+            data-testid="clear-meta-pixel"
+          >
+            Delete Old Code
+          </button>
+        </div>
+      </div>
+
       <div className="card-soft p-6 space-y-3">
         <h3 className="font-display font-bold text-lg">Razorpay (Currently MOCK)</h3>
         <Input label="Razorpay Key ID" v={site.razorpay_key_id || ""} on={upd("razorpay_key_id")} testid="razorpay-key-id"/>
         <Input label="Razorpay Key Secret" v={site.razorpay_key_secret || ""} on={upd("razorpay_key_secret")} testid="razorpay-key-secret"/>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!site.razorpay_enabled} onChange={upd("razorpay_enabled")}/> Enable Razorpay live</label>
+      </div>
+
+      {/* PAYMENT GATEWAY MASTER SWITCH */}
+      <div className="card-soft p-6 space-y-3 border-2 border-[#FCA5A5]" data-testid="admin-payment-gateway-card">
+        <h3 className="font-display font-bold text-lg">Payment Gateway (Master Switch)</h3>
+        <p className="text-xs text-[#64748B]">Nothing accepts payments until you enable a gateway here. Customers see a "Payment gateway not configured" screen when this is <b>None</b>.</p>
+        <div>
+          <label className="text-sm font-semibold">Active gateway</label>
+          <select
+            className="input-soft mt-1"
+            value={site.active_payment_gateway || "none"}
+            onChange={(e) => setSite({...site, active_payment_gateway: e.target.value})}
+            data-testid="active-payment-gateway-select"
+          >
+            <option value="none">None — payments disabled</option>
+            <option value="uropay">UroPay (QR + UTR)</option>
+            <option value="razorpay">Razorpay (Cards / UPI / Netbanking)</option>
+            <option value="manual">Manual (Bank transfer / offline)</option>
+          </select>
+        </div>
+        <button onClick={saveSite} disabled={busy} className="btn-primary" data-testid="save-payment-gateway">Save Payment Gateway</button>
       </div>
 
       <div className="card-soft p-6 space-y-3">

@@ -49,16 +49,16 @@ export default function ProductsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8" data-testid="products-page">
       <div className="mb-6">
-        <h1 className="font-display text-3xl md:text-4xl font-bold text-[#064E3B]">All Products</h1>
+        <h1 className="font-display text-3xl md:text-4xl font-bold text-[#7F1D1D]">All Products</h1>
         <p className="text-sm text-[#64748B] mt-1">Browse premium groceries, snacks, wellness & more — hand-picked by EverGro.</p>
       </div>
 
       {showJoinGate && (
-        <div className="mb-6 p-4 bg-[#FEF3C7] border border-[#FDE68A] rounded-xl flex items-start gap-3" data-testid="products-join-gate">
-          <Lock className="w-5 h-5 text-[#92400E] flex-shrink-0 mt-0.5"/>
-          <div className="text-sm text-[#92400E] flex-1">
+        <div className="mb-6 p-4 bg-[#FEF2F2] border border-[#FCA5A5] rounded-xl flex items-start gap-3" data-testid="products-join-gate">
+          <Lock className="w-5 h-5 text-[#7F1D1D] flex-shrink-0 mt-0.5"/>
+          <div className="text-sm text-[#7F1D1D] flex-1">
             <div className="font-semibold mb-0.5">Unlock the full store</div>
-            You can browse products, but adding to cart is locked until you complete your ₹7,499 Purchasing Kit.
+            You can browse products, but adding to cart is locked until you complete your ₹9,999 Purchasing Kit.
           </div>
           <Link to="/hampers" className="btn-primary text-xs whitespace-nowrap" data-testid="products-view-kit-btn">View Purchasing Kit</Link>
         </div>
@@ -79,7 +79,7 @@ export default function ProductsPage() {
       <div className="grid grid-cols-12 gap-6">
         {/* Left sidebar categories (Flipkart-style) */}
         <aside className="col-span-3 md:col-span-2 sticky top-24 self-start" data-testid="category-sidebar">
-          <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D] mb-3 hidden md:block">All Categories</div>
+          <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-3 hidden md:block">All Categories</div>
           <div className="space-y-1">
             {CATEGORY_META.map((c) => (
               <button
@@ -87,8 +87,8 @@ export default function ProductsPage() {
                 onClick={() => setCategory(c.key)}
                 className={`w-full flex flex-col md:flex-row md:items-center gap-2 p-2 md:px-3 md:py-2.5 rounded-xl text-xs md:text-sm font-medium transition-all text-center md:text-left ${
                   category === c.key
-                    ? "bg-[#84CC16] text-[#064E3B] shadow-sm"
-                    : "text-[#334155] hover:bg-[#ECFCCB]"
+                    ? "bg-[#DC2626] text-[#7F1D1D] shadow-sm"
+                    : "text-[#334155] hover:bg-[#FEE2E2]"
                 }`}
                 data-testid={`cat-sidebar-${c.key || "all"}`}
               >
@@ -104,7 +104,7 @@ export default function ProductsPage() {
           {/* Featured row */}
           {featured.length > 0 && !q && !category && (
             <section data-testid="featured-row">
-              <h2 className="font-display text-xl font-bold text-[#064E3B] mb-4">New &amp; Upcoming Launches</h2>
+              <h2 className="font-display text-xl font-bold text-[#7F1D1D] mb-4">New &amp; Upcoming Launches</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {featured.map((p) => (
                   <Link
@@ -117,15 +117,15 @@ export default function ProductsPage() {
                       <img src={p.images?.[0]} alt={p.name} className="w-full h-full object-cover"/>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs bg-[#84CC16] text-[#064E3B] font-bold uppercase inline-block px-2 py-0.5 rounded mb-1">
+                      <div className="text-xs bg-[#DC2626] text-[#7F1D1D] font-bold uppercase inline-block px-2 py-0.5 rounded mb-1">
                         {p.badges?.[0] || "New"}
                       </div>
-                      <div className="text-sm font-semibold text-[#064E3B] truncate">{p.name}</div>
+                      <div className="text-sm font-semibold text-[#7F1D1D] truncate">{p.name}</div>
                       <div className="text-xs flex items-center gap-1 text-[#94A3B8]">
-                        <Star className="w-3 h-3 fill-[#FBBF24] text-[#FBBF24]"/>
+                        <Star className="w-3 h-3 fill-[#DC2626] text-[#DC2626]"/>
                         <span>{p.rating}</span>
                       </div>
-                      <div className="font-numbers text-sm font-bold text-[#064E3B]">₹{p.price}</div>
+                      <div className="font-numbers text-sm font-bold text-[#7F1D1D]">₹{p.price}</div>
                     </div>
                   </Link>
                 ))}
@@ -136,7 +136,7 @@ export default function ProductsPage() {
           {/* Main product grid */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-display text-xl font-bold text-[#064E3B]">
+              <h2 className="font-display text-xl font-bold text-[#7F1D1D]">
                 {category ? CATEGORY_META.find((c) => c.key === category)?.label : "All Products"}
                 <span className="text-sm font-normal text-[#64748B] ml-2">({items.length})</span>
               </h2>

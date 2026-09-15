@@ -13,9 +13,9 @@ export default function Blog() {
           <Link to={`/blog/${b.slug}`} key={b.id} className="card-soft overflow-hidden hover:-translate-y-1 transition-transform" data-testid={`blog-${b.slug}`}>
             <img src={b.cover_image} alt="" className="aspect-video w-full object-cover"/>
             <div className="p-5">
-              <h3 className="font-display font-bold text-lg mb-2 text-[#064E3B]">{b.title}</h3>
+              <h3 className="font-display font-bold text-lg mb-2 text-[#7F1D1D]">{b.title}</h3>
               <p className="text-sm text-[#334155]">{b.excerpt}</p>
-              <div className="text-xs text-[#65A30D] mt-3 font-semibold">{b.author}</div>
+              <div className="text-xs text-[#B91C1C] mt-3 font-semibold">{b.author}</div>
             </div>
           </Link>
         ))}

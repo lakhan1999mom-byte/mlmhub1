@@ -63,15 +63,15 @@ export default function AdminReels() {
               {r.thumbnail_url && <img src={r.thumbnail_url} alt="" className="w-full h-full object-cover opacity-80"/>}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="bg-white/90 rounded-full w-10 h-10 flex items-center justify-center">
-                  <Play className="w-4 h-4 text-[#064E3B] ml-0.5"/>
+                  <Play className="w-4 h-4 text-[#7F1D1D] ml-0.5"/>
                 </div>
               </div>
             </div>
             <div className="p-3">
-              <div className="font-semibold text-xs text-[#064E3B] line-clamp-2">{r.title}</div>
-              <div className="text-[10px] text-[#65A30D] font-numbers mt-1 capitalize">{r.location} · {r.is_active ? "Active" : "Off"}</div>
+              <div className="font-semibold text-xs text-[#7F1D1D] line-clamp-2">{r.title}</div>
+              <div className="text-[10px] text-[#B91C1C] font-numbers mt-1 capitalize">{r.location} · {r.is_active ? "Active" : "Off"}</div>
               <div className="flex gap-1 mt-2">
-                <button onClick={() => setEdit({...r})} className="text-xs bg-[#ECFCCB] text-[#064E3B] rounded-full px-2 py-1 flex items-center gap-1"><Pencil className="w-3 h-3"/></button>
+                <button onClick={() => setEdit({...r})} className="text-xs bg-[#FEE2E2] text-[#7F1D1D] rounded-full px-2 py-1 flex items-center gap-1"><Pencil className="w-3 h-3"/></button>
                 <button onClick={() => del(r.id)} className="text-xs bg-red-50 text-red-600 rounded-full px-2 py-1" data-testid={`del-reel-${r.id}`}><Trash2 className="w-3 h-3"/></button>
               </div>
             </div>
@@ -97,8 +97,8 @@ export default function AdminReels() {
               {edit.video_url ? (
                 <video src={edit.video_url} controls className="rounded-lg max-h-60 w-full bg-black mt-2"/>
               ) : (
-                <label className="block border-2 border-dashed border-[#E2E8F0] rounded-lg p-6 text-center cursor-pointer hover:border-[#84CC16]">
-                  <Upload className="w-5 h-5 mx-auto text-[#65A30D] mb-2"/>
+                <label className="block border-2 border-dashed border-[#E2E8F0] rounded-lg p-6 text-center cursor-pointer hover:border-[#DC2626]">
+                  <Upload className="w-5 h-5 mx-auto text-[#B91C1C] mb-2"/>
                   <div className="text-sm">Upload Video</div>
                   <input type="file" hidden accept="video/mp4,video/*" onChange={(e) => e.target.files[0] && uploadVideo(e.target.files[0])}/>
                 </label>

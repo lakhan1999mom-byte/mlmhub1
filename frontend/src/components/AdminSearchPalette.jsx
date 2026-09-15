@@ -49,50 +49,50 @@ export default function AdminSearchPalette({ open, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-start justify-center pt-20 px-4"
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-20 px-4"
       onClick={onClose}
       data-testid="admin-search-palette"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden"
+        className="w-full max-w-2xl rounded-3xl bg-white border border-[#FECACA] shadow-2xl overflow-hidden"
       >
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800">
-          <Search className="w-5 h-5 text-[#84CC16]"/>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#FEE2E2]">
+          <Search className="w-5 h-5 text-[#DC2626]"/>
           <input
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search users, businesses, orders — name, phone, email, code…"
-            className="flex-1 bg-transparent text-slate-100 placeholder:text-slate-500 outline-none font-medium"
+            className="flex-1 bg-transparent text-[#7F1D1D] placeholder:text-[#94A3B8] outline-none font-medium"
             data-testid="admin-search-input"
           />
-          <span className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1"><Command className="w-3 h-3"/> K</span>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200" data-testid="admin-search-close"><X className="w-4 h-4"/></button>
+          <span className="text-[10px] uppercase tracking-widest text-[#94A3B8] flex items-center gap-1"><Command className="w-3 h-3"/> K</span>
+          <button onClick={onClose} className="text-[#94A3B8] hover:text-[#7F1D1D]" data-testid="admin-search-close"><X className="w-4 h-4"/></button>
         </div>
 
         <div className="max-h-[65vh] overflow-y-auto p-3">
-          {loading && <div className="text-center py-6 text-slate-400 text-sm">Searching…</div>}
+          {loading && <div className="text-center py-6 text-[#B91C1C] text-sm">Searching…</div>}
           {!loading && q.trim().length === 0 && (
-            <div className="text-center py-10 text-slate-500 text-sm">
+            <div className="text-center py-10 text-[#94A3B8] text-sm">
               <Sparkles className="w-6 h-6 mx-auto mb-2 opacity-40"/>
               Try searching by name, phone, referral code or order number.
             </div>
           )}
           {!loading && q.trim().length > 0 && data.total === 0 && (
-            <div className="text-center py-10 text-slate-500 text-sm">No matches for &quot;{q}&quot;</div>
+            <div className="text-center py-10 text-[#94A3B8] text-sm">No matches for &quot;{q}&quot;</div>
           )}
 
           {data.users.length > 0 && (
             <Section title="Users" count={data.users.length} icon={<Users className="w-3 h-3"/>}>
               {data.users.map((u) => (
                 <Row key={u.id} onClick={() => go(`/admin/users/${u.id}`)} testid={`palette-user-${u.user_code}`}>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#84CC16] to-[#65A30D] text-white flex items-center justify-center text-sm font-bold shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#DC2626] to-[#B91C1C] text-white flex items-center justify-center text-sm font-bold shrink-0">
                     {(u.name || "?").charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-slate-100 text-sm font-semibold truncate">{u.name}</div>
-                    <div className="text-[11px] text-slate-400 font-mono truncate">{u.user_code} · {u.phone || u.email} · Ref {u.referral_code || "—"}</div>
+                    <div className="text-[#7F1D1D] text-sm font-semibold truncate">{u.name}</div>
+                    <div className="text-[11px] text-[#B91C1C] font-mono truncate">{u.user_code} · {u.phone || u.email} · Ref {u.referral_code || "—"}</div>
                   </div>
                   <span className={`badge-pill text-[9px] ${u.is_joining_paid ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30" : "bg-amber-950/60 text-amber-300 border border-amber-500/30"}`}>{u.is_joining_paid ? "Active" : "Pending"}</span>
                 </Row>
@@ -104,10 +104,10 @@ export default function AdminSearchPalette({ open, onClose }) {
             <Section title="Referral Businesses" count={data.businesses.length} icon={<Briefcase className="w-3 h-3"/>}>
               {data.businesses.map((b) => (
                 <Row key={b.id} onClick={() => go(`/admin/users/${b.owner_user_id}`)} testid={`palette-biz-${b.business_code}`}>
-                  <div className="w-8 h-8 rounded-2xl bg-slate-800 text-[#84CC16] flex items-center justify-center shrink-0"><Briefcase className="w-4 h-4"/></div>
+                  <div className="w-8 h-8 rounded-2xl bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shrink-0"><Briefcase className="w-4 h-4"/></div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-slate-100 text-sm font-semibold truncate">{b.name}</div>
-                    <div className="text-[11px] text-slate-400 font-mono truncate">{b.business_code} · Ref {b.referral_code} · Owner {b.owner?.user_code || "—"}</div>
+                    <div className="text-[#7F1D1D] text-sm font-semibold truncate">{b.name}</div>
+                    <div className="text-[11px] text-[#B91C1C] font-mono truncate">{b.business_code} · Ref {b.referral_code} · Owner {b.owner?.user_code || "—"}</div>
                   </div>
                   <span className={`badge-pill text-[9px] ${b.is_active ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30" : "bg-amber-950/60 text-amber-300 border border-amber-500/30"}`}>{b.is_active ? "Active" : "Pending"}</span>
                 </Row>
@@ -119,10 +119,10 @@ export default function AdminSearchPalette({ open, onClose }) {
             <Section title="Orders" count={data.orders.length} icon={<ShoppingBag className="w-3 h-3"/>}>
               {data.orders.map((o) => (
                 <Row key={o.id} onClick={() => go(`/admin/orders`)} testid={`palette-order-${o.order_code}`}>
-                  <div className="w-8 h-8 rounded-2xl bg-slate-800 text-[#84CC16] flex items-center justify-center shrink-0"><ShoppingBag className="w-4 h-4"/></div>
+                  <div className="w-8 h-8 rounded-2xl bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shrink-0"><ShoppingBag className="w-4 h-4"/></div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-slate-100 text-sm font-semibold truncate">{o.order_code}</div>
-                    <div className="text-[11px] text-slate-400 font-mono truncate">₹{o.total} · {o.status} · {o.payment_status}</div>
+                    <div className="text-[#7F1D1D] text-sm font-semibold truncate">{o.order_code}</div>
+                    <div className="text-[11px] text-[#B91C1C] font-mono truncate">₹{o.total} · {o.status} · {o.payment_status}</div>
                   </div>
                 </Row>
               ))}
@@ -130,7 +130,7 @@ export default function AdminSearchPalette({ open, onClose }) {
           )}
         </div>
 
-        <div className="border-t border-slate-800 px-4 py-2 text-[10px] uppercase tracking-widest text-slate-500 flex items-center justify-between">
+        <div className="border-t border-[#FEE2E2] px-4 py-2 text-[10px] uppercase tracking-widest text-[#94A3B8] flex items-center justify-between">
           <span>Press ↵ to open · Esc to close</span>
           <span>Live search</span>
         </div>
@@ -142,7 +142,7 @@ export default function AdminSearchPalette({ open, onClose }) {
 function Section({ title, count, icon, children }) {
   return (
     <div className="mb-3">
-      <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold flex items-center gap-1 px-2 pb-1">
+      <div className="text-[10px] uppercase tracking-widest text-[#94A3B8] font-bold flex items-center gap-1 px-2 pb-1">
         {icon} {title} <span className="text-slate-600">· {count}</span>
       </div>
       <div className="space-y-1">{children}</div>
@@ -155,7 +155,7 @@ function Row({ onClick, children, testid }) {
     <button
       onClick={onClick}
       data-testid={testid}
-      className="w-full flex items-center gap-3 p-2.5 rounded-2xl hover:bg-slate-800 border border-transparent hover:border-[#84CC16]/40 transition-colors text-left"
+      className="w-full flex items-center gap-3 p-2.5 rounded-2xl hover:bg-[#FEE2E2] border border-transparent hover:border-[#DC2626]/40 transition-colors text-left"
     >
       {children}
     </button>

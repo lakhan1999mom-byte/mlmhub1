@@ -20,7 +20,7 @@ export default function AdminWithdrawals() {
       <h1 className="font-display text-3xl font-bold">Withdrawals</h1>
       <div className="flex gap-2 overflow-x-auto">
         {["","pending","approved","paid","rejected","hold"].map((s) => (
-          <button key={s||"all"} onClick={() => setFilter(s)} className={`px-4 py-2 rounded-full text-sm font-semibold capitalize ${filter === s ? "bg-[#84CC16] text-[#064E3B]" : "bg-white border border-[#E2E8F0]"}`}>{s || "All"}</button>
+          <button key={s||"all"} onClick={() => setFilter(s)} className={`px-4 py-2 rounded-full text-sm font-semibold capitalize ${filter === s ? "bg-[#DC2626] text-[#7F1D1D]" : "bg-white border border-[#E2E8F0]"}`}>{s || "All"}</button>
         ))}
       </div>
       <div className="card-soft overflow-x-auto">
@@ -36,17 +36,17 @@ export default function AdminWithdrawals() {
                 <td className="p-3 font-numbers font-bold">₹{w.amount}</td>
                 <td className="p-3 capitalize">{w.method}</td>
                 <td className="p-3 text-xs">{w.method === "upi" ? w.upi_id : `${w.bank_name} · ${w.account_number}`}</td>
-                <td className="p-3"><span className={`badge-pill capitalize ${["approved","paid"].includes(w.status) ? "bg-[#ECFCCB] text-[#065F46]" : w.status === "rejected" ? "bg-red-100 text-red-700" : "bg-[#FEF3C7] text-[#92400E]"}`}>{w.status}</span></td>
+                <td className="p-3"><span className={`badge-pill capitalize ${["approved","paid"].includes(w.status) ? "bg-[#FEE2E2] text-[#991B1B]" : w.status === "rejected" ? "bg-red-100 text-red-700" : "bg-[#FEF2F2] text-[#7F1D1D]"}`}>{w.status}</span></td>
                 <td className="p-3 flex gap-1 flex-wrap">
                   {w.status === "pending" && (
                     <>
-                      <button onClick={() => update(w, "approved")} className="text-xs bg-[#84CC16] text-[#064E3B] rounded-full px-3 py-1 font-semibold" data-testid={`approve-${w.withdrawal_code}`}>Approve</button>
+                      <button onClick={() => update(w, "approved")} className="text-xs bg-[#DC2626] text-[#7F1D1D] rounded-full px-3 py-1 font-semibold" data-testid={`approve-${w.withdrawal_code}`}>Approve</button>
                       <button onClick={() => update(w, "rejected")} className="text-xs bg-red-100 text-red-700 rounded-full px-3 py-1 font-semibold" data-testid={`reject-${w.withdrawal_code}`}>Reject</button>
-                      <button onClick={() => update(w, "hold")} className="text-xs bg-[#FEF3C7] text-[#92400E] rounded-full px-3 py-1 font-semibold">Hold</button>
+                      <button onClick={() => update(w, "hold")} className="text-xs bg-[#FEF2F2] text-[#7F1D1D] rounded-full px-3 py-1 font-semibold">Hold</button>
                     </>
                   )}
                   {w.status === "approved" && (
-                    <button onClick={() => update(w, "paid")} className="text-xs bg-[#064E3B] text-white rounded-full px-3 py-1 font-semibold">Mark Paid</button>
+                    <button onClick={() => update(w, "paid")} className="text-xs bg-[#7F1D1D] text-white rounded-full px-3 py-1 font-semibold">Mark Paid</button>
                   )}
                 </td>
               </tr>

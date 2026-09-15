@@ -96,11 +96,11 @@ export default function Checkout() {
     <div className="max-w-6xl mx-auto px-6 py-12" data-testid="checkout-page">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-11 h-11 rounded-2xl bg-[#ECFCCB] flex items-center justify-center">
-            <Lock className="w-5 h-5 text-[#65A30D]"/>
+          <div className="w-11 h-11 rounded-2xl bg-[#FEE2E2] flex items-center justify-center">
+            <Lock className="w-5 h-5 text-[#B91C1C]"/>
           </div>
           <div>
-            <h1 className="font-display text-4xl font-black text-[#064E3B] leading-none">Secure Checkout</h1>
+            <h1 className="font-display text-4xl font-black text-[#7F1D1D] leading-none">Secure Checkout</h1>
             <p className="text-sm text-[#64748B] mt-1">256-bit encrypted · UroPay UPI · Direct-to-bank</p>
           </div>
         </div>
@@ -109,7 +109,7 @@ export default function Checkout() {
       {items.length === 0 ? (
         <div className="card-soft p-12 text-center mt-8">
           <div className="text-6xl mb-4">🛒</div>
-          <div className="font-display text-2xl font-bold text-[#064E3B] mb-2">Your cart is empty</div>
+          <div className="font-display text-2xl font-bold text-[#7F1D1D] mb-2">Your cart is empty</div>
           <button onClick={() => nav("/products")} className="btn-primary mt-4">Continue Shopping</button>
         </div>
       ) : (
@@ -117,8 +117,8 @@ export default function Checkout() {
           <div className="lg:col-span-2 space-y-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 }} className="card-soft p-6" data-testid="checkout-address-card">
               <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-[#65A30D]"/>
-                <h3 className="font-display font-bold text-lg text-[#064E3B]">Shipping Address</h3>
+                <MapPin className="w-5 h-5 text-[#B91C1C]"/>
+                <h3 className="font-display font-bold text-lg text-[#7F1D1D]">Shipping Address</h3>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <input className="input-soft" placeholder="Full Name" value={addr.full_name} onChange={(e) => setAddr({ ...addr, full_name: e.target.value })} data-testid="checkout-name"/>
@@ -132,15 +132,15 @@ export default function Checkout() {
 
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="card-soft p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Tag className="w-5 h-5 text-[#65A30D]"/>
-                <h3 className="font-display font-bold text-lg text-[#064E3B]">Have a coupon?</h3>
+                <Tag className="w-5 h-5 text-[#B91C1C]"/>
+                <h3 className="font-display font-bold text-lg text-[#7F1D1D]">Have a coupon?</h3>
               </div>
               <div className="flex gap-2">
                 <input className="input-soft flex-1 uppercase" placeholder="Try: WELCOME10" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} data-testid="checkout-coupon-input"/>
                 <button onClick={applyCoupon} className="btn-outline" data-testid="checkout-apply-coupon">Apply</button>
               </div>
               {appliedCoupon && (
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="mt-3 flex items-center gap-2 text-sm bg-[#ECFCCB] text-[#065F46] rounded-lg p-2 border border-[#84CC16]/40">
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="mt-3 flex items-center gap-2 text-sm bg-[#FEE2E2] text-[#991B1B] rounded-lg p-2 border border-[#DC2626]/40">
                   <CheckCircle2 className="w-4 h-4"/> <span className="font-semibold">{appliedCoupon.code}</span> — you save ₹{discount.toFixed(0)}
                 </motion.div>
               )}
@@ -149,17 +149,17 @@ export default function Checkout() {
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }} className="card-soft p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-[#65A30D]"/>
-                  <h3 className="font-display font-bold text-lg text-[#064E3B]">Payment Method</h3>
+                  <ShieldCheck className="w-5 h-5 text-[#B91C1C]"/>
+                  <h3 className="font-display font-bold text-lg text-[#7F1D1D]">Payment Method</h3>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest bg-[#ECFCCB] text-[#065F46] px-2 py-1 rounded-full" data-testid="uropay-live-badge">Live</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest bg-[#FEE2E2] text-[#991B1B] px-2 py-1 rounded-full" data-testid="uropay-live-badge">Live</span>
               </div>
-              <div className="rounded-xl p-4 border-2 border-[#84CC16] bg-[#ECFCCB]">
+              <div className="rounded-xl p-4 border-2 border-[#DC2626] bg-[#FEE2E2]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-[#065F46]">UPI</div>
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-[#991B1B]">UPI</div>
                   <div className="flex-1">
-                    <div className="font-bold text-sm text-[#065F46]">UroPay UPI</div>
-                    <div className="text-xs text-[#065F46]">Scan QR · PhonePe / GPay / Paytm / any UPI app · Direct-to-bank</div>
+                    <div className="font-bold text-sm text-[#991B1B]">UroPay UPI</div>
+                    <div className="text-xs text-[#991B1B]">Scan QR · PhonePe / GPay / Paytm / any UPI app · Direct-to-bank</div>
                   </div>
                 </div>
               </div>
@@ -168,8 +168,8 @@ export default function Checkout() {
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card-soft p-6 h-fit space-y-3 sticky top-24">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#84CC16]"/>
-              <h3 className="font-display font-bold text-lg text-[#064E3B]">Order Summary</h3>
+              <Sparkles className="w-4 h-4 text-[#DC2626]"/>
+              <h3 className="font-display font-bold text-lg text-[#7F1D1D]">Order Summary</h3>
             </div>
             <div className="space-y-2 font-numbers text-sm">
               {items.map((it) => (
@@ -180,12 +180,12 @@ export default function Checkout() {
               ))}
               <div className="border-t pt-2 flex justify-between"><span>Subtotal</span><span>₹{subtotal.toFixed(0)}</span></div>
               {gst > 0 && <div className="flex justify-between"><span>GST ({delivery.gst_percent}%)</span><span>₹{gst.toFixed(0)}</span></div>}
-              <div className="flex justify-between"><span>Shipping</span><span className={shipping ? "" : "text-[#65A30D] font-semibold"}>{shipping ? `₹${shipping}` : "FREE"}</span></div>
+              <div className="flex justify-between"><span>Shipping</span><span className={shipping ? "" : "text-[#B91C1C] font-semibold"}>{shipping ? `₹${shipping}` : "FREE"}</span></div>
               {extraCharges.map((c) => (
                 <div key={c.label} className="flex justify-between text-[#334155]"><span>{c.label}</span><span>₹{c.amount.toFixed(0)}</span></div>
               ))}
-              {discount > 0 && <div className="flex justify-between text-[#65A30D]"><span>Coupon</span><span>−₹{discount.toFixed(0)}</span></div>}
-              <div className="border-t pt-3 flex justify-between font-black text-xl text-[#064E3B]"><span>Total</span><span>₹{total.toFixed(0)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-[#B91C1C]"><span>Coupon</span><span>−₹{discount.toFixed(0)}</span></div>}
+              <div className="border-t pt-3 flex justify-between font-black text-xl text-[#7F1D1D]"><span>Total</span><span>₹{total.toFixed(0)}</span></div>
             </div>
             <button onClick={placeOrder} disabled={busy} className="btn-primary w-full justify-center text-base" data-testid="place-order-btn">
               {busy ? "Processing…" : (

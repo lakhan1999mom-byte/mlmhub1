@@ -43,7 +43,7 @@ export default function ResendOtpButton({ onResend, cooldownSeconds = 30, autost
       type="button"
       onClick={doResend}
       disabled={!canResend}
-      className={`inline-flex items-center gap-1.5 text-xs font-semibold transition-colors ${canResend ? "text-[#65A30D] hover:text-[#4D7C0F]" : "text-[#94A3B8] cursor-not-allowed"}`}
+      className={`inline-flex items-center gap-1.5 text-xs font-semibold transition-colors ${canResend ? "text-[#B91C1C] hover:text-[#4D7C0F]" : "text-[#94A3B8] cursor-not-allowed"}`}
       data-testid={testId}
     >
       <RefreshCw className={`w-3 h-3 ${busy ? "animate-spin" : ""}`}/>

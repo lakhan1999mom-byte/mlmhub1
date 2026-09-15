@@ -1,10 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import api from "@/lib/api";
-import { ArrowRight, Star, Users, Wallet, Sparkles, ShieldCheck, Award, ChevronRight, ChevronLeft, Quote, TrendingUp, Gift } from "lucide-react";
+import { ArrowRight, Star, ShoppingBag, Sparkles, ShieldCheck, Award, ChevronRight, ChevronLeft, Quote, Truck, Gift } from "lucide-react";
 import HeroSlider from "@/components/HeroSlider";
 import ReelsRow from "@/components/ReelsRow";
-import { INCOME_LEVELS, TOTAL_POTENTIAL_WORDS } from "@/lib/plan-theme";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1753354868431-a5317771a3ea?crop=entropy&cs=srgb&fm=jpg&q=85&w=900";
 
@@ -39,45 +38,45 @@ export default function Landing() {
       <section className="relative bg-hero-glow">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 py-16 lg:py-24 grid lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FEF3C7] border border-[#FDE68A] rounded-full text-xs font-semibold text-[#92400E]" data-testid="hero-badge">
-              <Sparkles className="w-3.5 h-3.5"/> India's Most Trusted MLM Hamper Platform
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FEE2E2] border border-[#FCA5A5] rounded-full text-xs font-semibold text-[#7F1D1D]" data-testid="hero-badge">
+              <Sparkles className="w-3.5 h-3.5"/> Premium Everyday Essentials · Home Delivered
             </div>
-            <h1 className="font-display text-5xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-[#064E3B]" data-testid="hero-title">
-              Grow Your <span className="text-[#84CC16]">Network</span>,<br/>
-              Multiply Your <span className="text-[#FBBF24]">Wealth</span>
+            <h1 className="font-display text-5xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-[#7F1D1D]" data-testid="hero-title">
+              Shop Premium <span className="text-[#DC2626]">Hampers</span>,<br/>
+              Delivered To Your <span className="text-[#DC2626]">Door</span>
             </h1>
             <p className="text-lg text-[#334155] leading-relaxed max-w-xl">
-              Buy premium hampers, share your referral link, and earn through 8 transparent stages. {site?.tagline || "Real products. Real commissions. Real wealth."}
+              Hand-picked gifting hampers and daily essentials from India's most loved brands. {site?.tagline || "Quality you can taste. Value you can feel."}
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <Link to="/register" className="btn-primary text-base px-7" data-testid="hero-cta-join">
-                Start Earning Today <ArrowRight className="w-4 h-4"/>
+              <Link to="/products" className="btn-primary text-base px-7" data-testid="hero-cta-shop">
+                Shop Now <ArrowRight className="w-4 h-4"/>
               </Link>
-              <Link to="/calculator" className="btn-outline text-base" data-testid="hero-cta-calculator">
-                <TrendingUp className="w-4 h-4"/> Calculate Earnings
+              <Link to="/hampers" className="btn-outline text-base" data-testid="hero-cta-hampers">
+                <Gift className="w-4 h-4"/> Explore Hampers
               </Link>
             </div>
             <div className="flex flex-wrap items-center gap-8 pt-6">
-              <Stat number="50,000+" label="Active Members"/>
-              <Stat number="₹12 Cr+" label="Commissions Paid"/>
-              <Stat number="8" label="Income Levels"/>
+              <Stat number="50,000+" label="Happy Customers"/>
+              <Stat number="4.8★" label="Average Rating"/>
+              <Stat number="24×7" label="Support"/>
             </div>
           </div>
           <div className="lg:col-span-5 relative">
             <div className="relative">
-              <div className="absolute -top-6 -left-6 w-32 h-32 bg-[#FBBF24]/30 rounded-full blur-2xl" />
-              <div className="absolute -bottom-8 -right-4 w-40 h-40 bg-[#84CC16]/30 rounded-full blur-3xl" />
-              <img src={HERO_IMG} alt="Happy family" className="relative rounded-3xl shadow-2xl w-full"/>
+              <div className="absolute -top-6 -left-6 w-32 h-32 bg-[#DC2626]/20 rounded-full blur-2xl" />
+              <div className="absolute -bottom-8 -right-4 w-40 h-40 bg-[#DC2626]/20 rounded-full blur-3xl" />
+              <img src={HERO_IMG} alt="Premium hamper" className="relative rounded-3xl shadow-2xl w-full"/>
               <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl flex items-center gap-3 animate-float" data-testid="hero-floating-card">
-                <div className="bg-[#84CC16] rounded-full w-10 h-10 flex items-center justify-center"><Wallet className="w-5 h-5 text-[#064E3B]"/></div>
+                <div className="bg-[#DC2626] rounded-full w-10 h-10 flex items-center justify-center"><Truck className="w-5 h-5 text-white"/></div>
                 <div>
-                  <div className="text-xs text-[#64748B]">This month payout</div>
-                  <div className="font-numbers text-xl font-bold text-[#064E3B]">₹2,45,890</div>
+                  <div className="text-xs text-[#64748B]">Free shipping above</div>
+                  <div className="font-numbers text-xl font-bold text-[#7F1D1D]">₹999</div>
                 </div>
               </div>
-              <div className="absolute -top-4 -right-4 bg-[#064E3B] text-white p-3 rounded-2xl shadow-xl flex items-center gap-2 animate-float" style={{animationDelay: "1.5s"}}>
-                <Users className="w-4 h-4 text-[#84CC16]"/>
-                <span className="text-xs font-semibold">+247 joined today</span>
+              <div className="absolute -top-4 -right-4 bg-[#7F1D1D] text-white p-3 rounded-2xl shadow-xl flex items-center gap-2 animate-float" style={{animationDelay: "1.5s"}}>
+                <ShoppingBag className="w-4 h-4 text-[#FCA5A5]"/>
+                <span className="text-xs font-semibold">Fresh arrivals daily</span>
               </div>
             </div>
           </div>
@@ -85,11 +84,11 @@ export default function Landing() {
       </section>
 
       {/* TRUST STRIP */}
-      <section className="border-y border-[#E2E8F0] bg-white py-6">
+      <section className="border-y border-[#FEE2E2] bg-white py-6">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-3 gap-6">
           <Trust icon={ShieldCheck} title="Secure Payments" sub="256-bit SSL"/>
           <Trust icon={Award} title="Premium Quality" sub="Hand-picked items"/>
-          <Trust icon={Sparkles} title="Daily Payouts" sub="Auto wallet credit"/>
+          <Trust icon={Truck} title="Fast Delivery" sub="Pan-India shipping"/>
         </div>
       </section>
 
@@ -100,37 +99,37 @@ export default function Landing() {
         </section>
       )}
 
-      {/* REELS — Vertical Videos for engagement */}
-      {reels.length > 0 && <ReelsRow reels={reels} title="Watch Member Stories & Demos" testid="landing-reels"/>}
+      {/* REELS */}
+      {reels.length > 0 && <ReelsRow reels={reels} title="Watch Our Product Stories" testid="landing-reels"/>}
 
       {/* HAMPERS */}
       <section className="py-20 max-w-7xl mx-auto px-6">
         <div className="flex items-end justify-between mb-10">
           <div>
-            <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D] mb-2">Joining Packages</div>
-            <h2 className="font-display text-4xl lg:text-5xl font-bold">Choose Your <span className="text-[#84CC16]">Starter Hamper</span></h2>
+            <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Curated Bundles</div>
+            <h2 className="font-display text-4xl lg:text-5xl font-bold">Choose Your <span className="text-[#DC2626]">Starter Hamper</span></h2>
           </div>
-          <Link to="/hampers" className="hidden md:flex items-center text-sm font-semibold text-[#064E3B] hover:gap-2 transition-all" data-testid="hampers-view-all">
+          <Link to="/hampers" className="hidden md:flex items-center text-sm font-semibold text-[#7F1D1D] hover:gap-2 transition-all" data-testid="hampers-view-all">
             View all <ChevronRight className="w-4 h-4"/>
           </Link>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {hampers.map((h, i) => (
+          {hampers.map((h) => (
             <Link to={`/products/${h.id}`} key={h.id} className="group" data-testid={`hamper-card-${h.hamper_tier?.toLowerCase()}`}>
               <div className="card-soft overflow-hidden hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
-                <div className="relative aspect-square bg-gradient-to-br from-[#ECFCCB] to-[#FEF3C7] overflow-hidden">
+                <div className="relative aspect-square bg-gradient-to-br from-[#FEE2E2] to-[#FEF2F2] overflow-hidden">
                   <img src={h.images?.[0]} alt={h.name} className="w-full h-full object-cover mix-blend-multiply group-hover:scale-110 transition-transform duration-500"/>
-                  <div className="absolute top-3 left-3 badge-pill bg-[#064E3B] text-white">{h.hamper_tier}</div>
-                  {h.badges?.includes("bestseller") && <div className="absolute top-3 right-3 badge-pill bg-[#FBBF24] text-[#064E3B]">Bestseller</div>}
+                  <div className="absolute top-3 left-3 badge-pill bg-[#7F1D1D] text-white">{h.hamper_tier}</div>
+                  {h.badges?.includes("bestseller") && <div className="absolute top-3 right-3 badge-pill bg-[#DC2626] text-white">Bestseller</div>}
                 </div>
                 <div className="p-5">
-                  <div className="font-display font-semibold text-lg text-[#064E3B] mb-1">{h.name}</div>
+                  <div className="font-display font-semibold text-lg text-[#7F1D1D] mb-1">{h.name}</div>
                   <div className="flex items-baseline gap-2 mb-3">
-                    <span className="font-numbers text-2xl font-bold text-[#064E3B]">₹{h.price.toLocaleString()}</span>
+                    <span className="font-numbers text-2xl font-bold text-[#7F1D1D]">₹{h.price.toLocaleString()}</span>
                     <span className="text-sm text-[#94A3B8] line-through font-numbers">₹{h.mrp.toLocaleString()}</span>
                   </div>
-                  <div className="text-xs text-[#65A30D] font-semibold flex items-center gap-1">
-                    <Gift className="w-3.5 h-3.5"/> Activates MLM stages
+                  <div className="text-xs text-[#B91C1C] font-semibold flex items-center gap-1">
+                    <Gift className="w-3.5 h-3.5"/> Premium curated bundle
                   </div>
                 </div>
               </div>
@@ -139,131 +138,14 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 8-LEVEL INCOME PLAN */}
-      <section className="bg-[#064E3B] text-white py-16 lg:py-20" data-testid="landing-plan-section">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6">
-          <div className="text-center mb-10">
-            <div className="text-xs uppercase tracking-widest font-semibold text-[#84CC16] mb-2">8-Level Income Plan</div>
-            <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white">Earn Continuously From 8 Levels</h2>
-            <p className="text-white/70 mt-3 max-w-2xl mx-auto text-sm md:text-base">
-              One-time ₹7,499 purchase • Refer up to 6 direct members • Earn from every downline level.
-            </p>
-          </div>
-
-          {/* Plan Overview flow — 4 steps */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10" data-testid="plan-overview-flow">
-            {[
-              { n: 1, title: "Purchase Kit", sub: "₹7,499 One-Time", icon: "🛒" },
-              { n: 2, title: "Get Referral Code", sub: "Your unique ID", icon: "🔗" },
-              { n: 3, title: "Refer 6 Direct", sub: "Max 6 per member", icon: "👥" },
-              { n: 4, title: "Team Refers Too", sub: "Earn continuously", icon: "🌱" },
-            ].map((s) => (
-              <div key={s.n} className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 text-center" data-testid={`plan-step-${s.n}`}>
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#84CC16] text-[#064E3B] font-bold flex items-center justify-center text-2xl mx-auto mb-3">
-                  {s.icon}
-                </div>
-                <div className="font-display font-bold text-sm md:text-base text-white">{s.title}</div>
-                <div className="text-xs text-white/60 mt-1">{s.sub}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Highlight banner */}
-          <div className="bg-[#FBBF24] text-[#064E3B] rounded-xl p-3 md:p-4 text-center font-semibold text-sm md:text-base mb-8 max-w-3xl mx-auto" data-testid="plan-max-refs-banner">
-            ⚠ Maximum 6 direct referrals per member — each member can add up to 6 direct members
-          </div>
-
-          {/* 8-Level Income Structure Table */}
-          <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden" data-testid="plan-income-table">
-            <div className="bg-[#84CC16] text-[#064E3B] px-4 md:px-6 py-3 flex items-center justify-between flex-wrap gap-2">
-              <div className="font-display font-bold text-base md:text-lg">8-Level Income Structure</div>
-              <div className="text-xs md:text-sm font-semibold opacity-80">Income calculated on 6 members per level</div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left font-numbers text-sm md:text-base">
-                <thead>
-                  <tr className="text-white/60 text-xs uppercase tracking-wider border-b border-white/10">
-                    <th className="px-3 md:px-6 py-3">Level</th>
-                    <th className="px-3 md:px-6 py-3 text-right">Per Member Income</th>
-                    <th className="px-3 md:px-6 py-3 text-right hidden sm:table-cell">Total Members</th>
-                    <th className="px-3 md:px-6 py-3 text-right">Total Income</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {INCOME_LEVELS.map((r) => (
-                    <tr key={r.l} className="border-b border-white/5 hover:bg-white/[0.04] transition-colors" data-testid={`plan-level-${r.l}`}>
-                      <td className="px-3 md:px-6 py-3 md:py-4">
-                        <div className="inline-flex items-center gap-2">
-                          <span
-                            className="w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center font-bold text-white text-sm md:text-base"
-                            style={{ backgroundColor: r.color }}
-                          >
-                            {r.l}
-                          </span>
-                          <span className="text-white/70 text-xs uppercase hidden md:inline">Level</span>
-                        </div>
-                      </td>
-                      <td className="px-3 md:px-6 py-3 md:py-4 text-right text-white font-semibold">₹{r.per.toLocaleString("en-IN")}</td>
-                      <td className="px-3 md:px-6 py-3 md:py-4 text-right text-white/80 hidden sm:table-cell">{r.members.toLocaleString("en-IN")}</td>
-                      <td className="px-3 md:px-6 py-3 md:py-4 text-right font-bold" style={{ color: r.color }}>
-                        ₹{r.total.toLocaleString("en-IN")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-4 md:px-6 py-3 text-xs text-white/50 border-t border-white/5">
-              Note: Team calculation is based on 6 members per level (theoretical maximum).
-            </div>
-          </div>
-
-          {/* Total Potential */}
-          <div className="mt-8 grid md:grid-cols-3 gap-4 items-stretch">
-            <div className="md:col-span-2 bg-gradient-to-br from-[#84CC16] to-[#65A30D] rounded-2xl p-6 md:p-8 text-[#064E3B]" data-testid="plan-total-potential">
-              <div className="text-xs uppercase tracking-widest font-bold opacity-80">Total Earning Potential</div>
-              <div className="text-xs opacity-70 mb-2">on complete 6-member chain across 8 levels</div>
-              <div className="font-numbers text-3xl md:text-5xl font-black leading-tight">₹19,20,99,600</div>
-              <div className="text-xs md:text-sm mt-2 opacity-80">{TOTAL_POTENTIAL_WORDS}</div>
-            </div>
-            <div className="bg-[#FBBF24] text-[#064E3B] rounded-2xl p-6 flex flex-col items-center justify-center text-center" data-testid="plan-lifetime-badge">
-              <div className="text-4xl mb-2">🏆</div>
-              <div className="font-display font-bold text-lg">Lifetime Income Opportunity</div>
-              <div className="text-xs mt-1 opacity-80">No monthly fees · 100% transparent</div>
-            </div>
-          </div>
-
-          {/* Terms & Rules footer */}
-          <div className="mt-8 bg-white/[0.03] border border-white/10 rounded-2xl p-5 md:p-6" data-testid="plan-terms">
-            <div className="text-xs uppercase tracking-widest font-semibold text-[#84CC16] mb-3">Terms & Conditions</div>
-            <ul className="space-y-2 text-sm text-white/80">
-              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> The above income is calculated on the basis of 6 members per level.</li>
-              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> Your income will start from the time <strong className="text-[#FBBF24]">3 of your direct members</strong> make the ₹7,499 purchase.</li>
-              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> No monthly fees, no hidden charges — 100% transparent plan.</li>
-              <li className="flex gap-2"><span className="text-[#84CC16]">✓</span> Unlimited income potential with lifetime opportunity.</li>
-            </ul>
-          </div>
-
-          <div className="text-center mt-8">
-            <Link
-              to="/compensation-plan"
-              className="inline-flex items-center gap-2 text-[#84CC16] hover:text-[#FBBF24] font-semibold"
-              data-testid="plan-learn-more"
-            >
-              View full compensation plan <ArrowRight className="w-4 h-4"/>
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* FEATURED PRODUCTS */}
-      <section className="py-20 max-w-7xl mx-auto px-6">
+      <section className="py-16 max-w-7xl mx-auto px-6">
         <div className="flex items-end justify-between mb-10">
           <div>
-            <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D] mb-2">Premium Picks</div>
-            <h2 className="font-display text-4xl lg:text-5xl font-bold">Featured <span className="text-[#FBBF24]">Products</span></h2>
+            <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Premium Picks</div>
+            <h2 className="font-display text-4xl lg:text-5xl font-bold">Featured <span className="text-[#DC2626]">Products</span></h2>
           </div>
-          <Link to="/products" className="hidden md:flex items-center text-sm font-semibold text-[#064E3B] hover:gap-2 transition-all">
+          <Link to="/products" className="hidden md:flex items-center text-sm font-semibold text-[#7F1D1D] hover:gap-2 transition-all">
             Shop all <ChevronRight className="w-4 h-4"/>
           </Link>
         </div>
@@ -283,10 +165,10 @@ export default function Landing() {
 
       {/* PARTNER BRANDS SLIDER — admin controlled */}
       {brands.length > 0 && (
-        <section className="py-12 bg-white border-y border-[#E2E8F0]" data-testid="landing-brand-slider">
+        <section className="py-12 bg-white border-y border-[#FEE2E2]" data-testid="landing-brand-slider">
           <div className="max-w-7xl mx-auto px-6 text-center mb-8">
-            <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D] mb-2">Delivering premium brands</div>
-            <h3 className="font-display text-2xl md:text-3xl font-bold text-[#064E3B]">We deliver these brand products under our line</h3>
+            <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Delivering premium brands</div>
+            <h3 className="font-display text-2xl md:text-3xl font-bold text-[#7F1D1D]">We deliver these brand products under our line</h3>
           </div>
           <div className="overflow-hidden relative">
             <div className="flex gap-12 animate-marquee whitespace-nowrap items-center">
@@ -300,12 +182,12 @@ export default function Landing() {
         </section>
       )}
 
-      {/* TESTIMONIALS — slider with all seeded ~20 */}
-      <section className="bg-[#ECFCCB] py-20" data-testid="landing-testimonials">
+      {/* TESTIMONIALS */}
+      <section className="bg-[#FEE2E2] py-20" data-testid="landing-testimonials">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-10">
-            <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D] mb-2">Real Stories</div>
-            <h2 className="font-display text-4xl lg:text-5xl font-bold">What Our Members Say</h2>
+            <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Real Stories</div>
+            <h2 className="font-display text-4xl lg:text-5xl font-bold">What Our Customers Say</h2>
           </div>
           <TestimonialSlider testimonials={testimonials}/>
         </div>
@@ -314,15 +196,15 @@ export default function Landing() {
       {/* FAQ */}
       <section className="py-20 max-w-4xl mx-auto px-6" data-testid="landing-faq-section">
         <div className="text-center mb-10">
-          <div className="text-xs uppercase tracking-widest font-semibold text-[#65A30D] mb-2">Frequently Asked</div>
+          <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Frequently Asked</div>
           <h2 className="font-display text-4xl lg:text-5xl font-bold">Questions, Answered</h2>
         </div>
         <div className="space-y-3">
           {faqs.map((f, i) => (
-            <button key={f.id} onClick={() => setOpenFaq(openFaq === i ? -1 : i)} className="w-full text-left card-soft p-5 hover:border-[#84CC16] transition-colors" data-testid={`faq-${i}`}>
+            <button key={f.id} onClick={() => setOpenFaq(openFaq === i ? -1 : i)} className="w-full text-left card-soft p-5 hover:border-[#DC2626] transition-colors" data-testid={`faq-${i}`}>
               <div className="flex items-center justify-between gap-4">
-                <div className="font-semibold text-[#064E3B]">{f.question}</div>
-                <ChevronRight className={`w-4 h-4 text-[#65A30D] transition-transform ${openFaq === i ? "rotate-90" : ""}`}/>
+                <div className="font-semibold text-[#7F1D1D]">{f.question}</div>
+                <ChevronRight className={`w-4 h-4 text-[#DC2626] transition-transform ${openFaq === i ? "rotate-90" : ""}`}/>
               </div>
               {openFaq === i && <p className="text-[#334155] mt-3 leading-relaxed">{f.answer}</p>}
             </button>
@@ -365,16 +247,16 @@ function TestimonialSlider({ testimonials }) {
               className="card-soft p-6 flex-shrink-0 w-full md:w-[calc((100%-3rem)/3)]"
               data-testid={`testimonial-${t.id}`}
             >
-              <Quote className="w-8 h-8 text-[#84CC16] mb-3"/>
+              <Quote className="w-8 h-8 text-[#DC2626] mb-3"/>
               <p className="text-[#334155] leading-relaxed mb-4 line-clamp-4">"{t.message}"</p>
               <div className="flex items-center gap-3">
                 <img src={t.avatar} alt={t.name} className="w-10 h-10 rounded-full"/>
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-[#064E3B] text-sm truncate">{t.name}</div>
-                  <div className="text-xs text-[#65A30D]">{t.role}</div>
+                  <div className="font-semibold text-[#7F1D1D] text-sm truncate">{t.name}</div>
+                  <div className="text-xs text-[#B91C1C]">{t.role}</div>
                 </div>
                 <div className="flex gap-0.5">
-                  {[...Array(t.rating)].map((_, i) => (<Star key={i} className="w-3.5 h-3.5 fill-[#FBBF24] text-[#FBBF24]"/>))}
+                  {[...Array(t.rating)].map((_, i) => (<Star key={i} className="w-3.5 h-3.5 fill-[#DC2626] text-[#DC2626]"/>))}
                 </div>
               </div>
             </div>
@@ -385,20 +267,20 @@ function TestimonialSlider({ testimonials }) {
         <div className="flex items-center justify-center gap-3 mt-6">
           <button
             onClick={() => setIdx((i) => Math.max(0, i - 1))}
-            className="w-9 h-9 rounded-full bg-white border border-[#E2E8F0] hover:border-[#84CC16] flex items-center justify-center"
+            className="w-9 h-9 rounded-full bg-white border border-[#FECACA] hover:border-[#DC2626] flex items-center justify-center"
             data-testid="testimonial-prev"
           >
-            <ChevronLeft className="w-4 h-4 text-[#064E3B]"/>
+            <ChevronLeft className="w-4 h-4 text-[#7F1D1D]"/>
           </button>
           <div className="text-xs text-[#64748B] font-numbers">
             {clampedIdx + 1} / {maxIdx + 1}
           </div>
           <button
             onClick={() => setIdx((i) => Math.min(maxIdx, i + 1))}
-            className="w-9 h-9 rounded-full bg-white border border-[#E2E8F0] hover:border-[#84CC16] flex items-center justify-center"
+            className="w-9 h-9 rounded-full bg-white border border-[#FECACA] hover:border-[#DC2626] flex items-center justify-center"
             data-testid="testimonial-next"
           >
-            <ChevronRight className="w-4 h-4 text-[#064E3B]"/>
+            <ChevronRight className="w-4 h-4 text-[#7F1D1D]"/>
           </button>
         </div>
       )}
@@ -409,8 +291,8 @@ function TestimonialSlider({ testimonials }) {
 function Stat({ number, label }) {
   return (
     <div>
-      <div className="font-numbers text-3xl font-bold text-[#064E3B]">{number}</div>
-      <div className="text-xs uppercase tracking-widest text-[#65A30D] mt-1">{label}</div>
+      <div className="font-numbers text-3xl font-bold text-[#7F1D1D]">{number}</div>
+      <div className="text-xs uppercase tracking-widest text-[#B91C1C] mt-1">{label}</div>
     </div>
   );
 }
@@ -418,9 +300,9 @@ function Stat({ number, label }) {
 function Trust({ icon: Icon, title, sub }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="bg-[#ECFCCB] rounded-xl p-2.5"><Icon className="w-5 h-5 text-[#65A30D]"/></div>
+      <div className="bg-[#FEE2E2] rounded-xl p-2.5"><Icon className="w-5 h-5 text-[#DC2626]"/></div>
       <div>
-        <div className="font-semibold text-[#064E3B] text-sm">{title}</div>
+        <div className="font-semibold text-[#7F1D1D] text-sm">{title}</div>
         <div className="text-xs text-[#64748B]">{sub}</div>
       </div>
     </div>
@@ -432,13 +314,13 @@ export function ProductCard({ product }) {
   return (
     <Link to={`/products/${product.id}`} className="group block" data-testid={`product-card-${product.id}`}>
       <div className="card-soft overflow-hidden hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative">
-        <div className="relative aspect-square bg-gradient-to-br from-[#FAFAF9] to-[#ECFCCB]/30 overflow-hidden">
+        <div className="relative aspect-square bg-gradient-to-br from-white to-[#FEE2E2]/30 overflow-hidden">
           <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
           {product.badges?.[0] && (
-            <div className="absolute top-3 left-3 badge-pill bg-[#84CC16] text-[#064E3B] uppercase animate-pulse">{product.badges[0]}</div>
+            <div className="absolute top-3 left-3 badge-pill bg-[#DC2626] text-white uppercase animate-pulse">{product.badges[0]}</div>
           )}
           {discount > 0 && (
-            <div className="absolute top-3 right-3 bg-[#EF4444] text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">
+            <div className="absolute top-3 right-3 bg-[#7F1D1D] text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">
               -{discount}%
             </div>
           )}
@@ -447,14 +329,14 @@ export function ProductCard({ product }) {
           </div>
         </div>
         <div className="p-4">
-          <div className="font-semibold text-[#064E3B] text-sm line-clamp-2 mb-2 min-h-[2.5rem] group-hover:text-[#65A30D] transition-colors">{product.name}</div>
+          <div className="font-semibold text-[#7F1D1D] text-sm line-clamp-2 mb-2 min-h-[2.5rem] group-hover:text-[#DC2626] transition-colors">{product.name}</div>
           <div className="flex items-center gap-1 text-xs text-[#94A3B8] mb-2">
-            <Star className="w-3 h-3 fill-[#FBBF24] text-[#FBBF24]"/> {product.rating} · {product.review_count} reviews
+            <Star className="w-3 h-3 fill-[#DC2626] text-[#DC2626]"/> {product.rating} · {product.review_count} reviews
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="font-numbers text-lg font-bold text-[#064E3B]">₹{product.price}</span>
+            <span className="font-numbers text-lg font-bold text-[#7F1D1D]">₹{product.price}</span>
             {product.mrp > product.price && <span className="text-xs text-[#94A3B8] line-through">₹{product.mrp}</span>}
-            {discount > 0 && <span className="text-xs text-[#65A30D] font-bold ml-auto">Save ₹{product.mrp - product.price}</span>}
+            {discount > 0 && <span className="text-xs text-[#B91C1C] font-bold ml-auto">Save ₹{product.mrp - product.price}</span>}
           </div>
         </div>
       </div>

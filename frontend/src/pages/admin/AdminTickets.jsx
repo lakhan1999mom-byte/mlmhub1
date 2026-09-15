@@ -26,10 +26,10 @@ export default function AdminTickets() {
                 <div className="font-display font-bold">{t.subject}</div>
                 <div className="text-xs font-numbers text-[#64748B]">{t.ticket_code} · {t.user_name || t.user_code}</div>
               </div>
-              <span className={`badge-pill capitalize ${t.status === "resolved" ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#FEF3C7] text-[#92400E]"}`}>{t.status}</span>
+              <span className={`badge-pill capitalize ${t.status === "resolved" ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#FEF2F2] text-[#7F1D1D]"}`}>{t.status}</span>
             </div>
             <p className="text-sm text-[#334155]">{t.message}</p>
-            {t.admin_reply && <div className="mt-2 bg-[#ECFCCB] rounded-lg p-3 text-sm"><b>Reply:</b> {t.admin_reply}</div>}
+            {t.admin_reply && <div className="mt-2 bg-[#FEE2E2] rounded-lg p-3 text-sm"><b>Reply:</b> {t.admin_reply}</div>}
             {t.status !== "resolved" && <button onClick={() => reply(t)} className="btn-primary text-sm mt-3" data-testid={`reply-${t.ticket_code}`}>Reply & Resolve</button>}
           </div>
         ))}

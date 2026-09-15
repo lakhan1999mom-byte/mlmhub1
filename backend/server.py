@@ -1720,9 +1720,19 @@ async def admin_get_payment_config(_=Depends(require_admin)):
 
 @api.get("/site/payment-provider")
 async def site_active_payment_provider():
+    """Which gateway (if any) is currently enabled for customer checkout.
+    Admin controls this from /admin/settings (`active_payment_gateway` field).
+    Values: "none" (payments disabled — checkout should show 'not configured'),
+    "uropay", "razorpay", or "manual"."""
+    s = await db.settings.find_one({"_key": "site"}, {"_id": 0}) or {}
+    gw = (s.get("active_payment_gateway") or "none").strip().lower()
+    uropay_env_active = bool(os.environ.get("UROPAY_API_KEY") and os.environ.get("UROPAY_API_SECRET"))
     return {
-        "provider": "uropay",
-        "uropay_active": bool(os.environ.get("UROPAY_API_KEY") and os.environ.get("UROPAY_API_SECRET")),
+        "active": gw != "none",
+        "provider": gw,
+        "uropay_active": (gw == "uropay") and uropay_env_active,
+        "razorpay_active": (gw == "razorpay") and bool(s.get("razorpay_enabled") and s.get("razorpay_key_id")),
+        "manual_active": (gw == "manual"),
         "mock_mode": False,
     }
 
@@ -2410,28 +2420,126 @@ async def admin_reset_user_password(user_id: str, payload: dict, admin=Depends(_
 
 
 @api.delete("/admin/users/{user_id}")
-async def admin_delete_user(user_id: str, admin=Depends(_require_super_admin)):
+async def admin_delete_user(user_id: str, cascade: bool = False, admin=Depends(_require_super_admin)):
     """Super-admin only: HARD-DELETE a single user and every trace of them so the same
-    phone/email/username can register fresh. Admin accounts cannot be deleted this way."""
+    phone/email/username can register fresh. Admin accounts cannot be deleted this way.
+
+    If ``cascade=true``, ALSO recursively deletes every downstream referral (their whole
+    branch). Traversal is by ``sponsor_id`` = current user's ``user_code``.
+    """
     target = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
     if target.get("role") in ("super_admin", "sub_admin"):
         raise HTTPException(status_code=400, detail="Cannot delete admin accounts")
-    stats = {"user_code": target.get("user_code")}
-    stats["orders"] = (await db.orders.delete_many({"user_id": user_id})).deleted_count
-    stats["referral_businesses"] = (await db.referral_businesses.delete_many({"owner_user_id": user_id})).deleted_count
-    stats["withdrawals"] = (await db.withdrawals.delete_many({"user_id": user_id})).deleted_count
-    stats["transactions"] = (await db.transactions.delete_many({"user_id": user_id})).deleted_count
-    stats["notifications"] = (await db.notifications.delete_many({"user_id": user_id})).deleted_count
-    stats["kyc"] = (await db.kyc.delete_many({"user_id": user_id})).deleted_count
-    stats["tickets"] = (await db.tickets.delete_many({"user_id": user_id})).deleted_count
-    stats["cart"] = (await db.cart.delete_many({"user_id": user_id})).deleted_count
-    stats["audit_logs"] = (await db.audit_logs.delete_many({"actor_id": user_id})).deleted_count
-    await db.users.delete_one({"id": user_id})
+
+    # Build the id-list to delete
+    ids_to_delete = [user_id]
+    codes_deleted = set()
+    if cascade:
+        # BFS the branch by sponsor_id lineage
+        frontier = [target.get("user_code")] if target.get("user_code") else []
+        while frontier:
+            codes_deleted.update(frontier)
+            children = await db.users.find(
+                {"sponsor_id": {"$in": frontier}, "role": "user"},
+                {"_id": 0, "id": 1, "user_code": 1}
+            ).to_list(5000)
+            if not children:
+                break
+            new_frontier = []
+            for c in children:
+                ids_to_delete.append(c["id"])
+                if c.get("user_code") and c["user_code"] not in codes_deleted:
+                    new_frontier.append(c["user_code"])
+            frontier = new_frontier
+
+    stats = {"user_code": target.get("user_code"), "users_deleted": len(ids_to_delete), "cascade": cascade}
+    stats["orders"] = (await db.orders.delete_many({"user_id": {"$in": ids_to_delete}})).deleted_count
+    stats["referral_businesses"] = (await db.referral_businesses.delete_many({"owner_user_id": {"$in": ids_to_delete}})).deleted_count
+    stats["withdrawals"] = (await db.withdrawals.delete_many({"user_id": {"$in": ids_to_delete}})).deleted_count
+    stats["transactions"] = (await db.transactions.delete_many({"user_id": {"$in": ids_to_delete}})).deleted_count
+    stats["notifications"] = (await db.notifications.delete_many({"user_id": {"$in": ids_to_delete}})).deleted_count
+    stats["kyc"] = (await db.kyc.delete_many({"user_id": {"$in": ids_to_delete}})).deleted_count
+    stats["tickets"] = (await db.tickets.delete_many({"user_id": {"$in": ids_to_delete}})).deleted_count
+    stats["cart"] = (await db.cart.delete_many({"user_id": {"$in": ids_to_delete}})).deleted_count
+    stats["audit_logs"] = (await db.audit_logs.delete_many({"actor_id": {"$in": ids_to_delete}})).deleted_count
+    await db.users.delete_many({"id": {"$in": ids_to_delete}})
     await log_audit("admin_delete_user", actor=admin, target_id=user_id,
                     target_label=target.get("user_code"), metadata=stats)
     return {"ok": True, "stats": stats}
+
+
+@api.post("/admin/users/bulk-delete")
+async def admin_bulk_delete_users(payload: dict, admin=Depends(_require_super_admin)):
+    """Super-admin only: bulk delete users. Body: {user_ids: [...], cascade: bool}."""
+    ids = payload.get("user_ids") or []
+    cascade = bool(payload.get("cascade", False))
+    if not ids or not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="user_ids list required")
+    results = []
+    for uid in ids:
+        try:
+            target = await db.users.find_one({"id": uid}, {"_id": 0, "role": 1, "user_code": 1})
+            if not target or target.get("role") in ("super_admin", "sub_admin"):
+                results.append({"id": uid, "ok": False, "reason": "admin_or_missing"})
+                continue
+            # Reuse the single-delete logic
+            ids_to_delete = [uid]
+            if cascade:
+                frontier = [target.get("user_code")] if target.get("user_code") else []
+                codes_deleted = set()
+                while frontier:
+                    codes_deleted.update(frontier)
+                    children = await db.users.find(
+                        {"sponsor_id": {"$in": frontier}, "role": "user"},
+                        {"_id": 0, "id": 1, "user_code": 1}
+                    ).to_list(5000)
+                    if not children:
+                        break
+                    new_frontier = []
+                    for c in children:
+                        ids_to_delete.append(c["id"])
+                        if c.get("user_code") and c["user_code"] not in codes_deleted:
+                            new_frontier.append(c["user_code"])
+                    frontier = new_frontier
+            await db.orders.delete_many({"user_id": {"$in": ids_to_delete}})
+            await db.referral_businesses.delete_many({"owner_user_id": {"$in": ids_to_delete}})
+            await db.withdrawals.delete_many({"user_id": {"$in": ids_to_delete}})
+            await db.transactions.delete_many({"user_id": {"$in": ids_to_delete}})
+            await db.notifications.delete_many({"user_id": {"$in": ids_to_delete}})
+            await db.kyc.delete_many({"user_id": {"$in": ids_to_delete}})
+            await db.tickets.delete_many({"user_id": {"$in": ids_to_delete}})
+            await db.cart.delete_many({"user_id": {"$in": ids_to_delete}})
+            await db.audit_logs.delete_many({"actor_id": {"$in": ids_to_delete}})
+            await db.users.delete_many({"id": {"$in": ids_to_delete}})
+            results.append({"id": uid, "ok": True, "deleted": len(ids_to_delete)})
+        except Exception as e:
+            results.append({"id": uid, "ok": False, "reason": str(e)})
+    await log_audit("admin_bulk_delete_users", actor=admin,
+                    metadata={"count": len(ids), "cascade": cascade})
+    return {"ok": True, "results": results, "total_requested": len(ids)}
+
+
+@api.post("/admin/users/bulk-update")
+async def admin_bulk_update_users(payload: dict, admin=Depends(_require_super_admin)):
+    """Super-admin only: bulk edit (bulk replace) fields across many users at once.
+    Body: {user_ids: [...], updates: {field: value, ...}}.
+    Only whitelisted fields are updateable."""
+    ids = payload.get("user_ids") or []
+    updates = payload.get("updates") or {}
+    if not ids or not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="user_ids list required")
+    allowed = {"is_active", "current_stage", "wallet_balance", "role", "kyc_status",
+               "is_joining_paid", "income_active", "sponsor_id", "avatar_url"}
+    safe_updates = {k: v for k, v in updates.items() if k in allowed}
+    if not safe_updates:
+        raise HTTPException(status_code=400, detail="No allowed fields to update")
+    safe_updates["updated_at"] = now_iso()
+    result = await db.users.update_many({"id": {"$in": ids}}, {"$set": safe_updates})
+    await log_audit("admin_bulk_update_users", actor=admin,
+                    metadata={"count": len(ids), "updates": safe_updates})
+    return {"ok": True, "matched": result.matched_count, "modified": result.modified_count}
 
 
 @api.post("/admin/users/{user_id}/mark-kit-paid")

@@ -4,21 +4,21 @@ import { Search } from "lucide-react";
 
 const EVENT_COLORS = {
   login: "bg-blue-50 text-blue-700",
-  register: "bg-[#ECFCCB] text-[#065F46]",
-  payment: "bg-[#FEF3C7] text-[#92400E]",
+  register: "bg-[#FEE2E2] text-[#991B1B]",
+  payment: "bg-[#FEF2F2] text-[#7F1D1D]",
   withdrawal_request: "bg-orange-50 text-orange-700",
-  withdrawal_decision: "bg-[#FEF3C7] text-[#92400E]",
+  withdrawal_decision: "bg-[#FEF2F2] text-[#7F1D1D]",
   kyc_submit: "bg-indigo-50 text-indigo-700",
   kyc_decision: "bg-indigo-50 text-indigo-700",
   role_change: "bg-purple-50 text-purple-700",
   status_change: "bg-purple-50 text-purple-700",
   broadcast: "bg-pink-50 text-pink-700",
   settings_update: "bg-gray-100 text-gray-700",
-  slider_create: "bg-[#ECFCCB] text-[#065F46]",
-  slider_update: "bg-[#ECFCCB] text-[#065F46]",
+  slider_create: "bg-[#FEE2E2] text-[#991B1B]",
+  slider_update: "bg-[#FEE2E2] text-[#991B1B]",
   slider_delete: "bg-red-50 text-red-700",
-  reel_create: "bg-[#ECFCCB] text-[#065F46]",
-  reel_update: "bg-[#ECFCCB] text-[#065F46]",
+  reel_create: "bg-[#FEE2E2] text-[#991B1B]",
+  reel_update: "bg-[#FEE2E2] text-[#991B1B]",
   reel_delete: "bg-red-50 text-red-700",
 };
 
@@ -57,7 +57,7 @@ export default function AdminAuditLogs() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]"/>
           <input className="input-soft pl-9 max-w-xs" placeholder="Filter by actor code…" value={actorCode} onChange={(e) => { setActorCode(e.target.value); setPage(1); }} data-testid="audit-actor-filter"/>
         </div>
-        <div className="ml-auto text-sm text-[#64748B] self-center">Total: <b className="font-numbers text-[#064E3B]">{total}</b></div>
+        <div className="ml-auto text-sm text-[#64748B] self-center">Total: <b className="font-numbers text-[#7F1D1D]">{total}</b></div>
       </div>
 
       <div className="card-soft overflow-x-auto">

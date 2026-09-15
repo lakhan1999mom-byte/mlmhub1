@@ -45,11 +45,11 @@ export default function TermsModal({ open, onClose, onAccept }) {
           >
             <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#ECFCCB] flex items-center justify-center">
-                  <ScrollText className="w-5 h-5 text-[#65A30D]"/>
+                <div className="w-10 h-10 rounded-2xl bg-[#FEE2E2] flex items-center justify-center">
+                  <ScrollText className="w-5 h-5 text-[#B91C1C]"/>
                 </div>
                 <div>
-                  <h2 className="font-display font-black text-xl text-[#064E3B] leading-tight">Terms & Conditions</h2>
+                  <h2 className="font-display font-black text-xl text-[#7F1D1D] leading-tight">Terms & Conditions</h2>
                   <p className="text-xs text-[#64748B]">Please read carefully before accepting.</p>
                 </div>
               </div>
@@ -60,7 +60,7 @@ export default function TermsModal({ open, onClose, onAccept }) {
 
             {/* Content */}
             <div
-              className="flex-1 overflow-y-auto p-5 prose prose-sm max-w-none prose-headings:font-display prose-headings:text-[#064E3B] prose-h2:text-2xl prose-h3:text-lg prose-p:text-[#334155] prose-li:text-[#334155] prose-strong:text-[#064E3B]"
+              className="flex-1 overflow-y-auto p-5 prose prose-sm max-w-none prose-headings:font-display prose-headings:text-[#7F1D1D] prose-h2:text-2xl prose-h3:text-lg prose-p:text-[#334155] prose-li:text-[#334155] prose-strong:text-[#7F1D1D]"
               onScroll={onScroll}
               data-testid="terms-modal-content"
             >

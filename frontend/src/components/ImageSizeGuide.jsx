@@ -20,7 +20,7 @@ export const IMAGE_SIZES = {
 export default function ImageSizeGuide({ preset = "product", extraNote = null }) {
   const p = IMAGE_SIZES[preset] || IMAGE_SIZES.product;
   return (
-    <div className="p-3 bg-[#FEF9C3] border border-[#FDE68A] rounded-xl text-xs text-[#92400E] flex items-start gap-2" data-testid={`size-guide-${preset}`}>
+    <div className="p-3 bg-[#FEF9C3] border border-[#FCA5A5] rounded-xl text-xs text-[#7F1D1D] flex items-start gap-2" data-testid={`size-guide-${preset}`}>
       <Info className="w-4 h-4 flex-shrink-0 mt-0.5"/>
       <div>
         <div className="font-semibold">
@@ -35,7 +35,7 @@ export default function ImageSizeGuide({ preset = "product", extraNote = null })
 export function AllSizesTable() {
   return (
     <div className="card-soft p-4" data-testid="all-size-guides">
-      <div className="font-display font-bold text-[#064E3B] mb-3">Image Upload Size Guide</div>
+      <div className="font-display font-bold text-[#7F1D1D] mb-3">Image Upload Size Guide</div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
@@ -49,7 +49,7 @@ export function AllSizesTable() {
           <tbody>
             {Object.entries(IMAGE_SIZES).map(([key, p]) => (
               <tr key={key} className="border-t border-[#E2E8F0]">
-                <td className="py-2 font-semibold text-[#064E3B]">{p.label}</td>
+                <td className="py-2 font-semibold text-[#7F1D1D]">{p.label}</td>
                 <td className="font-numbers">{p.w}×{p.h}</td>
                 <td>{p.ratio}</td>
                 <td className="text-[#334155]">{p.note}</td>

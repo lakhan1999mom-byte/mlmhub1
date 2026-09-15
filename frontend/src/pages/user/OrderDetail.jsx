@@ -31,7 +31,7 @@ export default function OrderDetail() {
     <div className="p-12 text-center">
       <div className="text-6xl mb-3">🔍</div>
       <div className="font-display font-bold text-lg mb-2">Order not found</div>
-      <Link to="/orders" className="text-[#65A30D] font-semibold">← Back to orders</Link>
+      <Link to="/orders" className="text-[#B91C1C] font-semibold">← Back to orders</Link>
     </div>
   );
 
@@ -47,7 +47,7 @@ export default function OrderDetail() {
 
   return (
     <div className="space-y-6" data-testid="order-detail-page">
-      <Link to="/orders" className="inline-flex items-center gap-1 text-sm text-[#64748B] hover:text-[#065F46]" data-testid="back-to-orders">
+      <Link to="/orders" className="inline-flex items-center gap-1 text-sm text-[#64748B] hover:text-[#991B1B]" data-testid="back-to-orders">
         <ArrowLeft className="w-4 h-4"/> Back to orders
       </Link>
 
@@ -55,15 +55,15 @@ export default function OrderDetail() {
       <div className="card-soft p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-black text-[#064E3B]">{order.order_code}</h1>
+            <h1 className="font-display text-3xl font-black text-[#7F1D1D]">{order.order_code}</h1>
             <div className="text-sm text-[#64748B] flex items-center gap-1 mt-1">
               <Clock className="w-3 h-3"/> Placed on {new Date(order.created_at).toLocaleString()}
             </div>
           </div>
           <div className="text-right">
             <div className="text-xs text-[#94A3B8] uppercase font-bold">Total</div>
-            <div className="font-numbers text-3xl font-black text-[#064E3B]">₹{order.total.toFixed(0)}</div>
-            <span className={`badge-pill mt-1 capitalize ${order.payment_status === "paid" ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#FEF3C7] text-[#92400E]"}`}>Payment: {order.payment_status}</span>
+            <div className="font-numbers text-3xl font-black text-[#7F1D1D]">₹{order.total.toFixed(0)}</div>
+            <span className={`badge-pill mt-1 capitalize ${order.payment_status === "paid" ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#FEF2F2] text-[#7F1D1D]"}`}>Payment: {order.payment_status}</span>
           </div>
         </div>
       </div>
@@ -71,15 +71,15 @@ export default function OrderDetail() {
       {/* Tracking Progress Steps */}
       <div className="card-soft p-6" data-testid="tracking-steps">
         <div className="flex items-center gap-2 mb-6">
-          <Truck className="w-5 h-5 text-[#84CC16]"/>
-          <h2 className="font-display font-bold text-lg text-[#064E3B]">Shipment Status</h2>
+          <Truck className="w-5 h-5 text-[#DC2626]"/>
+          <h2 className="font-display font-bold text-lg text-[#7F1D1D]">Shipment Status</h2>
         </div>
 
         {order.tracking_no && (
-          <div className="mb-6 rounded-2xl bg-gradient-to-br from-[#064E3B] to-[#065F46] text-white p-4" data-testid="tracking-number-card">
+          <div className="mb-6 rounded-2xl bg-gradient-to-br from-[#7F1D1D] to-[#991B1B] text-white p-4" data-testid="tracking-number-card">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <div className="text-xs uppercase tracking-widest text-[#84CC16] font-bold mb-1">
+                <div className="text-xs uppercase tracking-widest text-[#DC2626] font-bold mb-1">
                   {order.courier_name || "Courier"} tracking
                 </div>
                 <div className="font-mono font-black text-lg">{order.tracking_no}</div>
@@ -89,7 +89,7 @@ export default function OrderDetail() {
                   <Copy className="w-3 h-3"/> Copy
                 </button>
                 {order.tracking_url && (
-                  <a href={order.tracking_url} target="_blank" rel="noreferrer noopener" className="px-3 py-1.5 bg-[#84CC16] text-[#064E3B] rounded-lg text-xs font-bold hover:bg-[#65A30D] inline-flex items-center gap-1" data-testid="track-online-btn">
+                  <a href={order.tracking_url} target="_blank" rel="noreferrer noopener" className="px-3 py-1.5 bg-[#DC2626] text-[#7F1D1D] rounded-lg text-xs font-bold hover:bg-[#B91C1C] inline-flex items-center gap-1" data-testid="track-online-btn">
                     Track online <ExternalLink className="w-3 h-3"/>
                   </a>
                 )}
@@ -106,17 +106,17 @@ export default function OrderDetail() {
               initial={{ width: 0 }}
               animate={{ width: currentStepIdx < 0 ? "0%" : `${(currentStepIdx / (TRACKING_STEPS.length - 1)) * 100}%` }}
               transition={{ duration: 0.6 }}
-              className="absolute left-0 top-6 h-1 bg-gradient-to-r from-[#84CC16] to-[#65A30D] rounded-full"
+              className="absolute left-0 top-6 h-1 bg-gradient-to-r from-[#DC2626] to-[#B91C1C] rounded-full"
             />
             {TRACKING_STEPS.map((step, idx) => {
               const done = idx <= currentStepIdx;
               const Icon = step.icon;
               return (
                 <div key={step.key} className="relative flex flex-col items-center flex-1 z-10">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all ${done ? "bg-[#84CC16] border-[#65A30D] text-[#064E3B]" : "bg-white border-[#E2E8F0] text-[#94A3B8]"}`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all ${done ? "bg-[#DC2626] border-[#B91C1C] text-[#7F1D1D]" : "bg-white border-[#E2E8F0] text-[#94A3B8]"}`}>
                     <Icon className="w-5 h-5"/>
                   </div>
-                  <div className={`text-[10px] font-semibold mt-2 text-center leading-tight ${done ? "text-[#064E3B]" : "text-[#94A3B8]"}`}>
+                  <div className={`text-[10px] font-semibold mt-2 text-center leading-tight ${done ? "text-[#7F1D1D]" : "text-[#94A3B8]"}`}>
                     {step.label}
                   </div>
                 </div>
@@ -129,11 +129,11 @@ export default function OrderDetail() {
               const done = idx <= currentStepIdx;
               const Icon = step.icon;
               return (
-                <div key={step.key} className={`flex items-center gap-3 p-2 rounded-xl ${done ? "bg-[#ECFCCB]" : ""}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${done ? "bg-[#84CC16] text-[#064E3B]" : "bg-[#E2E8F0] text-[#94A3B8]"}`}>
+                <div key={step.key} className={`flex items-center gap-3 p-2 rounded-xl ${done ? "bg-[#FEE2E2]" : ""}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${done ? "bg-[#DC2626] text-[#7F1D1D]" : "bg-[#E2E8F0] text-[#94A3B8]"}`}>
                     <Icon className="w-4 h-4"/>
                   </div>
-                  <div className={`text-sm font-semibold ${done ? "text-[#064E3B]" : "text-[#94A3B8]"}`}>{step.label}</div>
+                  <div className={`text-sm font-semibold ${done ? "text-[#7F1D1D]" : "text-[#94A3B8]"}`}>{step.label}</div>
                 </div>
               );
             })}
@@ -144,14 +144,14 @@ export default function OrderDetail() {
       {/* Detailed history */}
       {history.length > 0 && (
         <div className="card-soft p-6" data-testid="tracking-history">
-          <h3 className="font-display font-bold text-lg text-[#064E3B] mb-4">Update Timeline</h3>
+          <h3 className="font-display font-bold text-lg text-[#7F1D1D] mb-4">Update Timeline</h3>
           <div className="space-y-4 relative">
             <div className="absolute left-[10px] top-3 bottom-3 w-0.5 bg-[#E2E8F0]"/>
             {history.slice().reverse().map((e, i) => (
               <div key={i} className="flex gap-4 relative" data-testid={`history-event-${i}`}>
-                <div className="w-5 h-5 rounded-full bg-[#84CC16] border-2 border-white ring-2 ring-[#84CC16]/30 flex-shrink-0 z-10 mt-1"/>
+                <div className="w-5 h-5 rounded-full bg-[#DC2626] border-2 border-white ring-2 ring-[#DC2626]/30 flex-shrink-0 z-10 mt-1"/>
                 <div className="flex-1">
-                  <div className="font-semibold text-[#064E3B] text-sm">{e.label || e.status}</div>
+                  <div className="font-semibold text-[#7F1D1D] text-sm">{e.label || e.status}</div>
                   {e.note && <div className="text-sm text-[#334155] mt-0.5">{e.note}</div>}
                   <div className="text-xs text-[#94A3B8] font-numbers mt-1">
                     {new Date(e.at).toLocaleString()}{e.by ? ` · ${e.by}` : ""}
@@ -165,16 +165,16 @@ export default function OrderDetail() {
 
       {/* Items */}
       <div className="card-soft p-6">
-        <h3 className="font-display font-bold text-lg text-[#064E3B] mb-4">Items in this order</h3>
+        <h3 className="font-display font-bold text-lg text-[#7F1D1D] mb-4">Items in this order</h3>
         <div className="space-y-2">
           {order.items.map((it) => (
             <div key={it.product_id} className="flex items-center gap-3 p-3 bg-[#FAFAF9] rounded-xl">
               {it.image && <img src={it.image} alt="" className="w-14 h-14 rounded-xl object-cover"/>}
               <div className="flex-1">
-                <div className="font-semibold text-[#064E3B]">{it.name}</div>
+                <div className="font-semibold text-[#7F1D1D]">{it.name}</div>
                 <div className="text-xs text-[#64748B]">Qty: {it.quantity} · ₹{it.price} each</div>
               </div>
-              <div className="font-numbers font-bold text-[#064E3B]">₹{it.line_total}</div>
+              <div className="font-numbers font-bold text-[#7F1D1D]">₹{it.line_total}</div>
             </div>
           ))}
         </div>
@@ -183,8 +183,8 @@ export default function OrderDetail() {
       {/* Shipping address */}
       {order.address && (
         <div className="card-soft p-6">
-          <h3 className="font-display font-bold text-lg text-[#064E3B] mb-3 flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-[#65A30D]"/> Shipping to
+          <h3 className="font-display font-bold text-lg text-[#7F1D1D] mb-3 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-[#B91C1C]"/> Shipping to
           </h3>
           <div className="text-sm text-[#334155] space-y-0.5">
             <div className="font-semibold">{order.address.full_name || order.address.name}</div>

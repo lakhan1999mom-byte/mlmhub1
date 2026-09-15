@@ -286,7 +286,7 @@ class SiteSettings(Base):
     logo_url: str = ""
     favicon_url: str = ""
     site_name: str = "EverGro eMart"
-    tagline: str = "Grow your network, grow your wealth"
+    tagline: str = "Premium products, delivered with care"
     phone: str = "+91-9000000000"
     email: str = "support@evergroemart.com"
     address: str = "India"
@@ -303,6 +303,11 @@ class SiteSettings(Base):
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
+    meta_pixel_id: str = ""
+    meta_pixel_code: str = ""
+    # Payment gateway master toggle — admin picks which gateway is live.
+    # Values: "none" (default = payments disabled), "uropay", "razorpay", "manual"
+    active_payment_gateway: str = "none"
 
 
 class Banner(Base):

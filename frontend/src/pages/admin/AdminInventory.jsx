@@ -23,8 +23,8 @@ export default function AdminInventory() {
             {data.items.map((i) => (
               <tr key={i.id} className="border-t border-[#F1F5F9]" data-testid={`inv-${i.id}`}>
                 <td className="p-3">
-                  <div className="font-semibold text-[#064E3B] flex items-center gap-2">
-                    {i.is_hamper && <Package className="w-4 h-4 text-[#65A30D]"/>}
+                  <div className="font-semibold text-[#7F1D1D] flex items-center gap-2">
+                    {i.is_hamper && <Package className="w-4 h-4 text-[#B91C1C]"/>}
                     {i.name}
                   </div>
                 </td>
@@ -36,7 +36,7 @@ export default function AdminInventory() {
                 <td className="p-3 font-numbers">{i.sold}</td>
                 <td className="p-3 font-numbers">₹{i.price}</td>
                 <td className="p-3">
-                  <span className={`badge-pill ${i.is_locked ? "bg-red-50 text-red-700" : i.is_active ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#F1F5F9] text-[#64748B]"}`}>
+                  <span className={`badge-pill ${i.is_locked ? "bg-red-50 text-red-700" : i.is_active ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#F1F5F9] text-[#64748B]"}`}>
                     {i.is_locked ? "Locked" : i.is_active ? "Active" : "Inactive"}
                   </span>
                 </td>

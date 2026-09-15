@@ -57,7 +57,7 @@ export default function AdminCharges() {
   return (
     <div className="space-y-6 max-w-4xl" data-testid="admin-charges-page">
       <div>
-        <h1 className="font-display text-3xl font-bold text-[#064E3B]">Order Charges</h1>
+        <h1 className="font-display text-3xl font-bold text-[#7F1D1D]">Order Charges</h1>
         <p className="text-sm text-[#64748B]">Turn any charge ON or OFF, and add unlimited custom charges (packing, handling, service, insurance…).</p>
       </div>
 
@@ -65,11 +65,11 @@ export default function AdminCharges() {
       <div className="card-soft p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${site.gst_enabled ? "bg-[#DBEAFE] text-[#1E40AF]" : "bg-[#F1F5F9] text-[#94A3B8]"}`}>
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${site.gst_enabled ? "bg-[#FEE2E2] text-[#7F1D1D]" : "bg-[#F1F5F9] text-[#94A3B8]"}`}>
               <Percent className="w-5 h-5"/>
             </div>
             <div>
-              <div className="font-display font-bold text-[#064E3B]">GST</div>
+              <div className="font-display font-bold text-[#7F1D1D]">GST</div>
               <div className="text-xs text-[#64748B]">Applied on each product line as a percentage.</div>
             </div>
           </div>
@@ -93,11 +93,11 @@ export default function AdminCharges() {
       <div className="card-soft p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${site.delivery_charge_enabled ? "bg-[#FEF3C7] text-[#92400E]" : "bg-[#F1F5F9] text-[#94A3B8]"}`}>
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${site.delivery_charge_enabled ? "bg-[#FEF2F2] text-[#7F1D1D]" : "bg-[#F1F5F9] text-[#94A3B8]"}`}>
               <IndianRupee className="w-5 h-5"/>
             </div>
             <div>
-              <div className="font-display font-bold text-[#064E3B]">Delivery Charge</div>
+              <div className="font-display font-bold text-[#7F1D1D]">Delivery Charge</div>
               <div className="text-xs text-[#64748B]">Flat fee charged when order total is below the free-shipping threshold.</div>
             </div>
           </div>
@@ -121,11 +121,11 @@ export default function AdminCharges() {
       <div className="card-soft p-5" data-testid="extra-charges-section">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-[#ECFCCB] flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-[#65A30D]"/>
+            <div className="w-11 h-11 rounded-2xl bg-[#FEE2E2] flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-[#B91C1C]"/>
             </div>
             <div>
-              <div className="font-display font-bold text-[#064E3B]">Extra Charges</div>
+              <div className="font-display font-bold text-[#7F1D1D]">Extra Charges</div>
               <div className="text-xs text-[#64748B]">Packing, handling, service, insurance, etc. Toggle any one off to skip it.</div>
             </div>
           </div>
@@ -183,7 +183,7 @@ function ToggleSwitch({ on, onChange, testid }) {
     <button
       type="button"
       onClick={() => onChange(!on)}
-      className={`inline-flex items-center gap-1 font-semibold text-sm ${on ? "text-[#65A30D]" : "text-[#94A3B8]"}`}
+      className={`inline-flex items-center gap-1 font-semibold text-sm ${on ? "text-[#B91C1C]" : "text-[#94A3B8]"}`}
       data-testid={testid}
     >
       {on ? <ToggleRight className="w-8 h-8"/> : <ToggleLeft className="w-8 h-8"/>}

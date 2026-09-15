@@ -50,7 +50,7 @@ export default function AdminBrands() {
   return (
     <div className="space-y-6" data-testid="admin-brands-page">
       <div className="flex justify-between items-center flex-wrap gap-3">
-        <h1 className="font-display text-3xl font-bold text-[#064E3B]">Partner Brand Logos</h1>
+        <h1 className="font-display text-3xl font-bold text-[#7F1D1D]">Partner Brand Logos</h1>
         <button onClick={() => setEdit({ ...blank })} className="btn-primary" data-testid="add-brand-btn">
           <Plus className="w-4 h-4"/> Add Brand
         </button>
@@ -65,7 +65,7 @@ export default function AdminBrands() {
               <img src={b.logo_url} alt={b.name} className="max-h-full max-w-full object-contain"/>
             </div>
             <div>
-              <div className="font-semibold text-[#064E3B]">{b.name}</div>
+              <div className="font-semibold text-[#7F1D1D]">{b.name}</div>
               <div className="text-xs text-[#64748B]">Order: {b.sort_order} · {b.is_active ? "Active" : "Hidden"}</div>
             </div>
             <div className="flex gap-2">
@@ -96,16 +96,16 @@ export default function AdminBrands() {
               data-testid="brand-name-input"
             />
             <div>
-              <div className="text-sm font-semibold mb-2 text-[#064E3B]">Logo Image</div>
+              <div className="text-sm font-semibold mb-2 text-[#7F1D1D]">Logo Image</div>
               {edit.logo_url ? (
                 <div className="relative w-40 h-24 border border-[#E2E8F0] rounded-xl overflow-hidden bg-white p-2">
                   <img src={edit.logo_url} alt="" className="w-full h-full object-contain"/>
                   <button onClick={() => setEdit({ ...edit, logo_url: "" })} className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-bl-md px-1.5">×</button>
                 </div>
               ) : (
-                <label className="w-40 h-24 border-2 border-dashed border-[#E2E8F0] rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[#84CC16]">
-                  <Upload className="w-4 h-4 text-[#65A30D]"/>
-                  <span className="text-xs text-[#65A30D] mt-1">Upload logo</span>
+                <label className="w-40 h-24 border-2 border-dashed border-[#E2E8F0] rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[#DC2626]">
+                  <Upload className="w-4 h-4 text-[#B91C1C]"/>
+                  <span className="text-xs text-[#B91C1C] mt-1">Upload logo</span>
                   <input type="file" hidden accept="image/*" onChange={(e) => e.target.files[0] && upload(e.target.files[0])} data-testid="brand-logo-upload"/>
                 </label>
               )}

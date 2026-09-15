@@ -13,7 +13,7 @@ export default function FAQPage() {
         {items.map((f, i) => (
           <button key={f.id} onClick={() => setOpen(open === i ? -1 : i)} className="w-full text-left card-soft p-5">
             <div className="flex items-center justify-between gap-4">
-              <div className="font-semibold text-[#064E3B]">{f.question}</div>
+              <div className="font-semibold text-[#7F1D1D]">{f.question}</div>
               <ChevronRight className={`w-4 h-4 transition-transform ${open === i ? "rotate-90" : ""}`}/>
             </div>
             {open === i && <p className="text-[#334155] mt-3">{f.answer}</p>}

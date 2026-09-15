@@ -33,11 +33,11 @@ export default function Support() {
               <div key={t.id} className="border-b border-[#F1F5F9] pb-3 last:border-0">
                 <div className="flex justify-between gap-3">
                   <div>
-                    <div className="font-semibold text-[#064E3B]">{t.subject}</div>
+                    <div className="font-semibold text-[#7F1D1D]">{t.subject}</div>
                     <div className="text-sm text-[#334155]">{t.message}</div>
-                    {t.admin_reply && <div className="mt-2 bg-[#ECFCCB] rounded-lg p-3 text-sm"><b>Admin:</b> {t.admin_reply}</div>}
+                    {t.admin_reply && <div className="mt-2 bg-[#FEE2E2] rounded-lg p-3 text-sm"><b>Admin:</b> {t.admin_reply}</div>}
                   </div>
-                  <span className={`badge-pill capitalize h-fit ${t.status === "resolved" ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#FEF3C7] text-[#92400E]"}`}>{t.status}</span>
+                  <span className={`badge-pill capitalize h-fit ${t.status === "resolved" ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#FEF2F2] text-[#7F1D1D]"}`}>{t.status}</span>
                 </div>
                 <div className="text-xs text-[#94A3B8] mt-1 font-numbers">{t.ticket_code} · {new Date(t.created_at).toLocaleDateString()}</div>
               </div>

@@ -43,7 +43,7 @@ export default function Businesses() {
     <div className="space-y-6" data-testid="businesses-page">
       <div className="flex justify-between items-start flex-wrap gap-4">
         <div>
-          <h1 className="font-display text-3xl font-black text-[#064E3B]">Your Referral Businesses</h1>
+          <h1 className="font-display text-3xl font-black text-[#7F1D1D]">Your Referral Businesses</h1>
           <p className="text-sm text-[#64748B]">Each business has its own referral code, downline & reports. Wallet is unified across all.</p>
         </div>
         <button onClick={() => setCreating(true)} className="btn-primary shadow-md" data-testid="create-business-btn">
@@ -57,30 +57,30 @@ export default function Businesses() {
         {list.map((b, idx) => (
           <motion.div
             key={b.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
-            className={`card-soft p-5 hover:-translate-y-1 hover:shadow-xl transition-all relative overflow-hidden ${b.is_active ? "border-[#84CC16]/40" : "border-[#FDE68A]"}`}
+            className={`card-soft p-5 hover:-translate-y-1 hover:shadow-xl transition-all relative overflow-hidden ${b.is_active ? "border-[#DC2626]/40" : "border-[#FCA5A5]"}`}
             data-testid={`business-card-${b.business_code}`}
           >
             {b.is_primary && (
-              <div className="absolute top-3 right-3 badge-pill bg-[#064E3B] text-[#84CC16] text-[10px]">
+              <div className="absolute top-3 right-3 badge-pill bg-[#7F1D1D] text-[#DC2626] text-[10px]">
                 <Sparkles className="w-3 h-3"/> PRIMARY
               </div>
             )}
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center mb-3 ${b.is_active ? "bg-gradient-to-br from-[#84CC16] to-[#65A30D] text-white" : "bg-[#FEF3C7] text-[#92400E]"}`}>
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center mb-3 ${b.is_active ? "bg-gradient-to-br from-[#DC2626] to-[#B91C1C] text-white" : "bg-[#FEF2F2] text-[#7F1D1D]"}`}>
               <Briefcase className="w-5 h-5"/>
             </div>
-            <div className="font-display font-black text-lg text-[#064E3B]">{b.name}</div>
+            <div className="font-display font-black text-lg text-[#7F1D1D]">{b.name}</div>
             <div className="text-xs text-[#94A3B8] font-mono">{b.business_code}</div>
             <div className="mt-3">
               <div className="text-[10px] uppercase font-bold text-[#94A3B8]">Referral code</div>
               <div className="flex items-center gap-2 mt-1">
-                <div className="font-mono font-black text-[#065F46] text-base bg-[#ECFCCB] px-3 py-1 rounded-full">{b.referral_code || "—"}</div>
+                <div className="font-mono font-black text-[#991B1B] text-base bg-[#FEE2E2] px-3 py-1 rounded-full">{b.referral_code || "—"}</div>
                 {b.referral_code && (
-                  <button onClick={() => copy(b.referral_code)} className="text-[#65A30D] hover:text-[#4D7C0F]" data-testid={`copy-refcode-${b.business_code}`} title="Copy code">
+                  <button onClick={() => copy(b.referral_code)} className="text-[#B91C1C] hover:text-[#4D7C0F]" data-testid={`copy-refcode-${b.business_code}`} title="Copy code">
                     <Copy className="w-4 h-4"/>
                   </button>
                 )}
                 {b.referral_code && (
-                  <button onClick={() => copy(`${window.location.origin}/join-now?ref=${b.referral_code}`)} className="text-[#65A30D] hover:text-[#4D7C0F]" title="Copy invite link" data-testid={`copy-invitelink-${b.business_code}`}>
+                  <button onClick={() => copy(`${window.location.origin}/join-now?ref=${b.referral_code}`)} className="text-[#B91C1C] hover:text-[#4D7C0F]" title="Copy invite link" data-testid={`copy-invitelink-${b.business_code}`}>
                     <Share2 className="w-4 h-4"/>
                   </button>
                 )}
@@ -93,15 +93,15 @@ export default function Businesses() {
             </div>
             <div className="mt-3 pt-3 border-t border-[#F1F5F9] flex items-center justify-between">
               <div className="text-xs text-[#64748B]">
-                Earnings: <span className="font-numbers font-bold text-[#064E3B]">₹{Number(b.total_earnings || 0).toFixed(0)}</span>
+                Earnings: <span className="font-numbers font-bold text-[#7F1D1D]">₹{Number(b.total_earnings || 0).toFixed(0)}</span>
               </div>
-              <span className={`badge-pill ${b.is_active ? "bg-[#ECFCCB] text-[#065F46]" : "bg-[#FEF3C7] text-[#92400E]"}`}>{b.is_active ? "✓ Active" : "Pending kit"}</span>
+              <span className={`badge-pill ${b.is_active ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#FEF2F2] text-[#7F1D1D]"}`}>{b.is_active ? "✓ Active" : "Pending kit"}</span>
             </div>
             {!b.is_active && (
-              <div className="mt-3 rounded-2xl bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] border border-[#F59E0B]/30 p-3 flex items-center justify-between gap-3">
+              <div className="mt-3 rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FCA5A5] border border-[#B91C1C]/30 p-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-[10px] uppercase font-bold text-[#92400E] tracking-widest">Activation required</div>
-                  <div className="text-xs text-[#78350F] font-medium truncate">Pay the ₹7,499 starter kit to unlock this referral code.</div>
+                  <div className="text-[10px] uppercase font-bold text-[#7F1D1D] tracking-widest">Activation required</div>
+                  <div className="text-xs text-[#78350F] font-medium truncate">Pay the ₹9,999 starter kit to unlock this referral code.</div>
                 </div>
                 <button
                   onClick={() => payKit(b.id, b.business_code)}
@@ -134,7 +134,7 @@ export default function Businesses() {
 function Stat({ label, value, icon }) {
   return (
     <div className="rounded-xl bg-[#FAFAF9] p-2">
-      <div className="text-lg font-numbers font-black text-[#064E3B]">{value ?? 0}</div>
+      <div className="text-lg font-numbers font-black text-[#7F1D1D]">{value ?? 0}</div>
       <div className="text-[9px] uppercase text-[#94A3B8] font-bold tracking-wider inline-flex items-center gap-0.5">{icon} {label}</div>
     </div>
   );
@@ -163,13 +163,13 @@ function CreateBusinessModal({ onClose, onCreated }) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="text-xs uppercase font-bold text-[#94A3B8] tracking-wider">New Referral Business</div>
-            <h3 className="font-display font-black text-2xl text-[#064E3B]">Add another business</h3>
+            <h3 className="font-display font-black text-2xl text-[#7F1D1D]">Add another business</h3>
           </div>
           <button onClick={onClose} className="text-[#94A3B8] hover:text-[#334155]"><X className="w-5 h-5"/></button>
         </div>
-        <div className="rounded-2xl bg-gradient-to-br from-[#ECFCCB] to-[#D9F99D] p-4 mb-4 border border-[#84CC16]/30">
-          <div className="text-sm text-[#065F46]">
-            <b>How it works:</b> Enter any sponsor's referral code (not your own). We'll create a pending business and open an order for the ₹7,499 starter kit. Once you pay, your new referral code goes live and starts earning.
+        <div className="rounded-2xl bg-gradient-to-br from-[#FEE2E2] to-[#FECACA] p-4 mb-4 border border-[#DC2626]/30">
+          <div className="text-sm text-[#991B1B]">
+            <b>How it works:</b> Enter any sponsor's referral code (not your own). We'll create a pending business and open an order for the ₹9,999 starter kit. Once you pay, your new referral code goes live and starts earning.
           </div>
         </div>
         <div className="space-y-3">
@@ -180,13 +180,13 @@ function CreateBusinessModal({ onClose, onCreated }) {
           <div>
             <label className="text-xs font-bold uppercase text-[#94A3B8] tracking-wider">Sponsor referral code</label>
             <input className="input-soft mt-1 font-mono uppercase" placeholder="e.g. ADMIN001" value={refCode} onChange={(e) => setRefCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} data-testid="business-sponsor-input"/>
-            <div className="text-[10px] text-[#94A3B8] mt-1">Default is <b className="text-[#065F46] font-mono">ADMIN001</b> (company). You can change it to any valid referral code — but not your own.</div>
+            <div className="text-[10px] text-[#94A3B8] mt-1">Default is <b className="text-[#991B1B] font-mono">ADMIN001</b> (company). You can change it to any valid referral code — but not your own.</div>
           </div>
         </div>
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="btn-outline flex-1 justify-center">Cancel</button>
           <button onClick={submit} disabled={busy} className="btn-primary flex-1 justify-center" data-testid="submit-create-business-btn">
-            {busy ? "Creating…" : <><Save className="w-4 h-4"/>Create & Pay ₹7,499</>}
+            {busy ? "Creating…" : <><Save className="w-4 h-4"/>Create & Pay ₹9,999</>}
           </button>
         </div>
       </motion.div>
