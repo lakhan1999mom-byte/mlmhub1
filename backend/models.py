@@ -122,6 +122,9 @@ class ProductCreate(Base):
     is_hamper: bool = False
     hamper_tier: Optional[str] = None  # Bronze|Silver|Gold|Platinum
     contents: List[str] = []
+    # Fashion variants — optional lists shown as pickers on the product page.
+    sizes: List[str] = []   # e.g. ["S","M","L","XL"]
+    colors: List[str] = []  # e.g. ["Red","White","Black"] or hex codes
     is_active: bool = True
     is_locked: bool = False  # locked hampers can't be purchased
 
@@ -152,6 +155,8 @@ class CartItem(Base):
 class CartAdd(Base):
     product_id: str
     quantity: int = 1
+    size: Optional[str] = None
+    color: Optional[str] = None
 
 
 class OrderCreate(Base):

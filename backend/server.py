@@ -1131,7 +1131,7 @@ async def add_to_cart(payload: CartAdd, user=Depends(get_user)):
         if not is_hamper:
             raise HTTPException(
                 status_code=403,
-                detail="You must purchase the ₹7,499 Joining Kit before shopping regular products.",
+                detail="You must purchase the ₹9,999 Premium Hamper before shopping regular products.",
             )
     else:
         # Already-joined users cannot re-purchase a joining hamper
@@ -1148,19 +1148,22 @@ async def add_to_cart(payload: CartAdd, user=Depends(get_user)):
     existing_qty = 0
     found = False
     for it in items:
-        if it["product_id"] == payload.product_id:
+        if it["product_id"] == payload.product_id and it.get("size") == payload.size and it.get("color") == payload.color:
             existing_qty = it["quantity"]
             break
     new_total = existing_qty + payload.quantity
     if new_total > p.get("stock", 0):
         raise HTTPException(status_code=400, detail=f"Only {p.get('stock', 0)} left in stock")
     for it in items:
-        if it["product_id"] == payload.product_id:
+        if it["product_id"] == payload.product_id and it.get("size") == payload.size and it.get("color") == payload.color:
             it["quantity"] = new_total
             found = True
             break
     if not found:
-        items.append({"product_id": payload.product_id, "quantity": payload.quantity})
+        row = {"product_id": payload.product_id, "quantity": payload.quantity}
+        if payload.size: row["size"] = payload.size
+        if payload.color: row["color"] = payload.color
+        items.append(row)
     await db.carts.update_one(
         {"user_id": user["id"]},
         {"$set": {"user_id": user["id"], "items": items, "updated_at": now_iso()}},
@@ -1262,7 +1265,7 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         if not user.get("is_joining_paid", False) and not p.get("is_hamper", False):
             raise HTTPException(
                 status_code=403,
-                detail="Complete your ₹7,499 Joining Kit purchase before ordering other products.",
+                detail="Complete your ₹9,999 Premium Hamper purchase before ordering other products.",
             )
         if user.get("is_joining_paid", False) and p.get("is_hamper", False):
             raise HTTPException(status_code=400, detail="You have already purchased the joining kit.")
@@ -2010,7 +2013,33 @@ async def my_tickets(user=Depends(get_user)):
 
 
 # ==================== PUBLIC CONTENT ====================
-@api.get("/site/settings")
+@api.get("/mlm/income-structure")
+async def mlm_income_structure(_user=Depends(get_user)):
+    """Show the current rewards ladder to logged-in users (and admins).
+    Reads from settings.mlm.level_commissions and the joining_amount.
+    Members-per-level uses the 6-per-tier convention: 6, 36, 216, ..., 6^n.
+    Frontend renders this as a table on the user dashboard + admin overview."""
+    m = await db.settings.find_one({"_key": "mlm"}, {"_id": 0}) or {}
+    kit = await db.products.find_one({"sku": "HMP-JOINING-7200"}, {"_id": 0}) or {}
+    joining_amount = float(kit.get("price") or m.get("joining_amount") or 9999.0)
+    commissions = list(m.get("level_commissions") or [1200, 400, 50, 300, 50, 200, 50, 100])
+    levels = []
+    total = 0
+    for i, per in enumerate(commissions, start=1):
+        members = 6 ** i  # 6, 36, 216, ...
+        line_total = per * members
+        total += line_total
+        levels.append({"level": i, "per_member": per, "members": members, "total": line_total})
+    return {
+        "joining_amount": joining_amount,
+        "max_direct_referrals": int(m.get("max_direct_referrals") or 6),
+        "min_direct_paid_for_income": int(m.get("min_direct_paid_for_income") or 3),
+        "levels": levels,
+        "total_potential": total,
+    }
+
+
+
 async def site_settings():
     s = await db.settings.find_one({"_key": "site"}, {"_id": 0, "_key": 0,
                                                       "cloudinary_api_secret": 0})

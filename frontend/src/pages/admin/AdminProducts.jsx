@@ -6,7 +6,8 @@ import ImageSizeGuide from "@/components/ImageSizeGuide";
 
 const blank = {
   name: "", description: "", price: 0, mrp: 0, sku: "", category: "general", brand: "EverGro",
-  gst_percent: 5, stock: 100, images: [], badges: [], is_hamper: false, hamper_tier: null, contents: [], is_active: true,
+  gst_percent: 5, stock: 100, images: [], badges: [], is_hamper: false, hamper_tier: null, contents: [],
+  sizes: [], colors: [], is_active: true,
 };
 
 export default function AdminProducts() {
@@ -165,6 +166,36 @@ export default function AdminProducts() {
               <div className="text-sm font-semibold mb-2">Badges (comma-separated)</div>
               <input className="input-soft" value={(edit.badges || []).join(",")} onChange={(e) => setEdit({...edit, badges: e.target.value.split(",").map((s) => s.trim()).filter(Boolean)})}/>
             </div>
+
+            {/* Fashion variants — only meaningful for non-hamper products */}
+            {!edit.is_hamper && (
+              <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-3 space-y-3" data-testid="fashion-variants-card">
+                <div className="text-sm font-semibold text-[#7F1D1D]">Fashion / Variant Options (optional)</div>
+                <div>
+                  <div className="text-xs text-[#7F1D1D] mb-1 font-semibold">Sizes (comma-separated, leave blank for none)</div>
+                  <input
+                    className="input-soft"
+                    placeholder="S, M, L, XL, XXL"
+                    value={(edit.sizes || []).join(", ")}
+                    onChange={(e) => setEdit({...edit, sizes: e.target.value.split(",").map((s) => s.trim()).filter(Boolean)})}
+                    data-testid="product-sizes-input"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-[#7F1D1D] mb-1 font-semibold">Colors (comma-separated · names or hex e.g. Red, White, #123456)</div>
+                  <input
+                    className="input-soft"
+                    placeholder="Red, White, Black, #DC2626"
+                    value={(edit.colors || []).join(", ")}
+                    onChange={(e) => setEdit({...edit, colors: e.target.value.split(",").map((s) => s.trim()).filter(Boolean)})}
+                    data-testid="product-colors-input"
+                  />
+                </div>
+                {((edit.sizes || []).length > 0 || (edit.colors || []).length > 0) && (
+                  <div className="text-[10px] text-[#B91C1C]">These pickers will appear on the product page and become mandatory before Add to Cart.</div>
+                )}
+              </div>
+            )}
             <div>
               <div className="text-sm font-semibold mb-2">Images</div>
               <ImageSizeGuide preset={edit.is_hamper ? "hamper" : "product"}/>

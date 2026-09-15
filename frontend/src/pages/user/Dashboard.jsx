@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell } from "recharts";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
+import IncomeStructureCard from "@/components/IncomeStructureCard";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -91,6 +92,9 @@ export default function Dashboard() {
         <QuickAction to="/products" icon={<ShoppingBag className="w-5 h-5"/>} label="Shop Store"/>
         <QuickAction to="/orders" icon={<Package className="w-5 h-5"/>} label="My Orders"/>
       </div>
+
+      {/* Rewards ladder / income structure */}
+      <IncomeStructureCard variant="user"/>
 
       {/* Wallet breakdown — where each rupee came from */}
       {breakdown && (

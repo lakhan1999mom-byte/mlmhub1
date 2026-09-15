@@ -42,9 +42,12 @@ export function CartProvider({ children }) {
     fetchDelivery();
   }, [fetchDelivery]);
 
-  const addItem = async (productId, quantity = 1) => {
+  const addItem = async (productId, quantity = 1, variant = null) => {
     try {
-      await api.post("/cart/add", { product_id: productId, quantity });
+      const payload = { product_id: productId, quantity };
+      if (variant?.size) payload.size = variant.size;
+      if (variant?.color) payload.color = variant.color;
+      await api.post("/cart/add", payload);
       await fetchCart();
       return { ok: true };
     } catch (err) {

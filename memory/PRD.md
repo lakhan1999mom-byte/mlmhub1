@@ -10,7 +10,24 @@ Build a production-ready E-Commerce Platform "EverGro eMart" with Landing Websit
 - Payment gateway — **Master switch in Admin Settings** (`active_payment_gateway` = none / uropay / razorpay / manual). Default = **none** (payments disabled). No gateway is auto-active without admin action.
 - JWT auth + Firebase Phone OTP (prod) + Dev OTP fallback (preview)
 
-## Iteration 23–24 (Feb 2026) — Red/White Rebrand + Legal Scrub + Admin Superpowers
+## Iteration 25 (Feb 2026) — Fashion Variants + Rewards Ladder + Editable Contents
+
+### Product model + admin
+- `Product.sizes: List[str]` and `Product.colors: List[str]` added to `models.py`.
+- Admin Products page has a "Fashion / Variant Options" card (only shown when the product is NOT a hamper) with comma-separated Sizes and Colors inputs. Values persist via existing `PUT /admin/products/{id}` (accepts arbitrary payload).
+- Product detail (`/products/:id`) renders pill-shaped Size buttons and Color swatches (auto-detects hex vs name). Add-to-Cart is **blocked** until size + color are picked when the product exposes those variants.
+- Cart backend: `CartAdd` schema now accepts `size` and `color`. Cart rows are keyed on `(product_id, size, color)` so different variants can coexist in the cart.
+
+### Rewards ladder / Income Structure Card
+- New endpoint `GET /api/mlm/income-structure` (auth-only): returns `joining_amount` (auto-pulled from the live kit product price), `max_direct_referrals`, `min_direct_paid_for_income`, `levels[]` (per_member × 6^n members) and `total_potential`.
+- Shared React component `/app/frontend/src/components/IncomeStructureCard.jsx` renders the table, "Max Potential" pill, and a "no income guarantee" footnote.
+- Wired into **user Dashboard** (`<IncomeStructureCard variant="user"/>`) and **Admin Overview** (`<IncomeStructureCard variant="admin"/>`).
+- Everything is data-driven — when admin edits `mlm.level_commissions` or bumps the kit price, both dashboards update automatically.
+
+### Editable hamper contents
+- Already fully in place: `AdminProducts.jsx` has a Contents editor (tags input) that mutates `product.contents[]`. `ProductDetail.jsx` renders that same array under the "Contains:" heading, so any admin edit is instantly visible to shoppers on the product page. No further backend work needed.
+
+
 
 ### Public UI (Legal-friendly e-commerce, no MLM copy)
 - **Global theme swap**: greens/lime/amber → red/white palette (`#DC2626`, `#B91C1C`, `#7F1D1D`, `#FEE2E2`, `#FEF2F2`). Admin panel is now light red/white (was slate-950 dark).

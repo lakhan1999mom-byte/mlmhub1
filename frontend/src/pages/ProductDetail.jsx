@@ -14,6 +14,8 @@ export default function ProductDetail() {
   const [p, setP] = useState(null);
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
+  const [selectedSize, setSelectedSize] = useState("");
+  const [selectedColor, setSelectedColor] = useState("");
 
   useEffect(() => {
     api.get(`/products/${id}`).then(({ data }) => setP(data));
@@ -33,7 +35,9 @@ export default function ProductDetail() {
       toast.info("You've already activated your account.");
       return;
     }
-    const res = await addItem(p.id, qty);
+    if (p.sizes?.length > 0 && !selectedSize) return toast.error("Please pick a size");
+    if (p.colors?.length > 0 && !selectedColor) return toast.error("Please pick a color");
+    const res = await addItem(p.id, qty, { size: selectedSize, color: selectedColor });
     if (res?.ok) toast.success("Added to cart");
   };
   const handleBuy = async () => {
@@ -91,6 +95,57 @@ export default function ProductDetail() {
                   <li key={c} className="text-sm text-[#334155] flex items-start gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-[#DC2626] mt-0.5"/>{c}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Fashion variant pickers */}
+          {p.sizes?.length > 0 && (
+            <div className="mb-4" data-testid="size-picker-group">
+              <div className="text-sm font-semibold text-[#7F1D1D] mb-2">Size {selectedSize && <span className="text-[#B91C1C] font-normal">· {selectedSize}</span>}</div>
+              <div className="flex flex-wrap gap-2">
+                {p.sizes.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSelectedSize(s)}
+                    className={`min-w-[44px] h-10 rounded-full border-2 font-semibold text-sm transition ${
+                      selectedSize === s
+                        ? "border-[#DC2626] bg-[#DC2626] text-white"
+                        : "border-[#FECACA] bg-white text-[#7F1D1D] hover:border-[#DC2626]"
+                    }`}
+                    data-testid={`size-option-${s}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {p.colors?.length > 0 && (
+            <div className="mb-6" data-testid="color-picker-group">
+              <div className="text-sm font-semibold text-[#7F1D1D] mb-2">Color {selectedColor && <span className="text-[#B91C1C] font-normal">· {selectedColor}</span>}</div>
+              <div className="flex flex-wrap gap-2">
+                {p.colors.map((c) => {
+                  const isHex = /^#[0-9A-Fa-f]{3,8}$/.test(c);
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => setSelectedColor(c)}
+                      className={`inline-flex items-center gap-2 px-3 h-10 rounded-full border-2 font-semibold text-sm transition ${
+                        selectedColor === c
+                          ? "border-[#DC2626] ring-2 ring-[#DC2626]/30"
+                          : "border-[#FECACA] hover:border-[#DC2626]"
+                      } bg-white text-[#7F1D1D]`}
+                      data-testid={`color-option-${c}`}
+                    >
+                      <span
+                        className="w-4 h-4 rounded-full border border-[#FECACA]"
+                        style={{ background: isHex ? c : c.toLowerCase() }}
+                      />
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
           <div className="flex items-center gap-4 mb-6">

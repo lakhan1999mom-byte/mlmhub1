@@ -4,6 +4,7 @@ import { Users, ShoppingBag, Wallet, TrendingUp, Download, Briefcase, Activity, 
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, BarChart, Bar, CartesianGrid } from "recharts";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import IncomeStructureCard from "@/components/IncomeStructureCard";
 
 /**
  * Iteration 16 — Redesigned Admin Overview (dark SaaS theme).
@@ -61,6 +62,9 @@ export default function AdminDashboard() {
         <DarkStatCard label="Revenue" value={`₹${Number(s.total_revenue || 0).toLocaleString("en-IN")}`} icon={<Wallet className="w-5 h-5"/>} accent="from-[#DC2626] to-[#7F1D1D]"/>
         <DarkStatCard label="Active Members" value={s.active_users || 0} icon={<Zap className="w-5 h-5"/>} accent="from-[#DC2626] to-[#991B1B]"/>
       </div>
+
+      {/* Rewards ladder / income structure (auto-pulls current commissions + kit price) */}
+      <IncomeStructureCard variant="admin"/>
 
       {/* Chart row */}
       <div className="grid lg:grid-cols-3 gap-5">
