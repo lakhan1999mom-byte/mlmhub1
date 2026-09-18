@@ -22,7 +22,7 @@ export default function AdminSettings() {
   };
   const saveMlm = async () => {
     setBusy(true);
-    try { await api.put("/admin/settings/mlm", mlm); toast.success("MLM saved"); }
+    try { await api.put("/admin/settings/mlm", mlm); toast.success("Rewards settings saved"); }
     catch { toast.error("Failed"); }
     finally { setBusy(false); }
   };
@@ -146,13 +146,13 @@ export default function AdminSettings() {
       </div>
 
       <div className="card-soft p-6 space-y-3">
-        <h3 className="font-display font-bold text-lg">MLM Settings</h3>
+        <h3 className="font-display font-bold text-lg">Rewards Settings</h3>
         <div className="grid sm:grid-cols-2 gap-3">
           <Input label="Total Stages" type="number" v={mlm.stages_total} on={updMlm("stages_total")}/>
           <Input label="Referrals per Stage" type="number" v={mlm.referrals_per_stage} on={updMlm("referrals_per_stage")}/>
           <Input label="Joining Amount" type="number" v={mlm.joining_amount} on={updMlm("joining_amount")}/>
         </div>
-        <button onClick={saveMlm} disabled={busy} className="btn-primary" data-testid="save-mlm-settings">Save MLM Settings</button>
+        <button onClick={saveMlm} disabled={busy} className="btn-primary" data-testid="save-mlm-settings">Save Rewards Settings</button>
       </div>
 
       <SelfPasswordCard/>

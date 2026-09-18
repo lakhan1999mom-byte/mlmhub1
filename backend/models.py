@@ -311,8 +311,10 @@ class SiteSettings(Base):
     meta_pixel_id: str = ""
     meta_pixel_code: str = ""
     # Payment gateway master toggle — admin picks which gateway is live.
-    # Values: "none" (default = payments disabled), "uropay", "razorpay", "manual"
+    # Values: "none" (default = online payments disabled), "uropay", "razorpay", "manual"
     active_payment_gateway: str = "none"
+    # Admin can disable Cash-on-Delivery via this flag. Default: COD is ON.
+    cod_disabled: bool = False
 
 
 class Banner(Base):

@@ -86,7 +86,7 @@ export default function AdminPayments() {
           <li>Customer enters the 12-digit UPI Reference Number (UTR) shown in their UPI app.</li>
           <li>Frontend calls <span className="font-mono">/payments/uropay/submit-utr</span> → backend calls UroPay <span className="font-mono">PATCH /order/update</span>.</li>
           <li>UroPay Companion App on your admin phone reads the incoming SMS → hits <span className="font-mono">POST /webhooks/uropay</span> on our server. Frontend polls <span className="font-mono">/payments/uropay/verify</span> as a fallback.</li>
-          <li>Order flips to paid, stock decrements, MLM commissions distribute (if joining kit).</li>
+          <li>Order flips to paid, stock decrements, referral rewards distribute (if joining kit).</li>
         </ol>
       </div>
 

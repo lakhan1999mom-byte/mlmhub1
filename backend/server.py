@@ -1124,22 +1124,10 @@ async def add_to_cart(payload: CartAdd, user=Depends(get_user)):
     p = await db.products.find_one({"id": payload.product_id}, {"_id": 0})
     if not p or not p.get("is_active", True) or p.get("is_locked", False):
         raise HTTPException(status_code=400, detail="Product is not available")
-    # Phase 2 join-gating rules
+    # Only rule: already-activated partners can't re-buy the joining kit.
     is_hamper = p.get("is_hamper", False)
-    if not user.get("is_joining_paid", False):
-        # Non-joined users can ONLY add the active joining hamper
-        if not is_hamper:
-            raise HTTPException(
-                status_code=403,
-                detail="You must purchase the ₹9,999 Premium Hamper before shopping regular products.",
-            )
-    else:
-        # Already-joined users cannot re-purchase a joining hamper
-        if is_hamper:
-            raise HTTPException(
-                status_code=400,
-                detail="You have already purchased the joining kit.",
-            )
+    if is_hamper and user.get("is_joining_paid", False):
+        raise HTTPException(status_code=400, detail="You have already activated your partner account.")
     # Stock check (aggregate qty across existing cart + new addition)
     cart = await db.carts.find_one({"user_id": user["id"]}, {"_id": 0})
     if not cart:
@@ -1725,19 +1713,97 @@ async def admin_get_payment_config(_=Depends(require_admin)):
 async def site_active_payment_provider():
     """Which gateway (if any) is currently enabled for customer checkout.
     Admin controls this from /admin/settings (`active_payment_gateway` field).
-    Values: "none" (payments disabled — checkout should show 'not configured'),
-    "uropay", "razorpay", or "manual"."""
+    Values: "none" (online payments disabled), "uropay", "razorpay", "manual".
+    COD is ALWAYS available (admin can turn it off via `cod_disabled` in site settings)."""
     s = await db.settings.find_one({"_key": "site"}, {"_id": 0}) or {}
     gw = (s.get("active_payment_gateway") or "none").strip().lower()
     uropay_env_active = bool(os.environ.get("UROPAY_API_KEY") and os.environ.get("UROPAY_API_SECRET"))
+    cod_enabled = not bool(s.get("cod_disabled", False))
+    online_active = gw != "none"
     return {
-        "active": gw != "none",
+        # `active` now means "any pay method is available" — including COD.
+        "active": online_active or cod_enabled,
         "provider": gw,
+        "online_active": online_active,
+        "cod_active": cod_enabled,
         "uropay_active": (gw == "uropay") and uropay_env_active,
         "razorpay_active": (gw == "razorpay") and bool(s.get("razorpay_enabled") and s.get("razorpay_key_id")),
         "manual_active": (gw == "manual"),
         "mock_mode": False,
     }
+
+
+@api.post("/orders/guest")
+async def create_guest_order(payload: dict):
+    """Guest checkout — no login required. Buys a single product (typically a hamper)
+    as a normal customer with COD (or, later, the active gateway). Does NOT create a
+    partner account, does NOT credit any rewards or referral tree entries.
+    Body: {product_id, quantity, name, phone, email?, address, city, state, pincode,
+           size?, color?, payment_method?}
+    """
+    pid = (payload.get("product_id") or "").strip()
+    qty = max(1, int(payload.get("quantity") or 1))
+    name = (payload.get("name") or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    address = (payload.get("address") or "").strip()
+    city = (payload.get("city") or "").strip()
+    state = (payload.get("state") or "").strip()
+    pincode = (payload.get("pincode") or "").strip()
+    email = (payload.get("email") or "").strip()
+    size = payload.get("size") or None
+    color = payload.get("color") or None
+    method = (payload.get("payment_method") or "cod").strip().lower()
+
+    if not pid or not name or not phone or not address or not city or not pincode:
+        raise HTTPException(status_code=400, detail="name, phone, address, city, pincode and product_id are required")
+    p = await db.products.find_one({"id": pid}, {"_id": 0})
+    if not p or not p.get("is_active", True) or p.get("is_locked", False):
+        raise HTTPException(status_code=400, detail="Product is not available")
+    if qty > p.get("stock", 0):
+        raise HTTPException(status_code=400, detail=f"Only {p.get('stock', 0)} left in stock")
+
+    site = await db.settings.find_one({"_key": "site"}, {"_id": 0}) or {}
+    cod_disabled = bool(site.get("cod_disabled", False))
+    if method == "cod" and cod_disabled:
+        raise HTTPException(status_code=400, detail="Cash on delivery is currently disabled")
+    if method != "cod":
+        gw = (site.get("active_payment_gateway") or "none").strip().lower()
+        if gw == "none":
+            raise HTTPException(status_code=400, detail="Online payment gateway is not configured yet")
+
+    unit_price = float(p.get("price") or 0)
+    subtotal = round(unit_price * qty, 2)
+    gst_percent = float(p.get("gst_percent") or 0)
+    tax = round(subtotal * gst_percent / 100.0, 2)
+    delivery = 0.0
+    total = round(subtotal + tax + delivery, 2)
+
+    order = {
+        "id": str(uuid.uuid4()),
+        "user_id": None,
+        "is_guest": True,
+        "guest": {"name": name, "phone": phone, "email": email},
+        "items": [{
+            "product_id": p["id"], "name": p["name"], "price": unit_price,
+            "quantity": qty, "gst_percent": gst_percent,
+            "size": size, "color": color,
+        }],
+        "shipping_address": {
+            "name": name, "phone": phone,
+            "line1": address, "city": city, "state": state, "pincode": pincode,
+        },
+        "subtotal": subtotal, "tax": tax, "delivery_charge": delivery, "total_amount": total,
+        "payment_method": method, "payment_status": "pending",
+        "status": "pending" if method != "cod" else "confirmed",
+        "is_joining_order": False,
+        "tracking_history": [
+            {"status": "placed", "note": "Guest order placed", "timestamp": now_iso()},
+        ],
+        "created_at": now_iso(),
+    }
+    await db.orders.insert_one(order)
+    order.pop("_id", None)
+    return {"ok": True, "order": order}
 
 
 # ==================== UROPAY PAYMENT (QR + UTR self-serve) ====================

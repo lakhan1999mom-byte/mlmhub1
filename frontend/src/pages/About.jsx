@@ -4,7 +4,7 @@ export default function About() {
       <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Who We Are</div>
       <h1 className="font-display text-5xl font-bold mb-6">About EverGro eMart</h1>
       <p className="text-lg text-[#334155] leading-relaxed mb-6">
-        EverGro eMart is India's most transparent MLM-based hamper-selling platform. We curate premium grocery hampers and reward our members through an 8-stage rewards guide with timely payouts and clear rules.
+        EverGro eMart is India's most transparent premium hamper e-commerce platform. We curate premium grocery hampers and reward our members through an simple 8-tier rewards program with timely payouts and clear rules.
       </p>
       <div className="grid md:grid-cols-3 gap-6 mt-12">
         <div className="card-soft p-6">
@@ -23,7 +23,7 @@ export default function About() {
       <div className="mt-12 card-soft p-8">
         <h2 className="font-display text-2xl font-bold mb-3">Our Mission</h2>
         <p className="text-[#334155] leading-relaxed">
-          To create wealth opportunities for ordinary Indians through premium product purchases and a fair, transparent MLM compensation structure.
+          To create wealth opportunities for ordinary Indians through premium product purchases and a fair, transparent rewards program.
         </p>
       </div>
     </div>

@@ -25,6 +25,7 @@ import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
+import GuestCheckout from "@/pages/GuestCheckout";
 
 import UserShell from "@/components/UserShell";
 import Dashboard from "@/pages/user/Dashboard";
@@ -150,6 +151,7 @@ export default function App() {
               <Route path="/career" element={<Career />} />
               <Route path="/legal/:type" element={<LegalPage />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/guest-checkout/:productId" element={<GuestCheckout />} />
               <Route path="/purchase-kit" element={<PurchaseKitPage />} />
               <Route path="/checkout" element={<RequireAuth role={["user","sub_admin","super_admin"]}><Checkout /></RequireAuth>} />
             </Route>

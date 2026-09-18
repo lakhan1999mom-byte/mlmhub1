@@ -10,7 +10,32 @@ Build a production-ready E-Commerce Platform "EverGro eMart" with Landing Websit
 - Payment gateway — **Master switch in Admin Settings** (`active_payment_gateway` = none / uropay / razorpay / manual). Default = **none** (payments disabled). No gateway is auto-active without admin action.
 - JWT auth + Firebase Phone OTP (prod) + Dev OTP fallback (preview)
 
-## Iteration 25 (Feb 2026) — Fashion Variants + Rewards Ladder + Editable Contents
+## Iteration 26 (Feb 2026) — Guest Checkout + COD + Full MLM Scrub
+
+### Public frontend fully de-MLM'd (again)
+- Register page: removed "additional MLM positions" tip and the "One mobile = one account" line. New title "Become a Partner". New subtitle "Step 1: Fill details · Step 2: Pay ₹9,999 Premium Hamper to activate your partner dashboard."
+- About page, LegalPage (refund), AdminSettings, AdminPayments — all "MLM …" tokens rewritten to "referral rewards / rewards program / kit activation" wording.
+- Cart page: dropped the "Joining Kit required" gate. Every user can add every product to cart. Empty-cart CTA now always says "Shop Now" and routes to `/products`.
+- Product Detail: removed the "must-buy-kit-first" toast/redirect. All shoppers can add non-hamper products to cart directly.
+- Backend `POST /cart/add`: removed the 403 "must-purchase-₹9,999" gate. The only remaining rule is that an already-activated partner cannot re-buy the joining hamper.
+
+### Purchase split on the hamper product page
+- On any `is_hamper=true` product, the CTA area now shows two branded cards:
+  1. **Become an EverGro eMart Partner** → routes to `/register` (or `/purchase-kit` if already logged in). Standard activation → partner dashboard flow.
+  2. **Buy as a Customer** → routes to new `/guest-checkout/:productId`.
+- Only regular (non-hamper) products keep the classic `Add to Cart / Buy Now` pair.
+
+### Guest checkout
+- New page `/guest-checkout/:productId` (`/app/frontend/src/pages/GuestCheckout.jsx`) — no login required. Collects name, mobile, email (optional), address, city, state, pincode, size/color (if applicable), qty, and payment method. Renders a live order summary. Shows a big confirmation card with order id after successful placement.
+- New backend endpoint `POST /api/orders/guest` (public, no auth). Creates an order with `is_guest: true`, `user_id: null`, and skips ALL partner activation / referral tree / rewards logic. Validates stock, computes GST from product config, respects `cod_disabled` and `active_payment_gateway` flags.
+- COD is enabled by default. `GET /api/site/payment-provider` now returns `{cod_active, online_active}`. New `cod_disabled` flag added to `SiteSettings` for admin override.
+
+### Files added/changed this iteration
+- Added: `/app/frontend/src/pages/GuestCheckout.jsx`
+- Backend: `/app/backend/server.py` (guest order endpoint, payment provider expansion, cart-gate removal), `/app/backend/models.py` (SiteSettings.cod_disabled)
+- Frontend: `App.js` (new route), `ProductDetail.jsx` (hamper split), `Cart.jsx` (gate removed), `Register.jsx`, `JoinNow.jsx`, `About.jsx`, `LegalPage.jsx`, `AdminSettings.jsx`, `AdminPayments.jsx` (MLM copy sweep)
+
+
 
 ### Product model + admin
 - `Product.sizes: List[str]` and `Product.colors: List[str]` added to `models.py`.

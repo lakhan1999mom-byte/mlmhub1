@@ -4,7 +4,7 @@ import api from "@/lib/api";
 
 const fallback = {
   privacy: { title: "Privacy Policy", body: "We collect minimum data required (name, email, phone, KYC) to operate the platform. We never sell your data." },
-  refund: { title: "Refund Policy", body: "Joining hamper purchases that have triggered MLM activation cannot be refunded. Non-joining regular purchases can be returned within 7 days in original packaging." },
+  refund: { title: "Refund Policy", body: "Joining hamper purchases that have triggered kit activation cannot be refunded. Non-joining regular purchases can be returned within 7 days in original packaging." },
   shipping: { title: "Shipping Policy", body: "Free shipping on orders above threshold (admin-configurable). Delivery in 3-7 business days across India." },
 };
 

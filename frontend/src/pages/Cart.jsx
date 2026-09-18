@@ -40,26 +40,16 @@ export default function Cart() {
         )}
       </div>
 
-      {!isJoined && (
-        <div className="mb-6 p-4 bg-[#FEF2F2] border border-[#FCA5A5] rounded-xl flex items-start gap-3" data-testid="cart-join-notice">
-          <Lock className="w-5 h-5 text-[#7F1D1D] flex-shrink-0 mt-0.5"/>
-          <div className="text-sm text-[#7F1D1D]">
-            <div className="font-semibold mb-0.5">Joining Kit required</div>
-            Until you complete your ₹9,999 Joining Kit purchase, you can only add the joining hamper to cart. Regular product shopping unlocks after activation.
-          </div>
-        </div>
-      )}
-
       {items.length === 0 ? (
         <div className="card-soft p-12 text-center" data-testid="cart-empty">
           <ShoppingBag className="w-16 h-16 text-[#94A3B8] mx-auto mb-4"/>
           <div className="text-[#64748B] mb-4">Your cart is empty</div>
           <button
-            onClick={() => nav(isJoined ? "/products" : "/hampers")}
+            onClick={() => nav("/products")}
             className="btn-primary"
             data-testid="cart-shop-btn"
           >
-            {isJoined ? "Shop Now" : "View Joining Kit"}
+            Shop Now
           </button>
         </div>
       ) : (

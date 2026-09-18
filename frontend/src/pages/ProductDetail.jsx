@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { Star, ShoppingCart, Zap, CheckCircle2 } from "lucide-react";
@@ -25,16 +25,6 @@ export default function ProductDetail() {
 
   const handleAdd = async () => {
     if (!user) { nav("/login"); return; }
-    // Frontend guard: non-joined users can only add the joining hamper
-    if (!user.is_joining_paid && !p.is_hamper) {
-      toast.error("Buy the ₹9,999 Joining Kit first to unlock regular product shopping.");
-      nav("/hampers");
-      return;
-    }
-    if (user.is_joining_paid && p.is_hamper) {
-      toast.info("You've already activated your account.");
-      return;
-    }
     if (p.sizes?.length > 0 && !selectedSize) return toast.error("Please pick a size");
     if (p.colors?.length > 0 && !selectedColor) return toast.error("Please pick a color");
     const res = await addItem(p.id, qty, { size: selectedSize, color: selectedColor });
@@ -156,10 +146,31 @@ export default function ProductDetail() {
             </div>
             <div className="text-sm text-[#B91C1C] font-semibold">In stock: {p.stock}</div>
           </div>
-          <div className="flex gap-3">
-            <button onClick={handleAdd} className="btn-outline flex-1 justify-center" data-testid="add-to-cart-btn"><ShoppingCart className="w-4 h-4"/>Add to Cart</button>
-            <button onClick={handleBuy} className="btn-primary flex-1 justify-center" data-testid="buy-now-btn"><Zap className="w-4 h-4"/>Buy Now</button>
-          </div>
+
+          {p.is_hamper ? (
+            /* Hamper split: partner path (register + activate) OR guest path (no login) */
+            <div className="space-y-3" data-testid="hamper-purchase-options">
+              <div className="rounded-2xl border-2 border-[#DC2626] bg-[#FEF2F2] p-4">
+                <div className="font-display font-bold text-[#7F1D1D] mb-1">Become an EverGro eMart Partner</div>
+                <div className="text-xs text-[#64748B] mb-3">Register once, activate with the hamper, and unlock your partner dashboard with referral rewards.</div>
+                <Link to={user ? "/purchase-kit" : "/register"} className="btn-primary w-full justify-center" data-testid="hamper-buy-as-partner">
+                  <Zap className="w-4 h-4"/> Buy &amp; Become Partner
+                </Link>
+              </div>
+              <div className="rounded-2xl border border-[#FECACA] bg-white p-4">
+                <div className="font-display font-bold text-[#7F1D1D] mb-1">Buy as a Customer</div>
+                <div className="text-xs text-[#64748B] mb-3">Just place an order — no sign-up, no dashboard. Cash-on-delivery available.</div>
+                <Link to={`/guest-checkout/${p.id}`} className="btn-outline w-full justify-center" data-testid="hamper-buy-as-guest">
+                  <ShoppingCart className="w-4 h-4"/> Buy as Customer
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <button onClick={handleAdd} className="btn-outline flex-1 justify-center" data-testid="add-to-cart-btn"><ShoppingCart className="w-4 h-4"/>Add to Cart</button>
+              <button onClick={handleBuy} className="btn-primary flex-1 justify-center" data-testid="buy-now-btn"><Zap className="w-4 h-4"/>Buy Now</button>
+            </div>
+          )}
         </div>
       </div>
 

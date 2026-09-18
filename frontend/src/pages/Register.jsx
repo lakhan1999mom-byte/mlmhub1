@@ -71,11 +71,8 @@ export default function Register() {
               EverGro <span className="text-[#DC2626]">eMart</span>
             </div>
           </Link>
-          <h2 className="font-display text-3xl font-bold text-[#7F1D1D] mb-2">Create Account</h2>
-          <p className="text-[#64748B] mb-6">Step 1 of 2: Fill details · Step 2: Pay ₹9,999 Purchasing Kit to activate.</p>
-          <p className="text-xs text-[#B91C1C] mb-6">
-            💡 Tip: If you already have an account, just pick a NEW <b>username</b> — you can reuse the same email & phone to create additional MLM positions.
-          </p>
+          <h2 className="font-display text-3xl font-bold text-[#7F1D1D] mb-2">Become a Partner</h2>
+          <p className="text-[#64748B] mb-6">Step 1 of 2: Fill details · Step 2: Pay ₹9,999 Premium Hamper to activate your partner dashboard.</p>
           <form onSubmit={submit} className="space-y-4">
             <div>
               <label className="text-sm font-medium text-[#7F1D1D]">Full Name</label>
@@ -116,7 +113,6 @@ export default function Register() {
             <div>
               <label className="text-sm font-medium text-[#7F1D1D]">Mobile</label>
               <input data-testid="register-phone-input" className="input-soft mt-1" value={form.phone} onChange={upd("phone")} required/>
-              <p className="text-[10px] text-[#B91C1C] mt-1 font-medium">✓ One mobile = one account. Add more referral businesses from your dashboard later.</p>
             </div>
             <div>
               <label className="text-sm font-medium text-[#7F1D1D]">Password</label>
