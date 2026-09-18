@@ -136,13 +136,22 @@ export default function AdminSettings() {
             onChange={(e) => setSite({...site, active_payment_gateway: e.target.value})}
             data-testid="active-payment-gateway-select"
           >
-            <option value="none">None — payments disabled</option>
+            <option value="none">None — online payments disabled</option>
             <option value="uropay">UroPay (QR + UTR)</option>
             <option value="razorpay">Razorpay (Cards / UPI / Netbanking)</option>
             <option value="manual">Manual (Bank transfer / offline)</option>
           </select>
         </div>
-        <button onClick={saveSite} disabled={busy} className="btn-primary" data-testid="save-payment-gateway">Save Payment Gateway</button>
+        <label className="flex items-center gap-2 text-sm mt-2 cursor-pointer" data-testid="cod-toggle-label">
+          <input
+            type="checkbox"
+            checked={!site.cod_disabled}
+            onChange={(e) => setSite({...site, cod_disabled: !e.target.checked})}
+            data-testid="cod-toggle-checkbox"
+          />
+          <span>Accept <b>Cash on Delivery</b> (COD) — enabled by default. Uncheck to force customers into online payment.</span>
+        </label>
+        <button onClick={saveSite} disabled={busy} className="btn-primary" data-testid="save-payment-gateway">Save Payment Settings</button>
       </div>
 
       <div className="card-soft p-6 space-y-3">

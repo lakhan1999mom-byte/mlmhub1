@@ -16,10 +16,17 @@ const STATUSES = [
 export default function AdminOrders() {
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState("");
+  const [guestFilter, setGuestFilter] = useState("all"); // all | guest | partner
   const [edit, setEdit] = useState(null); // full order object for tracking modal
 
-  const load = () => api.get(`/admin/orders${filter ? `?status=${filter}` : ""}`).then(({ data }) => setItems(data.items));
-  useEffect(() => { load(); }, [filter]);
+  const load = () => {
+    const params = new URLSearchParams();
+    if (filter) params.set("status", filter);
+    if (guestFilter && guestFilter !== "all") params.set("guest", guestFilter);
+    const qs = params.toString();
+    return api.get(`/admin/orders${qs ? `?${qs}` : ""}`).then(({ data }) => setItems(data.items));
+  };
+  useEffect(() => { load(); }, [filter, guestFilter]);
 
   const quickUpdate = async (o, status) => {
     try {
@@ -46,6 +53,29 @@ export default function AdminOrders() {
         ))}
       </div>
 
+      {/* Buyer-type filter (guest checkout vs registered partner) */}
+      <div className="flex gap-2 flex-wrap items-center" data-testid="admin-orders-buyer-filter">
+        <span className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C]">Buyer:</span>
+        {[
+          { key: "all", label: "All buyers" },
+          { key: "partner", label: "Partners only" },
+          { key: "guest", label: "Guests only" },
+        ].map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => setGuestFilter(opt.key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+              guestFilter === opt.key
+                ? "bg-[#DC2626] text-white border-[#B91C1C]"
+                : "bg-white border-[#FECACA] text-[#7F1D1D] hover:border-[#DC2626]"
+            }`}
+            data-testid={`buyer-filter-${opt.key}`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <div className="card-soft overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[#F1F5F9] text-left text-xs uppercase"><tr>
@@ -56,8 +86,15 @@ export default function AdminOrders() {
               <tr key={o.id} className="border-t border-[#F1F5F9] hover:bg-[#FAFAF9]">
                 <td className="p-3 font-numbers font-semibold text-[#7F1D1D]">{o.order_code}</td>
                 <td className="p-3">
-                  <div className="font-semibold text-[#7F1D1D]">{o.user_name}</div>
-                  <div className="text-xs font-numbers text-[#94A3B8]">{o.user_code}</div>
+                  <div className="font-semibold text-[#7F1D1D] flex items-center gap-1.5">
+                    {o.is_guest ? (o.guest?.name || "Guest") : o.user_name}
+                    {o.is_guest && (
+                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#7F1D1D] border border-[#FCA5A5]" data-testid="guest-badge">Guest</span>
+                    )}
+                  </div>
+                  <div className="text-xs font-numbers text-[#94A3B8]">
+                    {o.is_guest ? (o.guest?.phone || "—") : (o.user_code || "—")}
+                  </div>
                 </td>
                 <td className="p-3">{o.items?.length}</td>
                 <td className="p-3 font-numbers font-bold">₹{o.total}</td>

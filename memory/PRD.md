@@ -10,7 +10,23 @@ Build a production-ready E-Commerce Platform "EverGro eMart" with Landing Websit
 - Payment gateway — **Master switch in Admin Settings** (`active_payment_gateway` = none / uropay / razorpay / manual). Default = **none** (payments disabled). No gateway is auto-active without admin action.
 - JWT auth + Firebase Phone OTP (prod) + Dev OTP fallback (preview)
 
-## Iteration 26 (Feb 2026) — Guest Checkout + COD + Full MLM Scrub
+## Iteration 27 (Feb 2026) — COD Toggle, Guest SMS, Guest Order Filter
+
+### COD toggle in admin settings
+- New checkbox in the Payment Gateway card (AdminSettings): `Accept Cash on Delivery` (test-id `cod-toggle-checkbox`). Unchecking sets `cod_disabled: true` on the site record and stops accepting COD for both guest and partner checkouts.
+- Backend already reads `cod_disabled` from `SiteSettings`; `GET /site/payment-provider` now reflects the toggle immediately (`cod_active` field).
+
+### Guest order SMS
+- New module `/app/backend/sms_utils.py` with `send_sms(db, phone, message, purpose, metadata)` and `build_guest_order_sms(...)` helper.
+- Wired into `POST /orders/guest` — every guest order fires a friendly SMS ("Hi Ritu! Your EverGro eMart order #A0B1FDF8 for EverGro Premium Hamper (₹10498) is confirmed. Delivery in 5 business days. Thank you!").
+- Delivery is **MOCKED** today — the module logs to the backend logger AND persists a `sms_log` MongoDB record so admins can audit every message. To plug in a real provider, add `SMS_PROVIDER=twilio` (or msg91/textlocal) env plus credentials and replace the `_deliver` function.
+- New admin endpoint `GET /admin/sms-log?phone=…&limit=…` for auditing.
+
+### Admin guest-orders filter
+- `GET /admin/orders` now accepts `?guest=all|guest|partner`. Default `all`. `partner` filter matches `is_guest: false` OR missing (legacy orders).
+- `AdminOrders.jsx` UI: new buyer-type filter row (`buyer-filter-all|partner|guest`), and every guest row shows a red `GUEST` badge next to the buyer name; buyer meta shows phone instead of user_code for guest orders.
+
+
 
 ### Public frontend fully de-MLM'd (again)
 - Register page: removed "additional MLM positions" tip and the "One mobile = one account" line. New title "Become a Partner". New subtitle "Step 1: Fill details · Step 2: Pay ₹9,999 Premium Hamper to activate your partner dashboard."

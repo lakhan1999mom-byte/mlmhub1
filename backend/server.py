@@ -30,6 +30,7 @@ from mlm_engine import (
     MAX_LEVELS, MAX_DIRECT_REFERRALS, MIN_DIRECT_PAID_FOR_INCOME,
     LEVEL_COMMISSIONS, JOINING_AMOUNT,
 )
+from sms_utils import send_sms, build_guest_order_sms
 from seed import seed_all
 
 ROOT_DIR = Path(__file__).parent
@@ -1803,6 +1804,15 @@ async def create_guest_order(payload: dict):
     }
     await db.orders.insert_one(order)
     order.pop("_id", None)
+    # Fire-and-forget friendly SMS confirmation for the guest buyer.
+    sms_text = build_guest_order_sms(
+        name=name, order_id=order["id"], total=total,
+        product_name=p.get("name") or "your order", eta_days=5,
+    )
+    await send_sms(
+        db, phone, sms_text, purpose="guest_order_confirmation",
+        metadata={"order_id": order["id"], "product_id": p["id"]},
+    )
     return {"ok": True, "order": order}
 
 
@@ -2966,14 +2976,32 @@ async def admin_delete_coupon(coupon_id: str, admin=Depends(require_admin)):
 
 
 @api.get("/admin/orders")
-async def admin_list_orders(_=Depends(require_admin), status: Optional[str] = None, page: int = 1, limit: int = 50):
-    query = {}
+async def admin_list_orders(_=Depends(require_admin), status: Optional[str] = None,
+                            guest: Optional[str] = None, page: int = 1, limit: int = 50):
+    """Admin orders list.
+    ``guest``: ``all`` (default), ``guest`` (only guest orders), ``partner``
+    (only orders placed by a registered partner/user)."""
+    query: dict = {}
     if status:
         query["status"] = status
+    if guest == "guest":
+        query["is_guest"] = True
+    elif guest == "partner":
+        query["$or"] = [{"is_guest": {"$exists": False}}, {"is_guest": False}]
     total = await db.orders.count_documents(query)
     skip = (page - 1) * limit
     items = await db.orders.find(query, {"_id": 0}).skip(skip).limit(limit).sort("created_at", -1).to_list(limit)
     return {"items": items, "total": total}
+
+
+@api.get("/admin/sms-log")
+async def admin_sms_log(_=Depends(require_admin), phone: Optional[str] = None, limit: int = 100):
+    """Recent transactional SMS log — useful to verify guest-order SMS delivery."""
+    q: dict = {}
+    if phone:
+        q["phone"] = phone
+    items = await db.sms_log.find(q, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"items": items}
 
 
 TRACKING_STEPS = ["placed", "confirmed", "packed", "shipped", "out_for_delivery", "delivered"]
