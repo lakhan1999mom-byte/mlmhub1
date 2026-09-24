@@ -51,6 +51,7 @@ import AdminUserDetail from "@/pages/admin/AdminUserDetail";
 import AdminProducts from "@/pages/admin/AdminProducts";
 import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminLeads from "@/pages/admin/AdminLeads";
+import AdminBlogs from "@/pages/admin/AdminBlogs";
 import AdminWithdrawals from "@/pages/admin/AdminWithdrawals";
 import AdminKyc from "@/pages/admin/AdminKyc";
 import AdminTickets from "@/pages/admin/AdminTickets";
@@ -188,6 +189,7 @@ export default function App() {
               <Route path="/admin/products" element={<AdminProducts />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/leads" element={<AdminLeads />} />
+              <Route path="/admin/blogs" element={<AdminBlogs />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="/admin/kyc" element={<AdminKyc />} />
               <Route path="/admin/tickets" element={<AdminTickets />} />

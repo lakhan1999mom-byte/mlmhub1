@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Star, ShoppingCart, Zap, CheckCircle2 } from "lucide-react";
+import { Star, ShoppingCart, Zap, CheckCircle2, Truck, ShieldCheck, Undo2 } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 
@@ -12,13 +12,26 @@ export default function ProductDetail() {
   const { addItem } = useCart();
   const { user } = useAuth();
   const [p, setP] = useState(null);
+  const [related, setRelated] = useState([]);
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
 
   useEffect(() => {
-    api.get(`/products/${id}`).then(({ data }) => setP(data));
+    setActiveImg(0);
+    setSelectedSize("");
+    setSelectedColor("");
+    api.get(`/products/${id}`).then(async ({ data }) => {
+      setP(data);
+      // fetch a few similar products in the same category (non-hamper)
+      if (data && !data.is_hamper) {
+        try {
+          const r = await api.get(`/products?category=${encodeURIComponent(data.category || "")}`);
+          setRelated((r.data || []).filter((x) => x.id !== data.id).slice(0, 4));
+        } catch { setRelated([]); }
+      } else { setRelated([]); }
+    }).catch(() => toast.error("Product not found"));
   }, [id]);
 
   if (!p) return <div className="p-12 text-center">Loading…</div>;
@@ -171,8 +184,33 @@ export default function ProductDetail() {
               <button onClick={handleBuy} className="btn-primary flex-1 justify-center" data-testid="buy-now-btn"><Zap className="w-4 h-4"/>Buy Now</button>
             </div>
           )}
+
+          {/* Trust strip — shown on every product */}
+          <div className="grid grid-cols-3 gap-3 mt-6" data-testid="product-trust-strip">
+            {[
+              { icon: Truck, title: "Free shipping", sub: "on orders ₹999+" },
+              { icon: ShieldCheck, title: "Secure payment", sub: "256-bit SSL" },
+              { icon: Undo2, title: "Easy returns", sub: "within 7 days" },
+            ].map((t) => (
+              <div key={t.title} className="rounded-xl bg-[#FEF2F2] border border-[#FEE2E2] p-3 flex items-start gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#DC2626]/10 text-[#DC2626] flex items-center justify-center shrink-0"><t.icon className="w-4 h-4"/></div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-[#7F1D1D]">{t.title}</div>
+                  <div className="text-[10px] text-[#64748B]">{t.sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Long description tab */}
+      {p.description && (
+        <div className="mt-12 card-soft p-6" data-testid="product-description-card">
+          <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">Description</div>
+          <div className="prose prose-slate max-w-none text-[#334155] leading-relaxed" dangerouslySetInnerHTML={{ __html: p.description }}/>
+        </div>
+      )}
 
       {p.reviews?.length > 0 && (
         <div className="mt-16">
@@ -186,6 +224,34 @@ export default function ProductDetail() {
                 </div>
                 <p className="text-[#334155] text-sm">{r.comment}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {related.length > 0 && (
+        <div className="mt-16" data-testid="related-products">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-1">You may also like</div>
+              <h2 className="font-display text-2xl md:text-3xl font-bold text-[#7F1D1D]">Related Products</h2>
+            </div>
+            <Link to="/products" className="hidden md:inline-flex items-center text-sm font-semibold text-[#7F1D1D] hover:text-[#DC2626]">See all →</Link>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {related.map((r) => (
+              <Link key={r.id} to={`/products/${r.id}`} className="group card-soft overflow-hidden hover:-translate-y-1 hover:shadow-lg transition-all" data-testid={`related-${r.id}`}>
+                <div className="aspect-square bg-gradient-to-br from-white to-[#FEE2E2]/30 overflow-hidden">
+                  <img src={r.images?.[0]} alt={r.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
+                </div>
+                <div className="p-3">
+                  <div className="font-semibold text-[#7F1D1D] text-sm line-clamp-2 group-hover:text-[#DC2626]">{r.name}</div>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="font-numbers text-base font-bold text-[#7F1D1D]">₹{r.price.toLocaleString()}</span>
+                    {r.mrp > r.price && <span className="text-xs line-through text-[#94A3B8] font-numbers">₹{r.mrp.toLocaleString()}</span>}
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
         </div>

@@ -1387,6 +1387,62 @@ async def verify_payment(payload: PaymentVerify, user=Depends(get_user)):
                 "created_at": now_iso(),
             })
 
+    # ============ AGENT COMMISSION (admin-configurable %) ============
+    # A qualifying paid, non-joining order pays:
+    #   • agent_commission_percent  → to the SELF-selling agent (buyer, if activated).
+    #   • agent_downline_commission_percent → to the buyer's sponsor (upline), if activated.
+    # Kept SEPARATE from the legacy L1–L8 fixed engine so admin can dial each rate.
+    if not order.get("is_joining_order"):
+        site = await db.settings.find_one({"_key": "site"}, {"_id": 0}) or {}
+        own_pct = float(site.get("agent_commission_percent") or 0)
+        up_pct = float(site.get("agent_downline_commission_percent") or 0)
+        base = float(order.get("total") or 0)
+        # Self-sale — buyer must be an activated agent to earn.
+        if own_pct > 0 and user.get("is_joining_paid"):
+            amt = round(base * own_pct / 100.0, 2)
+            if amt > 0:
+                await db.users.update_one(
+                    {"id": user["id"]},
+                    {"$inc": {"wallet_balance": amt, "agent_commission_earned": amt}},
+                )
+                await db.transactions.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "user_id": user["id"],
+                    "user_code": user.get("user_code"),
+                    "type": "credit",
+                    "category": "agent_commission",
+                    "amount": amt,
+                    "wallet": "main",
+                    "description": f"{own_pct}% self-sale commission for order {order['order_code']}",
+                    "reference_id": order["id"],
+                    "created_at": now_iso(),
+                })
+        # Upline (sponsor) — only if sponsor exists AND is themselves an activated agent.
+        if up_pct > 0 and user.get("sponsor_id"):
+            sponsor = await db.users.find_one(
+                {"user_code": user["sponsor_id"], "is_joining_paid": True, "is_active": True},
+                {"_id": 0, "id": 1, "user_code": 1},
+            )
+            if sponsor:
+                amt = round(base * up_pct / 100.0, 2)
+                if amt > 0:
+                    await db.users.update_one(
+                        {"id": sponsor["id"]},
+                        {"$inc": {"wallet_balance": amt, "agent_commission_earned": amt}},
+                    )
+                    await db.transactions.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "user_id": sponsor["id"],
+                        "user_code": sponsor.get("user_code"),
+                        "type": "credit",
+                        "category": "agent_downline_commission",
+                        "amount": amt,
+                        "wallet": "main",
+                        "description": f"{up_pct}% downline commission — {user.get('user_code')} order {order['order_code']}",
+                        "reference_id": order["id"],
+                        "created_at": now_iso(),
+                    })
+
     # notify
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()),
@@ -2214,6 +2270,83 @@ async def get_blog(slug: str):
     if not b:
         raise HTTPException(status_code=404, detail="Blog not found")
     return b
+
+
+# ================== ADMIN BLOG CMS ==================
+def _slugify(text: str) -> str:
+    import re
+    s = re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")
+    return s or f"post-{uuid.uuid4().hex[:6]}"
+
+
+@api.get("/admin/blogs")
+async def admin_list_blogs(_=Depends(require_admin), limit: int = 200):
+    items = await db.blogs.find({}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"items": items, "total": len(items)}
+
+
+@api.get("/admin/blogs/{blog_id}")
+async def admin_get_blog(blog_id: str, _=Depends(require_admin)):
+    b = await db.blogs.find_one({"id": blog_id}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Blog not found")
+    return b
+
+
+@api.post("/admin/blogs")
+async def admin_create_blog(payload: dict, admin=Depends(require_admin)):
+    title = (payload.get("title") or "").strip()
+    content = (payload.get("content") or "").strip()
+    if not title or not content:
+        raise HTTPException(status_code=400, detail="title and content are required")
+    slug = (payload.get("slug") or "").strip() or _slugify(title)
+    # ensure slug uniqueness
+    base = slug; n = 1
+    while await db.blogs.find_one({"slug": slug}):
+        n += 1; slug = f"{base}-{n}"
+    doc = {
+        "id": str(uuid.uuid4()),
+        "title": title,
+        "slug": slug,
+        "excerpt": (payload.get("excerpt") or "").strip(),
+        "content": content,
+        "cover_image": (payload.get("cover_image") or "").strip(),
+        "author": (payload.get("author") or "EverGro Team").strip(),
+        "is_published": bool(payload.get("is_published", True)),
+        "tags": payload.get("tags") or [],
+        "created_at": now_iso(),
+    }
+    await db.blogs.insert_one(dict(doc))
+    doc.pop("_id", None)
+    await log_audit("blog_create", actor=admin, target_label=title)
+    return doc
+
+
+@api.put("/admin/blogs/{blog_id}")
+async def admin_update_blog(blog_id: str, payload: dict, admin=Depends(require_admin)):
+    allowed = {k: v for k, v in (payload or {}).items()
+               if k in ("title", "slug", "excerpt", "content", "cover_image",
+                        "author", "is_published", "tags")}
+    if "title" in allowed and not allowed["title"].strip():
+        raise HTTPException(status_code=400, detail="title cannot be empty")
+    if "slug" in allowed and allowed["slug"]:
+        # ensure slug still unique across other blogs
+        clash = await db.blogs.find_one({"slug": allowed["slug"], "id": {"$ne": blog_id}})
+        if clash:
+            raise HTTPException(status_code=400, detail="slug already used by another post")
+    allowed["updated_at"] = now_iso()
+    await db.blogs.update_one({"id": blog_id}, {"$set": allowed})
+    b = await db.blogs.find_one({"id": blog_id}, {"_id": 0})
+    await log_audit("blog_update", actor=admin, target_label=(b or {}).get("title"))
+    return b
+
+
+@api.delete("/admin/blogs/{blog_id}")
+async def admin_delete_blog(blog_id: str, admin=Depends(require_admin)):
+    b = await db.blogs.find_one({"id": blog_id}, {"_id": 0})
+    await db.blogs.delete_one({"id": blog_id})
+    await log_audit("blog_delete", actor=admin, target_label=(b or {}).get("title") or blog_id)
+    return {"ok": True}
 
 
 # ==================== ADMIN ====================

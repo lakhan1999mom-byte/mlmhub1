@@ -10,7 +10,28 @@ Build a production-ready E-Commerce Platform "EverGro eMart" with Landing Websit
 - Payment gateway — **Master switch in Admin Settings** (`active_payment_gateway` = none / uropay / razorpay / manual). Default = **none** (payments disabled). No gateway is auto-active without admin action.
 - JWT auth + Firebase Phone OTP (prod) + Dev OTP fallback (preview)
 
-## Iteration 28 (Feb 2026) — Sales Agent Program, Lead Capture, Commission Settings
+## Iteration 29 (Feb 2026) — Blog CMS + Commission Payout Engine + Rich Product Pages
+
+### Full blog editor (admin CMS)
+- Backend: new admin CRUD `GET /admin/blogs`, `GET /admin/blogs/{id}`, `POST /admin/blogs`, `PUT /admin/blogs/{id}`, `DELETE /admin/blogs/{id}` with slug auto-generation and uniqueness guard.
+- New admin page `/admin/blogs` (`AdminBlogs.jsx`) — list with cover thumbnails, search, publish/unpublish toggle, view-on-site, edit, delete. Editor modal supports title, auto-slug (with regenerate), author, cover image with live preview, excerpt, HTML content, tags, published toggle, and an in-modal Preview mode that renders the content HTML.
+- Sidebar: new "Blog Posts" item under admin nav.
+- Seed migration: any legacy MLM/8-Level/downline blog rows are hard-deleted on every startup so they never leak to the public site.
+
+### Agent commission wired into the paid-order pipeline
+- Right after cashback, every paid **non-joining** order fires two admin-configurable payouts:
+  - **Self-sale**: `agent_commission_percent` % of `order.total` → buyer's own wallet (only if buyer is an activated agent).
+  - **Downline**: `agent_downline_commission_percent` % of `order.total` → buyer's upline sponsor (only if the sponsor is themselves an activated, active agent).
+- Payouts write proper `transactions` rows (`category = agent_commission | agent_downline_commission`) and bump the user's `wallet_balance` and a new `agent_commission_earned` accumulator.
+- Kept SEPARATE from the legacy L1–L8 fixed engine so admin can dial each rate live from `/admin/settings` → "Sales Agent Commission" without any redeployment.
+
+### Richer product detail page (non-hamper)
+- **Category-based Related Products** rail loaded on mount ("You may also like"). Grid of up to 4 clickable cards with hover lift + zoom.
+- **Trust strip** under the CTA row (Free shipping ₹999+, Secure payment 256-bit SSL, Easy returns within 7 days).
+- **Dedicated Description card** below the fold that safely renders `product.description` as HTML.
+- Preserved: hamper "Buy & Become Sales Agent" / "Buy as Customer" split, size/color pickers, reviews section.
+
+
 
 ### Public frontend
 - **Removed** the "Unlock the full store" locked-cart banner from `/products`. Any shopper can browse and add products to cart without the ₹9,999 gate.

@@ -248,6 +248,15 @@ async def seed_all(db):
                 "created_at": now_iso(),
             })
 
+    # ---- Blogs: hard-delete any legacy MLM/downline/8-level posts ----
+    all_blogs = await db.blogs.find({}, {"_id": 0, "id": 1, "title": 1, "content": 1}).to_list(500)
+    to_wipe = [
+        b["id"] for b in all_blogs
+        if _has_forbidden((b.get("title") or "") + " " + (b.get("content") or ""))
+    ]
+    if to_wipe:
+        await db.blogs.delete_many({"id": {"$in": to_wipe}})
+
     # ============ MLM Settings (Phase 2) ============
     await db.settings.update_one(
         {"_key": "mlm"},

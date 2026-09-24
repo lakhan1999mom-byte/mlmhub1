@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText, Warehouse, Calculator, Award, MessageCircle, FolderTree, TicketPercent, Wallet, Search, Command } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingBag, Send, FileCheck, MessageSquare, Settings, Megaphone, LogOut, Images, Film, ScrollText, Warehouse, Calculator, Award, MessageCircle, FolderTree, TicketPercent, Wallet, Search, Command, FileText } from "lucide-react";
 import AdminSearchPalette from "@/components/AdminSearchPalette";
 
 const items = [
@@ -13,6 +13,7 @@ const items = [
   { to: "/admin/inventory", icon: Warehouse, label: "Inventory", perm: "products" },
   { to: "/admin/orders", icon: ShoppingBag, label: "Orders", perm: "orders" },
   { to: "/admin/leads", icon: Users, label: "Agent Leads", perm: "*" },
+  { to: "/admin/blogs", icon: FileText, label: "Blog Posts", perm: "*" },
   { to: "/admin/coupons", icon: TicketPercent, label: "Promo Codes", perm: "*" },
   { to: "/admin/charges", icon: Wallet, label: "Charges (GST · Delivery)", perm: "*" },
   { to: "/admin/withdrawals", icon: Send, label: "Withdrawals", perm: "withdrawals" },
