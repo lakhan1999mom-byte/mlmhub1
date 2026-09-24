@@ -32,7 +32,7 @@ export const INCOME_LEVELS = [
 export const TOTAL_POTENTIAL = INCOME_LEVELS.reduce((s, r) => s + r.total, 0);
 export const TOTAL_POTENTIAL_WORDS = "Nineteen Crore Twenty Lakh Ninety Nine Thousand Six Hundred";
 
-export const KIT_PRICE = 7499;
+export const KIT_PRICE = 9999;
 export const MAX_DIRECT_REFS = 6;
 export const MIN_PAID_DIRECTS_FOR_INCOME = 3;
 

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Truck, Wallet, Shield, ChevronRight } from "lucide-react";
+import { Sparkles, Truck, Shield, ChevronRight, Package } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
-import { KIT_PRICE } from "@/lib/plan-theme";
 
 export default function PurchaseKitPage() {
   const { user } = useAuth();
@@ -17,10 +16,12 @@ export default function PurchaseKitPage() {
     api.get("/products?is_hamper=true").then(({ data }) => setProduct((data || [])[0])).catch(() => {});
   }, []);
 
+  const price = product?.price || 9999;
+  const mrp = product?.mrp || 11999;
+
   const startPurchase = async () => {
     if (!user) { nav("/join-now"); return; }
-    if (!product) return toast.error("Kit product not available");
-    // Add to cart & jump to checkout
+    if (!product) return toast.error("Hamper not available");
     try {
       await api.post("/cart/add", { product_id: product.id, quantity: 1 });
       nav("/checkout");
@@ -36,8 +37,8 @@ export default function PurchaseKitPage() {
       {/* Hero */}
       <div className="grid lg:grid-cols-2 gap-8 items-center mb-12">
         <div>
-          <div className="inline-block bg-[#DC2626] text-[#7F1D1D] text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full mb-4">
-            The One Kit That Unlocks Everything
+          <div className="inline-block bg-[#DC2626] text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full mb-4">
+            Premium · Hand-Picked · Home Delivered
           </div>
           <h1 className="font-display text-4xl md:text-6xl font-black text-[#7F1D1D] leading-[1.1] mb-4" data-testid="pk-hero-title">
             {content.hero_title}
@@ -46,27 +47,31 @@ export default function PurchaseKitPage() {
             {content.hero_subtitle}
           </p>
           <div className="flex items-baseline gap-3 mb-6">
-            <span className="font-numbers text-5xl md:text-6xl font-black text-[#7F1D1D]">₹{KIT_PRICE.toLocaleString('en-IN')}</span>
-            <span className="text-lg text-[#94A3B8] line-through">₹8,999</span>
-            <span className="bg-[#DC2626] text-[#7F1D1D] text-xs font-bold px-2 py-1 rounded-full">SAVE 20%</span>
+            <span className="font-numbers text-5xl md:text-6xl font-black text-[#7F1D1D]">₹{price.toLocaleString("en-IN")}</span>
+            {mrp > price && <span className="text-lg text-[#94A3B8] line-through">₹{mrp.toLocaleString("en-IN")}</span>}
+            {mrp > price && (
+              <span className="bg-[#DC2626] text-white text-xs font-bold px-2 py-1 rounded-full">
+                SAVE {Math.round(((mrp - price) / mrp) * 100)}%
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap gap-3 mb-4">
             <button onClick={startPurchase} className="btn-primary" data-testid="pk-cta-btn">
-              {content.cta_text || `Order Kit — ₹${KIT_PRICE}`}
+              {content.cta_text || `Order Hamper — ₹${price.toLocaleString("en-IN")}`}
             </button>
-            <button onClick={() => nav("/business-plan")} className="btn-outline" data-testid="pk-view-plan-btn">
-              View Rewards Guide
+            <button onClick={() => nav("/sales-agent")} className="btn-outline" data-testid="pk-agent-btn">
+              Become a Sales Agent
             </button>
           </div>
           <div className="flex gap-4 text-xs text-[#64748B]">
             <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5"/> Fast delivery</span>
             <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5"/> Secure payment</span>
-            <span className="flex items-center gap-1"><Wallet className="w-3.5 h-3.5"/> Instant activation</span>
+            <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5"/> Hand-packed with care</span>
           </div>
         </div>
         <div className="relative animate-float">
-          <div className="absolute -top-6 -right-4 z-10 bg-[#DC2626] text-[#7F1D1D] font-bold px-4 py-2 rounded-full text-sm shadow-lg">
-            🏆 {content.highlight_stat}
+          <div className="absolute -top-6 -right-4 z-10 bg-[#DC2626] text-white font-bold px-4 py-2 rounded-full text-sm shadow-lg">
+            {content.highlight_stat}
           </div>
           <img
             src={content.hero_image}
@@ -80,8 +85,8 @@ export default function PurchaseKitPage() {
                 {[1, 2, 3].map(i => <img key={i} src={`https://i.pravatar.cc/32?img=${i}`} alt="" className="w-8 h-8 rounded-full border-2 border-white"/>)}
               </div>
               <div>
-                <div className="text-xs font-semibold text-[#7F1D1D]">50,000+ members</div>
-                <div className="text-[10px] text-[#64748B]">joined this month</div>
+                <div className="text-xs font-semibold text-[#7F1D1D]">50,000+ customers</div>
+                <div className="text-[10px] text-[#64748B]">shopped this month</div>
               </div>
             </div>
           </div>
@@ -114,7 +119,7 @@ export default function PurchaseKitPage() {
       <section className="mb-12 card-soft p-6 md:p-10 bg-gradient-to-br from-[#FEE2E2] via-white to-[#FEE2E2]" data-testid="pk-how-section">
         <div className="text-center mb-8">
           <div className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C] mb-2">How It Works</div>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-[#7F1D1D]">From Kit to Continuous Income</h2>
+          <h2 className="font-display text-3xl md:text-4xl font-bold text-[#7F1D1D]">From cart to your doorstep</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {(content.how_it_works || []).map((s, i, arr) => (
@@ -131,12 +136,12 @@ export default function PurchaseKitPage() {
       </section>
 
       {/* Bottom CTA */}
-      <section className="card-soft p-8 md:p-12 bg-gradient-to-r from-[#DC2626] to-[#B91C1C] text-[#7F1D1D] text-center" data-testid="pk-bottom-cta">
+      <section className="card-soft p-8 md:p-12 bg-gradient-to-r from-[#DC2626] to-[#B91C1C] text-white text-center" data-testid="pk-bottom-cta">
         <Sparkles className="w-10 h-10 mx-auto mb-3"/>
-        <h2 className="font-display text-3xl md:text-4xl font-black mb-2">One kit. One life-changing decision.</h2>
-        <p className="mb-6 max-w-2xl mx-auto opacity-80">Join tens of thousands who've turned their ₹9,999 into consistent monthly income.</p>
+        <h2 className="font-display text-3xl md:text-4xl font-black mb-2">One hamper. Premium groceries, delivered with care.</h2>
+        <p className="mb-6 max-w-2xl mx-auto opacity-80">Join tens of thousands of happy customers enjoying hand-picked essentials at honest prices.</p>
         <button onClick={startPurchase} className="bg-[#7F1D1D] hover:bg-black text-white font-bold px-8 py-4 rounded-full text-lg" data-testid="pk-bottom-cta-btn">
-          Get Started — ₹{KIT_PRICE.toLocaleString('en-IN')}
+          Order Now — ₹{price.toLocaleString("en-IN")}
         </button>
       </section>
     </div>

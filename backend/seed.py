@@ -1,4 +1,5 @@
 """Seed initial admin, single joining hamper, settings, T&C, delivery config."""
+import json
 import os
 import uuid
 from datetime import datetime, timezone
@@ -256,6 +257,14 @@ async def seed_all(db):
     ]
     if to_wipe:
         await db.blogs.delete_many({"id": {"$in": to_wipe}})
+
+    # ---- Purchase Kit content: wipe legacy ₹7,499 / 8-level / lifetime-potential copy ----
+    pkc = await db.settings.find_one({"_key": "purchase_kit_content"}, {"_id": 0}) or {}
+    pkc_blob = json.dumps(pkc.get("content") or {}, ensure_ascii=False)
+    if any(x in pkc_blob for x in ("7,499", "7499", "8-Level", "8 Level", "Lifetime Potential",
+                                   "income unlock", "continuous income", "Earn From 8",
+                                   "downline", "Downline", "L1", "Refer 6")):
+        await db.settings.delete_one({"_key": "purchase_kit_content"})  # falls back to clean default
 
     # ============ MLM Settings (Phase 2) ============
     await db.settings.update_one(

@@ -2122,10 +2122,10 @@ async def set_purchase_kit_content(payload: dict, admin=Depends(require_admin)):
 
 def _default_purchase_kit_content() -> dict:
     return {
-        "hero_title": "The EverGro Purchasing Kit",
-        "hero_subtitle": "One-time ₹7,499 · Premium groceries + wellness + 8-Level income unlock",
+        "hero_title": "The EverGro Premium Hamper",
+        "hero_subtitle": "One-time ₹9,999 · Premium groceries, wellness essentials and gifting extras — hand-picked and delivered to your door.",
         "hero_image": "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&q=80",
-        "highlight_stat": "₹19.2 Cr Lifetime Potential",
+        "highlight_stat": "50,000+ happy customers",
         "features": [
             {"icon": "🌾", "title": "Premium Basmati Rice 5kg", "desc": "Aged extra-long grain from Punjab farms"},
             {"icon": "🍲", "title": "Mixed Dals & Pulses 3kg", "desc": "Toor · Moong · Chana · Urad · Masoor"},
@@ -2137,12 +2137,12 @@ def _default_purchase_kit_content() -> dict:
             {"icon": "💰", "title": "₹500 Store Credit", "desc": "Instant credit for your next purchase"},
         ],
         "how_it_works": [
-            {"step": 1, "title": "Purchase Kit", "desc": "Order the ₹7,499 kit — pay via UroPay UPI (PhonePe / GPay / Paytm / any UPI app)"},
-            {"step": 2, "title": "Get Referral Code", "desc": "Unique code unlocks after payment confirms"},
-            {"step": 3, "title": "Refer 6 Direct", "desc": "Share your code, hit 3 refs to activate income"},
-            {"step": 4, "title": "Earn From 8 Levels", "desc": "Every downline purchase pays you L1–L8 commissions"},
+            {"step": 1, "title": "Order the Hamper", "desc": "Pay ₹9,999 via Cash on Delivery or the active online gateway"},
+            {"step": 2, "title": "We Pack With Care", "desc": "Every hamper is hand-packed and quality-checked"},
+            {"step": 3, "title": "Delivered To You", "desc": "Pan-India delivery with live order tracking"},
+            {"step": 4, "title": "Optional Agent Program", "desc": "Become a sales agent if you wish — commission depends entirely on your sales"},
         ],
-        "cta_text": "Order Kit Now →",
+        "cta_text": "Order Hamper Now →",
     }
 
 

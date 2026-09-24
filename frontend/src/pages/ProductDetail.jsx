@@ -45,16 +45,9 @@ export default function ProductDetail() {
   };
   const handleBuy = async () => {
     if (!user) { nav("/login"); return; }
-    if (!user.is_joining_paid && !p.is_hamper) {
-      toast.error("Buy the ₹9,999 Joining Kit first.");
-      nav("/hampers");
-      return;
-    }
-    if (user.is_joining_paid && p.is_hamper) {
-      toast.info("You've already activated your account.");
-      return;
-    }
-    const res = await addItem(p.id, qty);
+    if (p.sizes?.length > 0 && !selectedSize) return toast.error("Please pick a size");
+    if (p.colors?.length > 0 && !selectedColor) return toast.error("Please pick a color");
+    const res = await addItem(p.id, qty, { size: selectedSize, color: selectedColor });
     if (res?.ok) nav("/cart");
   };
 
