@@ -137,7 +137,7 @@ export default function JoinNow() {
             Premium hampers.<br/>Many gift bundles.<br/><span className="text-[#DC2626]">Delivered pan-India.</span>
           </h1>
           <p className="text-[#334155] mb-6 leading-relaxed">
-            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹9,999 to activate your partner account.
+            Enter your mobile — we&apos;ll send an OTP. Once verified, pick a username and pay ₹9,999 to activate your sales agent account.
           </p>
           <div className="space-y-3">
             {[

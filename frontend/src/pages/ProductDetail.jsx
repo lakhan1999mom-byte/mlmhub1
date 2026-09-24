@@ -148,13 +148,13 @@ export default function ProductDetail() {
           </div>
 
           {p.is_hamper ? (
-            /* Hamper split: partner path (register + activate) OR guest path (no login) */
+            /* Hamper split: sales-agent path (register + activate) OR guest path (no login) */
             <div className="space-y-3" data-testid="hamper-purchase-options">
               <div className="rounded-2xl border-2 border-[#DC2626] bg-[#FEF2F2] p-4">
-                <div className="font-display font-bold text-[#7F1D1D] mb-1">Become an EverGro eMart Partner</div>
-                <div className="text-xs text-[#64748B] mb-3">Register once, activate with the hamper, and unlock your partner dashboard with referral rewards.</div>
+                <div className="font-display font-bold text-[#7F1D1D] mb-1">Become an EverGro eMart Sales Agent</div>
+                <div className="text-xs text-[#64748B] mb-3">Register once, activate with the hamper, and unlock your sales agent dashboard. Commission depends entirely on your sales — no fixed income.</div>
                 <Link to={user ? "/purchase-kit" : "/register"} className="btn-primary w-full justify-center" data-testid="hamper-buy-as-partner">
-                  <Zap className="w-4 h-4"/> Buy &amp; Become Partner
+                  <Zap className="w-4 h-4"/> Buy &amp; Become Sales Agent
                 </Link>
               </div>
               <div className="rounded-2xl border border-[#FECACA] bg-white p-4">

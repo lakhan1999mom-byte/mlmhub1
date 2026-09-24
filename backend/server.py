@@ -1710,7 +1710,56 @@ async def admin_get_payment_config(_=Depends(require_admin)):
     }
 
 
-@api.get("/site/payment-provider")
+@api.post("/leads/sales-agent")
+async def create_sales_agent_lead(payload: dict):
+    """Public — anyone can drop a Sales Agent enquiry. Admin sees leads at /admin/leads."""
+    name = (payload.get("name") or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    city = (payload.get("city") or "").strip()
+    notes = (payload.get("notes") or "").strip()
+    source = (payload.get("source") or "sales-agent-page").strip()
+    if not name or not phone:
+        raise HTTPException(status_code=400, detail="name and phone are required")
+    lead = {
+        "id": str(uuid.uuid4()),
+        "type": "sales-agent",
+        "status": "new",
+        "name": name, "phone": phone, "city": city, "notes": notes,
+        "source": source,
+        "created_at": now_iso(),
+    }
+    await db.leads.insert_one(dict(lead))
+    lead.pop("_id", None)
+    return {"ok": True, "lead": lead}
+
+
+@api.get("/admin/leads")
+async def admin_list_leads(_=Depends(require_admin), type: Optional[str] = None,
+                          status: Optional[str] = None, limit: int = 200):
+    q: dict = {}
+    if type: q["type"] = type
+    if status: q["status"] = status
+    items = await db.leads.find(q, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"items": items, "total": len(items)}
+
+
+@api.put("/admin/leads/{lead_id}")
+async def admin_update_lead(lead_id: str, payload: dict, admin=Depends(require_admin)):
+    allowed = {k: v for k, v in (payload or {}).items() if k in ("status", "notes", "assigned_to")}
+    if not allowed:
+        raise HTTPException(status_code=400, detail="No allowed fields to update")
+    allowed["updated_at"] = now_iso()
+    await db.leads.update_one({"id": lead_id}, {"$set": allowed})
+    return {"ok": True}
+
+
+@api.delete("/admin/leads/{lead_id}")
+async def admin_delete_lead(lead_id: str, admin=Depends(require_admin)):
+    await db.leads.delete_one({"id": lead_id})
+    return {"ok": True}
+
+
+
 async def site_active_payment_provider():
     """Which gateway (if any) is currently enabled for customer checkout.
     Admin controls this from /admin/settings (`active_payment_gateway` field).
@@ -2116,10 +2165,23 @@ async def mlm_income_structure(_user=Depends(get_user)):
 
 
 
+@api.get("/site/settings")
 async def site_settings():
     s = await db.settings.find_one({"_key": "site"}, {"_id": 0, "_key": 0,
                                                       "cloudinary_api_secret": 0})
-    return s or {}
+    s = s or {}
+    # Merge model defaults so the frontend never sees None for these commonly-read fields.
+    defaults = {
+        "meta_pixel_id": "", "meta_pixel_code": "",
+        "active_payment_gateway": "none",
+        "cod_disabled": False,
+        "agent_commission_percent": 5.0,
+        "agent_downline_commission_percent": 2.0,
+    }
+    for k, v in defaults.items():
+        if s.get(k) is None:
+            s[k] = v
+    return s
 
 
 @api.get("/site/banners")

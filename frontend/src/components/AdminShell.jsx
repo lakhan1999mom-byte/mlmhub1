@@ -12,6 +12,7 @@ const items = [
   { to: "/admin/categories", icon: FolderTree, label: "Categories", perm: "products" },
   { to: "/admin/inventory", icon: Warehouse, label: "Inventory", perm: "products" },
   { to: "/admin/orders", icon: ShoppingBag, label: "Orders", perm: "orders" },
+  { to: "/admin/leads", icon: Users, label: "Agent Leads", perm: "*" },
   { to: "/admin/coupons", icon: TicketPercent, label: "Promo Codes", perm: "*" },
   { to: "/admin/charges", icon: Wallet, label: "Charges (GST · Delivery)", perm: "*" },
   { to: "/admin/withdrawals", icon: Send, label: "Withdrawals", perm: "withdrawals" },

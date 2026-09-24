@@ -21,6 +21,7 @@ export default function Navbar({ siteSettings }) {
     { to: "/", label: "Home" },
     { to: "/products", label: "Shop" },
     { to: "/hampers", label: "Hampers" },
+    { to: "/sales-agent", label: "Sales Agent" },
     { to: "/blog", label: "Blog" },
     { to: "/about", label: "About" },
   ];

@@ -10,7 +10,35 @@ Build a production-ready E-Commerce Platform "EverGro eMart" with Landing Websit
 - Payment gateway — **Master switch in Admin Settings** (`active_payment_gateway` = none / uropay / razorpay / manual). Default = **none** (payments disabled). No gateway is auto-active without admin action.
 - JWT auth + Firebase Phone OTP (prod) + Dev OTP fallback (preview)
 
-## Iteration 27 (Feb 2026) — COD Toggle, Guest SMS, Guest Order Filter
+## Iteration 28 (Feb 2026) — Sales Agent Program, Lead Capture, Commission Settings
+
+### Public frontend
+- **Removed** the "Unlock the full store" locked-cart banner from `/products`. Any shopper can browse and add products to cart without the ₹9,999 gate.
+- **Removed** the "Become a Sales Agent" block from the Hampers page (was inline with disclaimer). Now lives on its own dedicated page.
+- **New page `/sales-agent`** (`/app/frontend/src/pages/SalesAgent.jsx`): hero with legal disclaimer ("Commission is **totally dependent on your sales**. We are **NOT committing any type of fixed income**"), right-column lead form (name / phone / city / notes), and a hamper CTA at the bottom. Zero mention of 8-level income or fixed rewards.
+- **Navbar** now has a top-level `Sales Agent` tab (between Hampers and Blog).
+- **ProductDetail** hamper split: renamed "Buy & Become Partner" → "Buy & Become Sales Agent". Copy now says "Commission depends entirely on your sales — no fixed income" instead of "with referral rewards".
+- **UserShell** and other pages: "Partner" wording swapped to "Sales Agent" globally.
+- **IncomeStructureCard** (8-level ladder) hidden on both user dashboard and admin overview — the fixed-income table is no longer surfaced anywhere in the UI (backend rewards engine untouched).
+
+### Lead capture (public → admin)
+- New public endpoint `POST /api/leads/sales-agent` (no auth). Body: `{name, phone, city?, notes?, source?}`. Stores to `leads` collection with `type: "sales-agent"`, `status: "new"`.
+- New admin endpoints: `GET /api/admin/leads?status=…`, `PUT /api/admin/leads/{id}`, `DELETE /api/admin/leads/{id}`.
+- **New admin page** `/admin/leads` (`AdminLeads.jsx`): filters by status (new/contacted/qualified/converted/rejected), one-click WhatsApp (opens `wa.me/91…`), one-click "mark converted", delete, and inline status dropdown. Added to AdminShell sidebar as "Agent Leads".
+
+### Commission settings (admin-controlled, no fixed income)
+- New fields on `SiteSettings`:
+  - `agent_commission_percent` (default 5.0) — % the sales agent earns on their own qualifying orders.
+  - `agent_downline_commission_percent` (default 2.0) — % on downline sales.
+- New Admin Settings card "Sales Agent Commission" with two number inputs and save button. Values are read by whatever payout logic wants to consume them (the referral rewards engine can be gradually migrated to this % model later).
+- `GET /api/site/settings` now returns defaults for meta_pixel, active_payment_gateway, cod_disabled, agent commissions so the admin UI never sees `undefined/None`.
+
+### Deferred to next iteration
+- **Full blog CMS in admin** (add/edit/delete blogs with rich editor) — not built yet; existing `/admin/blogs` endpoints already exist but need a proper UI.
+- **Product page visual overhaul** (make regular product page more engaging with related products, review section, image gallery) — hamper page already has a nice split; regular products still show a bare Add-to-Cart layout.
+- **Live commission engine hook** — the new `agent_commission_percent` settings are stored but the payout pipeline still uses the legacy `LEVEL_COMMISSIONS[]` list from mlm_engine.py. Migrating the payout logic to the % model requires touching every paid-order handler.
+
+
 
 ### COD toggle in admin settings
 - New checkbox in the Payment Gateway card (AdminSettings): `Accept Cash on Delivery` (test-id `cod-toggle-checkbox`). Unchecking sets `cod_disabled: true` on the site record and stops accepting COD for both guest and partner checkouts.

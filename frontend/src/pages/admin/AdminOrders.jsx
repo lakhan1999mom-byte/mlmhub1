@@ -53,12 +53,12 @@ export default function AdminOrders() {
         ))}
       </div>
 
-      {/* Buyer-type filter (guest checkout vs registered partner) */}
+      {/* Buyer-type filter (guest checkout vs registered sales agent) */}
       <div className="flex gap-2 flex-wrap items-center" data-testid="admin-orders-buyer-filter">
         <span className="text-xs uppercase tracking-widest font-semibold text-[#B91C1C]">Buyer:</span>
         {[
           { key: "all", label: "All buyers" },
-          { key: "partner", label: "Partners only" },
+          { key: "partner", label: "Sales Agents only" },
           { key: "guest", label: "Guests only" },
         ].map((opt) => (
           <button

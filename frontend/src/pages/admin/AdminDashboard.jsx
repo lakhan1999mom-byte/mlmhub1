@@ -63,8 +63,8 @@ export default function AdminDashboard() {
         <DarkStatCard label="Active Members" value={s.active_users || 0} icon={<Zap className="w-5 h-5"/>} accent="from-[#DC2626] to-[#991B1B]"/>
       </div>
 
-      {/* Rewards ladder / income structure (auto-pulls current commissions + kit price) */}
-      <IncomeStructureCard variant="admin"/>
+      {/* Income Structure Card — hidden per legal-friendly guidance */}
+      {/* <IncomeStructureCard variant="admin"/> */}
 
       {/* Chart row */}
       <div className="grid lg:grid-cols-3 gap-5">

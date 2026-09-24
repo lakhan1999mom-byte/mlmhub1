@@ -71,8 +71,8 @@ export default function Register() {
               EverGro <span className="text-[#DC2626]">eMart</span>
             </div>
           </Link>
-          <h2 className="font-display text-3xl font-bold text-[#7F1D1D] mb-2">Become a Partner</h2>
-          <p className="text-[#64748B] mb-6">Step 1 of 2: Fill details · Step 2: Pay ₹9,999 Premium Hamper to activate your partner dashboard.</p>
+          <h2 className="font-display text-3xl font-bold text-[#7F1D1D] mb-2">Become a Sales Agent</h2>
+          <p className="text-[#64748B] mb-6">Step 1 of 2: Fill details · Step 2: Pay ₹9,999 Premium Hamper to activate your sales agent dashboard.</p>
           <form onSubmit={submit} className="space-y-4">
             <div>
               <label className="text-sm font-medium text-[#7F1D1D]">Full Name</label>

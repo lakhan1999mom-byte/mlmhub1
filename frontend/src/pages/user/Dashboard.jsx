@@ -93,8 +93,8 @@ export default function Dashboard() {
         <QuickAction to="/orders" icon={<Package className="w-5 h-5"/>} label="My Orders"/>
       </div>
 
-      {/* Rewards ladder / income structure */}
-      <IncomeStructureCard variant="user"/>
+      {/* Rewards ladder / income structure — hidden per legal-friendly guidance */}
+      {/* <IncomeStructureCard variant="user"/> */}
 
       {/* Wallet breakdown — where each rupee came from */}
       {breakdown && (

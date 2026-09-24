@@ -154,6 +154,23 @@ export default function AdminSettings() {
         <button onClick={saveSite} disabled={busy} className="btn-primary" data-testid="save-payment-gateway">Save Payment Settings</button>
       </div>
 
+      {/* SALES-AGENT COMMISSION */}
+      <div className="card-soft p-6 space-y-3" data-testid="admin-agent-commission-card">
+        <h3 className="font-display font-bold text-lg">Sales Agent Commission</h3>
+        <p className="text-xs text-[#64748B]">Percentage of every qualifying paid order that a sales agent (and their downline) earns. Commission depends entirely on sales — no fixed income is committed.</p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-semibold text-[#7F1D1D]">Agent own-sale commission (%)</label>
+            <input type="number" step="0.1" min="0" max="100" className="input-soft mt-1" value={site.agent_commission_percent ?? 5} onChange={(e) => setSite({...site, agent_commission_percent: Number(e.target.value)})} data-testid="agent-commission-input"/>
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-[#7F1D1D]">Downline commission (%)</label>
+            <input type="number" step="0.1" min="0" max="100" className="input-soft mt-1" value={site.agent_downline_commission_percent ?? 2} onChange={(e) => setSite({...site, agent_downline_commission_percent: Number(e.target.value)})} data-testid="agent-downline-commission-input"/>
+          </div>
+        </div>
+        <button onClick={saveSite} disabled={busy} className="btn-primary" data-testid="save-agent-commission">Save Commission</button>
+      </div>
+
       <div className="card-soft p-6 space-y-3">
         <h3 className="font-display font-bold text-lg">Rewards Settings</h3>
         <div className="grid sm:grid-cols-2 gap-3">

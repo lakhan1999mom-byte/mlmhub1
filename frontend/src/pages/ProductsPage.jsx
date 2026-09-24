@@ -44,25 +44,12 @@ export default function ProductsPage() {
     }).catch(() => {});
   }, []);
 
-  const showJoinGate = user && !user.is_joining_paid;
-
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8" data-testid="products-page">
       <div className="mb-6">
         <h1 className="font-display text-3xl md:text-4xl font-bold text-[#7F1D1D]">All Products</h1>
         <p className="text-sm text-[#64748B] mt-1">Browse premium groceries, snacks, wellness & more — hand-picked by EverGro.</p>
       </div>
-
-      {showJoinGate && (
-        <div className="mb-6 p-4 bg-[#FEF2F2] border border-[#FCA5A5] rounded-xl flex items-start gap-3" data-testid="products-join-gate">
-          <Lock className="w-5 h-5 text-[#7F1D1D] flex-shrink-0 mt-0.5"/>
-          <div className="text-sm text-[#7F1D1D] flex-1">
-            <div className="font-semibold mb-0.5">Unlock the full store</div>
-            You can browse products, but adding to cart is locked until you complete your ₹9,999 Purchasing Kit.
-          </div>
-          <Link to="/hampers" className="btn-primary text-xs whitespace-nowrap" data-testid="products-view-kit-btn">View Purchasing Kit</Link>
-        </div>
-      )}
 
       {/* Search bar */}
       <div className="relative mb-6">

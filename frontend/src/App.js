@@ -26,6 +26,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import GuestCheckout from "@/pages/GuestCheckout";
+import SalesAgent from "@/pages/SalesAgent";
 
 import UserShell from "@/components/UserShell";
 import Dashboard from "@/pages/user/Dashboard";
@@ -49,6 +50,7 @@ import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminUserDetail from "@/pages/admin/AdminUserDetail";
 import AdminProducts from "@/pages/admin/AdminProducts";
 import AdminOrders from "@/pages/admin/AdminOrders";
+import AdminLeads from "@/pages/admin/AdminLeads";
 import AdminWithdrawals from "@/pages/admin/AdminWithdrawals";
 import AdminKyc from "@/pages/admin/AdminKyc";
 import AdminTickets from "@/pages/admin/AdminTickets";
@@ -143,6 +145,7 @@ export default function App() {
               <Route path="/about" element={<About />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/hampers" element={<HampersPage />} />
+              <Route path="/sales-agent" element={<SalesAgent />} />
               <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:slug" element={<BlogDetail />} />
@@ -184,6 +187,7 @@ export default function App() {
               <Route path="/admin/users/:userId" element={<AdminUserDetail />} />
               <Route path="/admin/products" element={<AdminProducts />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/leads" element={<AdminLeads />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="/admin/kyc" element={<AdminKyc />} />
               <Route path="/admin/tickets" element={<AdminTickets />} />

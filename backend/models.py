@@ -315,6 +315,11 @@ class SiteSettings(Base):
     active_payment_gateway: str = "none"
     # Admin can disable Cash-on-Delivery via this flag. Default: COD is ON.
     cod_disabled: bool = False
+    # Sales-agent commission rate (percent). Admin-controlled from settings.
+    # This is what the sales agent earns on every qualifying paid order they
+    # (or their downline) originate. No fixed income guarantee — just a %.
+    agent_commission_percent: float = 5.0
+    agent_downline_commission_percent: float = 2.0
 
 
 class Banner(Base):
