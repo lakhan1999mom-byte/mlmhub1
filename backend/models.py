@@ -163,7 +163,7 @@ class OrderCreate(Base):
     items: List[CartItem]
     address: dict
     coupon_code: Optional[str] = None
-    payment_method: str = "razorpay"
+    payment_method: str = "gateway"
 
 
 class Order(Base):

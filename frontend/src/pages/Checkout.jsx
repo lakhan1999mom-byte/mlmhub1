@@ -2,18 +2,20 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { CheckCircle2, ShieldCheck, Lock, Sparkles, MapPin, Tag } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Lock, Sparkles, MapPin, Tag, Truck, Info } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 
 export default function Checkout() {
-  const { cart, delivery, fetchCart } = useCart();
+  const { cart, delivery, fetchCart, clearCart } = useCart();
   const { user, refresh } = useAuth();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [gateway, setGateway] = useState(null);
+  const [payMethod, setPayMethod] = useState("gateway");
   const [addr, setAddr] = useState({
     full_name: user?.name || "",
     phone: user?.phone || "",
@@ -24,10 +26,11 @@ export default function Checkout() {
   });
 
   useEffect(() => {
-    // no-op — provider is fixed to UroPay
+    api.get("/site/payment-provider").then(({ data }) => setGateway(data)).catch(() => setGateway({}));
   }, []);
 
   const items = cart?.items || [];
+  const hasHamper = items.some((it) => it.product?.is_hamper);
   const subtotal = cart?.subtotal || 0;
   const shipping = subtotal >= delivery.free_shipping_threshold ? 0 : (delivery.delivery_charge || 0);
   const gst = (delivery.gst_percent || 0) > 0 ? subtotal * (delivery.gst_percent / 100) : 0;
@@ -73,16 +76,28 @@ export default function Checkout() {
       toast.error("Please complete address");
       return;
     }
+    // Hamper (sales-agent activation) always requires online prepayment
+    const method = hasHamper ? "gateway" : payMethod;
+    if (method === "gateway" && !gateway?.online_active) {
+      toast.error("Online payment gateway is not configured yet. Please try again later.");
+      return;
+    }
     setBusy(true);
     try {
-      const itemsPayload = items.map((it) => ({ product_id: it.product.id, quantity: it.quantity }));
+      const itemsPayload = items.map((it) => ({ product_id: it.product.id, quantity: it.quantity, size: it.size || null, color: it.color || null }));
       const { data: createRes } = await api.post("/orders/create", {
         items: itemsPayload,
         address: addr,
         coupon_code: appliedCoupon?.code || null,
-        payment_method: "gateway",
+        payment_method: method,
       });
-      await startPayment(createRes.order.id);
+      if (method === "cod") {
+        await clearCart();
+        toast.success("Order placed! Pay when it arrives.");
+        nav(`/orders/${createRes.order.id}`);
+      } else {
+        await startPayment(createRes.order.id);
+      }
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Checkout failed");
     } finally {
@@ -152,16 +167,45 @@ export default function Checkout() {
                   <ShieldCheck className="w-5 h-5 text-[#B91C1C]"/>
                   <h3 className="font-display font-bold text-lg text-[#7F1D1D]">Payment Method</h3>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest bg-[#FEE2E2] text-[#991B1B] px-2 py-1 rounded-full" data-testid="uropay-live-badge">Live</span>
+                {gateway?.online_active && (
+                  <span className="text-[10px] font-bold uppercase tracking-widest bg-[#FEE2E2] text-[#991B1B] px-2 py-1 rounded-full" data-testid="uropay-live-badge">Live</span>
+                )}
               </div>
-              <div className="rounded-xl p-4 border-2 border-[#DC2626] bg-[#FEE2E2]">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-[#991B1B]">UPI</div>
-                  <div className="flex-1">
-                    <div className="font-bold text-sm text-[#991B1B]">UroPay UPI</div>
-                    <div className="text-xs text-[#991B1B]">Scan QR · PhonePe / GPay / Paytm / any UPI app · Direct-to-bank</div>
-                  </div>
+
+              {hasHamper && (
+                <div className="mb-3 p-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-xs text-[#7F1D1D] flex items-start gap-2" data-testid="hamper-prepay-note">
+                  <Info className="w-4 h-4 shrink-0 mt-0.5 text-[#B91C1C]"/>
+                  <span>Your cart contains the <b>Sales Agent hamper</b>. Activation requires <b>online prepayment</b> — Cash on Delivery is not available for it.</span>
                 </div>
+              )}
+
+              <div className="space-y-2">
+                {!hasHamper && gateway?.cod_active && (
+                  <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${payMethod === "cod" ? "border-[#DC2626] bg-[#FEF2F2]" : "border-[#FECACA] hover:border-[#DC2626]"}`} data-testid="pay-cod-option">
+                    <input type="radio" name="pm" value="cod" checked={payMethod === "cod"} onChange={() => setPayMethod("cod")} className="mt-1"/>
+                    <div className="flex-1">
+                      <div className="font-bold text-sm text-[#7F1D1D] flex items-center gap-2"><Truck className="w-4 h-4"/> Cash on Delivery</div>
+                      <div className="text-xs text-[#64748B]">Pay in cash when the order reaches you. No advance charges.</div>
+                    </div>
+                  </label>
+                )}
+                {gateway?.online_active && (
+                  <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${(hasHamper || payMethod === "gateway") ? "border-[#DC2626] bg-[#FEE2E2]" : "border-[#FECACA] hover:border-[#DC2626]"}`} data-testid="pay-online-option">
+                    <input type="radio" name="pm" value="gateway" checked={hasHamper || payMethod === "gateway"} onChange={() => setPayMethod("gateway")} disabled={hasHamper} className="mt-1"/>
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-[#991B1B] border border-[#FECACA]">UPI</div>
+                      <div className="flex-1">
+                        <div className="font-bold text-sm text-[#991B1B]">Pay Online — {gateway.provider === "uropay" ? "UroPay UPI" : gateway.provider === "razorpay" ? "Razorpay" : "Bank transfer"}</div>
+                        <div className="text-xs text-[#991B1B]">Scan QR · PhonePe / GPay / Paytm · Direct-to-bank</div>
+                      </div>
+                    </div>
+                  </label>
+                )}
+                {!gateway?.online_active && !gateway?.cod_active && (
+                  <div className="p-4 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-xs text-[#7F1D1D] flex items-start gap-2">
+                    <Info className="w-4 h-4 mt-0.5 text-[#B91C1C]"/> No payment method is currently active. Please check back shortly.
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
@@ -188,7 +232,11 @@ export default function Checkout() {
               <div className="border-t pt-3 flex justify-between font-black text-xl text-[#7F1D1D]"><span>Total</span><span>₹{total.toFixed(0)}</span></div>
             </div>
             <button onClick={placeOrder} disabled={busy} className="btn-primary w-full justify-center text-base" data-testid="place-order-btn">
-              {busy ? "Processing…" : (
+              {busy ? "Processing…" : (!hasHamper && payMethod === "cod") ? (
+                <>
+                  <Truck className="w-4 h-4 mr-2"/> Place COD Order · Pay ₹{total.toFixed(0)} on Delivery
+                </>
+              ) : (
                 <>
                   <Lock className="w-4 h-4 mr-2"/> Pay ₹{total.toFixed(0)} Securely
                 </>

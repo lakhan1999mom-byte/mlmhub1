@@ -1250,12 +1250,7 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
             raise HTTPException(status_code=400, detail=f"{p.get('name','Product')} is not available")
         if it.quantity > p.get("stock", 0):
             raise HTTPException(status_code=400, detail=f"{p['name']} — only {p.get('stock',0)} in stock")
-        # Join-gating for order creation as well
-        if not user.get("is_joining_paid", False) and not p.get("is_hamper", False):
-            raise HTTPException(
-                status_code=403,
-                detail="Complete your ₹9,999 Premium Hamper purchase before ordering other products.",
-            )
+        # Hamper can only be bought once per agent account
         if user.get("is_joining_paid", False) and p.get("is_hamper", False):
             raise HTTPException(status_code=400, detail="You have already purchased the joining kit.")
         line = p["price"] * it.quantity
@@ -1274,6 +1269,22 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         })
         if p.get("is_hamper") and not user.get("is_joining_paid"):
             is_joining = True
+
+    # Payment-method rules:
+    #  - Sales agent activation (hamper) ALWAYS requires online prepayment — no COD.
+    #  - Regular customer orders can pay via COD when admin hasn't disabled it.
+    method = (payload.payment_method or "gateway").strip().lower()
+    cod_allowed = not bool(site.get("cod_disabled", False))
+    if method == "cod":
+        if is_joining:
+            raise HTTPException(
+                status_code=400,
+                detail="Sales agent activation requires online prepayment. COD is not available for the hamper.",
+            )
+        if not cod_allowed:
+            raise HTTPException(status_code=400, detail="Cash on delivery is currently disabled")
+    else:
+        method = "gateway"
 
     discount = 0
     if payload.coupon_code:
@@ -1316,10 +1327,10 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         "total": round(total, 2),
         "address": payload.address,
         "coupon_code": payload.coupon_code,
-        "payment_method": payload.payment_method,
-        "payment_status": "pending",
+        "payment_method": method,
+        "payment_status": "cod" if method == "cod" else "pending",
         "payment_provider": None,
-        "status": "placed",
+        "status": "confirmed" if method == "cod" else "placed",
         "is_joining_order": is_joining,
         "tracking_no": None,
         "courier_name": None,
@@ -1334,6 +1345,19 @@ async def create_order(payload: OrderCreate, user=Depends(get_user)):
         "created_at": now_iso(),
     }
     await db.orders.insert_one(order)
+    if method == "cod":
+        # COD orders are confirmed immediately — decrement stock + log tracking event now.
+        for it in order_items:
+            await db.products.update_one({"id": it["product_id"]}, {"$inc": {"stock": -it["quantity"]}})
+        await db.orders.update_one(
+            {"id": order["id"]},
+            {"$push": {"tracking_history": {
+                "at": now_iso(), "status": "confirmed",
+                "label": "Order Confirmed",
+                "note": "Cash on Delivery selected. Pay when the order arrives.",
+                "by": "System",
+            }}},
+        )
     return {"order": {k: v for k, v in order.items() if k != "_id"}}
 
 
